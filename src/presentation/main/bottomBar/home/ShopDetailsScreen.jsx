@@ -182,17 +182,19 @@ const ShopDetailsScreen = ({ route, navigation }) => {
         return;
       }
 
-      // Get shop owner ID from shop staff
-      const { data: ownerData } = await supabase
+      // Get shop owner/manager ID from shop staff (try admin/owner first, then manager)
+      let { data: ownerData } = await supabase
         .from('shop_staff')
-        .select('user_id')
+        .select('user_id, role')
         .eq('shop_id', shopId)
-        .eq('role', 'admin')
+        .in('role', ['admin', 'owner', 'manager'])
         .eq('is_active', true)
+        .order('role', { ascending: true }) // admin/owner first
+        .limit(1)
         .single();
 
       if (!ownerData) {
-        Alert.alert('Error', 'Could not find shop owner');
+        Alert.alert('Error', 'Could not find shop owner or manager');
         return;
       }
 
