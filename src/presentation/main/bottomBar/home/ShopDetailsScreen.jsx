@@ -28,6 +28,8 @@ import {
   isShopOpen
 } from '../../../../lib/shopAuth';
 import { getCurrentUser } from '../../../../lib/auth';
+import { getOrCreateConversation } from '../../../../lib/messaging';
+import { supabase } from '../../../../lib/supabase';
 
 const ShopDetailsScreen = ({ route, navigation }) => {
   const { shopId } = route.params;
@@ -167,6 +169,45 @@ const ShopDetailsScreen = ({ route, navigation }) => {
 
   const handleManageShop = () => {
     navigation.navigate('ShopManagementScreen', { shopId });
+  };
+
+  // Handle message shop button
+  const handleMessageShop = async () => {
+    try {
+      if (!user?.id) {
+        Alert.alert('Please log in', 'You need to be logged in to message this shop');
+        return;
+      }
+
+      // Get shop owner ID from shop staff
+      const { data: ownerData } = await supabase
+        .from('shop_staff')
+        .select('user_id')
+        .eq('shop_id', shopId)
+        .eq('role', 'admin')
+        .eq('is_active', true)
+        .single();
+
+      if (!ownerData) {
+        Alert.alert('Error', 'Could not find shop owner');
+        return;
+      }
+
+      // Create or get existing conversation
+      const conversation = await getOrCreateConversation(user.id, ownerData.user_id, shopId);
+
+      if (conversation) {
+        // Navigate to chat conversation screen
+        navigation.navigate('ChatConversationScreen', {
+          conversationId: conversation.id,
+          recipientName: shop.name,
+          recipientId: ownerData.user_id,
+        });
+      }
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      Alert.alert('Error', 'Could not start conversation');
+    }
   };
 
   // Handle manual shop status toggle
@@ -827,23 +868,35 @@ const ShopDetailsScreen = ({ route, navigation }) => {
               </View>
             )}
 
-            {/* Shop Status for Customers */}
+            {/* Shop Status and Message Button for Customers */}
             {(!userRole || !['admin', 'manager'].includes(userRole)) && !isSuperAdmin && shop && (
-              <View style={[
-                styles.customerStatusBadge,
-                !shop.is_manually_closed ? styles.statusOpen : styles.statusClosed
-              ]}>
-                <Ionicons
-                  name={!shop.is_manually_closed ? "checkmark-circle" : "close-circle"}
-                  size={20}
-                  color={!shop.is_manually_closed ? "#4CAF50" : "#FF4444"}
-                />
-                <Text style={[
-                  styles.customerStatusText,
-                  !shop.is_manually_closed ? { color: '#4CAF50' } : { color: '#FF4444' }
+              <View style={styles.customerActionsContainer}>
+                <View style={[
+                  styles.customerStatusBadge,
+                  !shop.is_manually_closed ? styles.statusOpen : styles.statusClosed
                 ]}>
-                  {!shop.is_manually_closed ? 'OPEN NOW' : 'CURRENTLY CLOSED'}
-                </Text>
+                  <Ionicons
+                    name={!shop.is_manually_closed ? "checkmark-circle" : "close-circle"}
+                    size={20}
+                    color={!shop.is_manually_closed ? "#4CAF50" : "#FF4444"}
+                  />
+                  <Text style={[
+                    styles.customerStatusText,
+                    !shop.is_manually_closed ? { color: '#4CAF50' } : { color: '#FF4444' }
+                  ]}>
+                    {!shop.is_manually_closed ? 'OPEN NOW' : 'CURRENTLY CLOSED'}
+                  </Text>
+                </View>
+
+                {/* Message Shop Button */}
+                <TouchableOpacity
+                  style={styles.messageShopButton}
+                  onPress={handleMessageShop}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="chatbubble" size={18} color="#FFFFFF" />
+                  <Text style={styles.messageShopButtonText}>Message Shop</Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -1703,6 +1756,13 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     flex: 1,
   },
+  customerActionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    gap: 12,
+  },
   customerStatusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1710,7 +1770,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
-    marginTop: 16,
+    flex: 1,
   },
   statusOpen: {
     backgroundColor: '#E8F5E9',
@@ -1722,6 +1782,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  messageShopButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF6B35',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+  },
+  messageShopButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   stickyTabBar: {
     backgroundColor: '#FFFFFF',
