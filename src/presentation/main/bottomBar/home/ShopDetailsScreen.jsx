@@ -174,7 +174,10 @@ const ShopDetailsScreen = ({ route, navigation }) => {
   // Handle message shop button
   const handleMessageShop = async () => {
     try {
-      if (!user?.id) {
+      // Get current user
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+      if (!currentUser?.id) {
         Alert.alert('Please log in', 'You need to be logged in to message this shop');
         return;
       }
@@ -194,7 +197,7 @@ const ShopDetailsScreen = ({ route, navigation }) => {
       }
 
       // Create or get existing conversation
-      const conversation = await getOrCreateConversation(user.id, ownerData.user_id, shopId);
+      const conversation = await getOrCreateConversation(currentUser.id, ownerData.user_id, shopId);
 
       if (conversation) {
         // Navigate to chat conversation screen
