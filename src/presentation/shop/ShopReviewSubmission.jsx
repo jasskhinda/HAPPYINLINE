@@ -19,7 +19,7 @@ const ShopReviewSubmission = ({ route, navigation }) => {
   const [shop, setShop] = useState(null);
   const [shopStats, setShopStats] = useState({
     servicesCount: 0,
-    barbersCount: 0,
+    staffCount: 0,
     managersCount: 0,
   });
 
@@ -51,12 +51,12 @@ const ShopReviewSubmission = ({ route, navigation }) => {
           .eq('shop_id', shopId)
       ]);
 
-      const barbersCount = staffRes.data?.filter(s => s.role === 'barber').length || 0;
+      const staffCount = staffRes.data?.filter(s => s.role === 'barber').length || 0;
       const managersCount = staffRes.data?.filter(s => s.role === 'manager' || s.role === 'admin').length || 0;
 
       setShopStats({
         servicesCount: servicesRes.data?.length || 0,
-        barbersCount,
+        staffCount,
         managersCount,
       });
 
@@ -116,7 +116,7 @@ const ShopReviewSubmission = ({ route, navigation }) => {
     );
   }
 
-  const isComplete = shopStats.servicesCount > 0 && shopStats.barbersCount > 0;
+  const isComplete = shopStats.servicesCount > 0 && shopStats.staffCount > 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -183,8 +183,8 @@ const ShopReviewSubmission = ({ route, navigation }) => {
             <View style={[styles.statIcon, { backgroundColor: '#F3E5F5' }]}>
               <Ionicons name="people" size={24} color="#9C27B0" />
             </View>
-            <Text style={styles.statNumber}>{shopStats.barbersCount}</Text>
-            <Text style={styles.statLabel}>Barbers</Text>
+            <Text style={styles.statNumber}>{shopStats.staffCount}</Text>
+            <Text style={styles.statLabel}>Staff Members</Text>
           </View>
 
           <View style={styles.statItem}>
@@ -242,7 +242,7 @@ const ShopReviewSubmission = ({ route, navigation }) => {
           <View style={styles.warningCard}>
             <Ionicons name="alert-circle" size={20} color="#FF9800" />
             <Text style={styles.warningText}>
-              Make sure you have at least 1 service and 1 barber before submitting
+              Make sure you have at least 1 service and 1 staff member before submitting
             </Text>
           </View>
         )}
