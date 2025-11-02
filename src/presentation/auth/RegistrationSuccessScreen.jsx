@@ -69,7 +69,7 @@ const RegistrationSuccessScreen = ({ route, navigation }) => {
               <Text style={styles.stepNumberText}>2</Text>
             </View>
             <Text style={styles.stepText}>
-              Complete your shop setup with services and barbers
+              Complete your shop setup with services and staff
             </Text>
           </View>
 

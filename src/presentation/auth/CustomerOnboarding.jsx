@@ -24,7 +24,7 @@ const CustomerOnboarding = ({ navigation }) => {
       icon: 'search',
       iconColor: '#FF6B6B',
       iconBg: '#FFE5E5',
-      title: 'Find the Best Barbers',
+      title: 'Find the Best Professionals',
       subtitle: 'Discover top-rated shops and professionals near you',
       features: [
         { icon: 'location', text: 'Browse shops nearby' },

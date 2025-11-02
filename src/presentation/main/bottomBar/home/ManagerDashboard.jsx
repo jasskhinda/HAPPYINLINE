@@ -449,7 +449,7 @@ const ManagerDashboard = () => {
               <View style={[styles.quickActionIcon, { backgroundColor: '#F3E5F5' }]}>
                 <Ionicons name="people" size={28} color="#9C27B0" />
               </View>
-              <Text style={styles.quickActionText}>Barbers</Text>
+              <Text style={styles.quickActionText}>Staff</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -514,7 +514,7 @@ const ManagerDashboard = () => {
               <Ionicons name="people" size={24} color="#FF6B6B" />
               <View style={styles.menuItemText}>
                 <Text style={styles.menuItemTitle}>Staff Management</Text>
-                <Text style={styles.menuItemSubtitle}>Manage barbers and managers</Text>
+                <Text style={styles.menuItemSubtitle}>Manage staff and managers</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={24} color="#CCC" />

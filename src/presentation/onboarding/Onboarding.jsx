@@ -23,7 +23,7 @@ const slides = [
   {
     id: 1,
     title: 'Welcome to Happy Inline',
-    text: 'Discover top-rated barbers and salons in your area, all in one convenient place. Find the perfect style with just a few taps.',
+    text: 'Discover top-rated service providers in your area, all in one convenient place. Find the perfect service with just a few taps.',
     image: 'https://png.pngtree.com/png-clipart/20241114/original/pngtree-barbers-hairdresser-cutting-png-image_17032465.png',
   },
   {

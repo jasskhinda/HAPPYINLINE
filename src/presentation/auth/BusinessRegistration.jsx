@@ -196,7 +196,7 @@ const BusinessRegistration = ({ navigation }) => {
                   <Ionicons name="mail" size={20} color="#666" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="owner@barbershop.com"
+                    placeholder="owner@yourbusiness.com"
                     placeholderTextColor="#999"
                     value={email}
                     onChangeText={setEmail}
@@ -228,7 +228,7 @@ const BusinessRegistration = ({ navigation }) => {
                   <Ionicons name="storefront" size={20} color="#666" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Avon Barber Shop"
+                    placeholder="Your Business Name"
                     placeholderTextColor="#999"
                     value={businessName}
                     onChangeText={setBusinessName}

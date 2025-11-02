@@ -95,7 +95,7 @@ const SplashScreen = () => {
           resizeMode="contain"
         />
         <Text style={styles.appName}>Happy Inline</Text>
-        <Text style={styles.tagline}>Your Barber, Your Style</Text>
+        <Text style={styles.tagline}>Your Service, Your Style</Text>
       </View>
 
       {/* Loading Indicator */}
