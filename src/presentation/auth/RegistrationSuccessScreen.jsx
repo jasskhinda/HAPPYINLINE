@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,15 +13,18 @@ const RegistrationSuccessScreen = ({ route, navigation }) => {
   const { email, businessName } = route.params || {};
 
   const handleLogin = () => {
-    navigation.replace('EmailAuthScreen', {
-      isSignIn: true,
+    navigation.replace('BusinessLoginScreen', {
       prefillEmail: email,
     });
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Success Icon */}
         <View style={styles.iconContainer}>
           <View style={styles.iconCircle}>
@@ -83,8 +87,6 @@ const RegistrationSuccessScreen = ({ route, navigation }) => {
           </View>
         </View>
 
-        <View style={styles.spacer} />
-
         {/* Login Button */}
         <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
           <Text style={styles.loginButtonText}>Sign In to Continue</Text>
@@ -94,7 +96,7 @@ const RegistrationSuccessScreen = ({ route, navigation }) => {
         <Text style={styles.helperText}>
           Use <Text style={styles.boldText}>{email}</Text> to sign in
         </Text>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -104,10 +106,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#EEEEEE',
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 40,
+    paddingBottom: 40,
   },
   iconContainer: {
     alignItems: 'center',
@@ -195,10 +200,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     paddingTop: 3,
   },
-  spacer: {
-    flex: 1,
-  },
   loginButton: {
+    marginTop: 32,
     backgroundColor: '#FF6B6B',
     borderRadius: 20,
     paddingVertical: 16,

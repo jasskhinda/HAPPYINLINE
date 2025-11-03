@@ -428,26 +428,13 @@ export const getShopServices = async (shopId) => {
   try {
     console.log('🔍 Fetching services for shop:', shopId);
 
+    // Fetch shop_services with all fields (supports both custom services and catalog services)
     const { data: shopServices, error } = await supabase
       .from('shop_services')
-      .select(`
-        id,
-        custom_price,
-        is_active,
-        service_id,
-        services (
-          id,
-          name,
-          description,
-          default_duration,
-          category,
-          icon_url
-        )
-      `)
+      .select('*')
       .eq('shop_id', shopId)
       .eq('is_active', true)
-      .order('services(category)', { ascending: true })
-      .order('services(name)', { ascending: true });
+      .order('name', { ascending: true });
 
     if (error) {
       console.error('❌ Error fetching services:', error);
@@ -455,20 +442,25 @@ export const getShopServices = async (shopId) => {
     }
 
     // Transform to flat structure
+    // Supports both:
+    // 1. Custom services (name, price, description stored directly)
+    // 2. Catalog services (service_id with custom_price override)
     const services = (shopServices || []).map(ss => ({
       id: ss.id, // shop_service id
-      service_id: ss.service_id,
-      name: ss.services.name,
-      description: ss.services.description,
-      duration: ss.services.default_duration,
-      category: ss.services.category,
-      icon_url: ss.services.icon_url, // ← Direct mapping from icon_url column
-      price: ss.custom_price,
+      service_id: ss.service_id || null,
+      name: ss.name || 'Unnamed Service',
+      description: ss.description || '',
+      duration: ss.duration || 30,
+      category: ss.category || 'General',
+      icon_url: ss.icon_url || null,
+      price: ss.price || ss.custom_price || 0,
       is_active: ss.is_active
     }));
 
     console.log(`✅ Found ${services.length} services for shop`);
-    console.log('📊 Sample service:', services[0]); // Debug: log first service
+    if (services.length > 0) {
+      console.log('📊 Sample service:', services[0]); // Debug: log first service
+    }
     return { success: true, services };
   } catch (error) {
     console.error('❌ Unexpected error:', error);

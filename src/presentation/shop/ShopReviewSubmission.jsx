@@ -116,7 +116,7 @@ const ShopReviewSubmission = ({ route, navigation }) => {
     );
   }
 
-  const isComplete = shopStats.servicesCount > 0 && shopStats.staffCount > 0;
+  const isComplete = shopStats.servicesCount > 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -141,9 +141,9 @@ const ShopReviewSubmission = ({ route, navigation }) => {
         </View>
 
         {/* Title */}
-        <Text style={styles.mainTitle}>Your Shop is Ready!</Text>
+        <Text style={styles.mainTitle}>Your Business is Ready!</Text>
         <Text style={styles.subtitle}>
-          Review your shop details before submitting for approval
+          Review your business details before submitting for approval
         </Text>
 
         {/* Shop Info Card */}
@@ -207,7 +207,7 @@ const ShopReviewSubmission = ({ route, navigation }) => {
             <View style={styles.stepContent}>
               <Text style={styles.stepTitle}>Submission Review</Text>
               <Text style={styles.stepDescription}>
-                Our team will review your shop details within 24-48 hours
+                Our team will review your business details within 24-48 hours
               </Text>
             </View>
           </View>
@@ -219,7 +219,7 @@ const ShopReviewSubmission = ({ route, navigation }) => {
             <View style={styles.stepContent}>
               <Text style={styles.stepTitle}>Approval Notification</Text>
               <Text style={styles.stepDescription}>
-                You'll receive a notification once your shop is approved
+                You'll receive a notification once your business is approved
               </Text>
             </View>
           </View>
@@ -231,7 +231,7 @@ const ShopReviewSubmission = ({ route, navigation }) => {
             <View style={styles.stepContent}>
               <Text style={styles.stepTitle}>Go Live!</Text>
               <Text style={styles.stepDescription}>
-                Your shop will be visible to customers and ready for bookings
+                Your business will be visible to customers and ready for bookings
               </Text>
             </View>
           </View>
@@ -242,7 +242,7 @@ const ShopReviewSubmission = ({ route, navigation }) => {
           <View style={styles.warningCard}>
             <Ionicons name="alert-circle" size={20} color="#FF9800" />
             <Text style={styles.warningText}>
-              Make sure you have at least 1 service and 1 staff member before submitting
+              Make sure you have at least 1 service before submitting
             </Text>
           </View>
         )}
@@ -252,10 +252,10 @@ const ShopReviewSubmission = ({ route, navigation }) => {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.editButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.replace('CreateShopScreen', { shopId: shop.id })}
         >
           <Ionicons name="create-outline" size={20} color="#FF6B6B" />
-          <Text style={styles.editButtonText}>Edit Shop</Text>
+          <Text style={styles.editButtonText}>Edit Business</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

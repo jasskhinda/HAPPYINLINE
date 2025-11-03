@@ -97,7 +97,7 @@ const EmailAuthScreen = ({ route }) => {
           {/* BACK BUTTON */}
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('GetStarted')}
           >
             <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>

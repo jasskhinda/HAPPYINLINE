@@ -18,11 +18,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
 import { createShop, addShopStaff, addServiceToShop } from '../../lib/shopAuth';
 import { uploadShopImage } from '../../data/imageUpload';
-import AddStaffModal from '../../components/shop/AddStaffModal';
-import ServiceSelectorModal from '../../components/shop/ServiceSelectorModalCreateShop';
+import AddCustomServiceModal from '../../components/shop/AddCustomServiceModal';
 import OperatingHoursSelector from '../../components/shop/OperatingHoursSelector';
 
-const CreateShopScreen = ({ navigation }) => {
+const CreateShopScreen = ({ route, navigation }) => {
+  const shopId = route?.params?.shopId; // For editing existing business
+  const isEditMode = !!shopId;
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -37,7 +39,7 @@ const CreateShopScreen = ({ navigation }) => {
   // Two separate images
   const [logoImage, setLogoImage] = useState(null);
   const [coverImage, setCoverImage] = useState(null);
-  
+
   // Operating Hours
   const [operatingDays, setOperatingDays] = useState(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']);
   const [openingTime, setOpeningTime] = useState(() => {
@@ -50,15 +52,124 @@ const CreateShopScreen = ({ navigation }) => {
     date.setHours(18, 0, 0, 0);
     return date;
   });
-  
-  const [barbers, setBarbers] = useState([]);
+
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(isEditMode);
   const [errors, setErrors] = useState({});
-  
+
   // Modal states
-  const [showBarberModal, setShowBarberModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
+
+  // Load existing business data when editing
+  React.useEffect(() => {
+    if (isEditMode && shopId) {
+      loadExistingBusinessData();
+    }
+  }, [shopId, isEditMode]);
+
+  const loadExistingBusinessData = async () => {
+    try {
+      setInitialLoading(true);
+      console.log('📥 Loading business data for shopId:', shopId);
+
+      // Fetch shop details
+      const { data: shopData, error: shopError } = await supabase
+        .from('shops')
+        .select('*')
+        .eq('id', shopId)
+        .single();
+
+      if (shopError) throw shopError;
+
+      if (shopData) {
+        console.log('📊 Loaded shop data:', {
+          name: shopData.name,
+          zip_code: shopData.zip_code,
+          city: shopData.city,
+          state: shopData.state
+        });
+
+        // Populate form data
+        setFormData({
+          name: shopData.name || '',
+          description: shopData.description || '',
+          address: shopData.address || '',
+          city: shopData.city || '',
+          state: shopData.state || '',
+          zipCode: shopData.zip_code || '',
+          country: shopData.country || 'USA',
+          phone: shopData.phone || '',
+          email: shopData.email || ''
+        });
+
+        console.log('✅ Form data set with zipCode:', shopData.zip_code);
+
+        // Set images (if they exist)
+        if (shopData.logo_url) {
+          setLogoImage(shopData.logo_url);
+        }
+        if (shopData.cover_image_url) {
+          setCoverImage(shopData.cover_image_url);
+        }
+
+        // Set operating days and hours
+        if (shopData.operating_days) {
+          try {
+            const days = typeof shopData.operating_days === 'string'
+              ? JSON.parse(shopData.operating_days)
+              : shopData.operating_days;
+            setOperatingDays(days);
+          } catch (e) {
+            console.error('Error parsing operating days:', e);
+          }
+        }
+
+        if (shopData.opening_time) {
+          const [hours, minutes] = shopData.opening_time.split(':');
+          const date = new Date();
+          date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+          setOpeningTime(date);
+        }
+
+        if (shopData.closing_time) {
+          const [hours, minutes] = shopData.closing_time.split(':');
+          const date = new Date();
+          date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+          setClosingTime(date);
+        }
+
+        // Load services
+        const { data: servicesData, error: servicesError } = await supabase
+          .from('shop_services')
+          .select('*')
+          .eq('shop_id', shopId);
+
+        if (!servicesError && servicesData) {
+          console.log('📋 Loaded services:', servicesData.length);
+          const loadedServices = servicesData.map(service => ({
+            id: service.id,
+            tempId: service.id, // Use real ID as tempId
+            name: service.name,
+            description: service.description || '',
+            price: service.price,
+            duration: service.duration || 30
+          }));
+          setServices(loadedServices);
+          console.log('✅ Services set:', loadedServices.length);
+        } else if (servicesError) {
+          console.error('❌ Error loading services:', servicesError);
+        }
+
+        console.log('✅ Business data loaded successfully');
+      }
+    } catch (error) {
+      console.error('❌ Error loading business data:', error);
+      Alert.alert('Error', 'Failed to load business data');
+    } finally {
+      setInitialLoading(false);
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -107,10 +218,7 @@ const CreateShopScreen = ({ navigation }) => {
       newErrors.operatingHours = 'Closing time must be after opening time';
     }
 
-    // Required staff and services
-    if (barbers.length === 0) {
-      newErrors.barbers = 'At least one barber is required';
-    }
+    // Required services
     if (services.length === 0) {
       newErrors.services = 'At least one service is required';
     }
@@ -181,27 +289,14 @@ const CreateShopScreen = ({ navigation }) => {
     }
   };
 
-  // Add Barber
-  const handleAddBarber = (barber) => {
-    setBarbers(prev => [...prev, { ...barber, tempId: Date.now() }]);
-    setShowBarberModal(false);
-    if (errors.barbers) {
-      setErrors(prev => ({ ...prev, barbers: null }));
-    }
-  };
-
-  const handleRemoveBarber = (tempId) => {
-    setBarbers(prev => prev.filter(b => b.tempId !== tempId));
-  };
-
-  // Add Services (multiple at once)
-  const handleAddService = (servicesData) => {
-    // servicesData is an array of service objects with prices
-    const servicesWithTempIds = servicesData.map(service => ({
-      ...service,
-      tempId: Date.now() + Math.random() // Ensure unique IDs
-    }));
-    setServices(prev => [...prev, ...servicesWithTempIds]);
+  // Add Service (single custom service)
+  const handleAddService = (serviceData) => {
+    // Add tempId for tracking before submission
+    const serviceWithTempId = {
+      ...serviceData,
+      tempId: Date.now() + Math.random(),
+    };
+    setServices(prev => [...prev, serviceWithTempId]);
     setShowServiceModal(false);
     if (errors.services) {
       setErrors(prev => ({ ...prev, services: null }));
@@ -214,34 +309,78 @@ const CreateShopScreen = ({ navigation }) => {
 
   const handleCreateShop = async () => {
     if (!validateForm()) {
-      Alert.alert('Missing Information', 'Please fill all required fields and add at least 1 manager, 1 barber, and 1 service.');
+      Alert.alert('Missing Information', 'Please fill all required fields and add at least 1 service.');
       return;
     }
 
     try {
       setLoading(true);
-      
-      // Step 1: Create shop first (without images)
+
       const formatTimeForDB = (date) => {
         const hours = date.getHours().toString().padStart(2, '0');
         const minutes = date.getMinutes().toString().padStart(2, '0');
         return `${hours}:${minutes}:00`;
       };
-      
-      const shopData = {
-        ...formData,
-        logo_url: null,
-        cover_image_url: null,
-        operating_days: JSON.stringify(operatingDays),
-        opening_time: formatTimeForDB(openingTime),
-        closing_time: formatTimeForDB(closingTime),
-        is_manually_closed: false,
-        status: 'draft' // Start as draft, owner will submit for review when ready
-      };
-      
-      const { success, shop, error } = await createShop(shopData);
-      
-      if (success && shop) {
+
+      let shop;
+      let isNewShop = !isEditMode;
+
+      if (isEditMode) {
+        // UPDATE EXISTING BUSINESS
+        console.log('📝 Updating existing business:', shopId);
+
+        const updateData = {
+          name: formData.name,
+          description: formData.description,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zip_code: formData.zipCode,
+          country: formData.country,
+          phone: formData.phone,
+          email: formData.email,
+          operating_days: JSON.stringify(operatingDays),
+          opening_time: formatTimeForDB(openingTime),
+          closing_time: formatTimeForDB(closingTime),
+        };
+
+        const { data: updatedShop, error: updateError } = await supabase
+          .from('shops')
+          .update(updateData)
+          .eq('id', shopId)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+        shop = updatedShop;
+        console.log('✅ Business updated successfully');
+
+      } else {
+        // CREATE NEW BUSINESS
+        console.log('🆕 Creating new business');
+
+        const shopData = {
+          ...formData,
+          logo_url: null,
+          cover_image_url: null,
+          operating_days: JSON.stringify(operatingDays),
+          opening_time: formatTimeForDB(openingTime),
+          closing_time: formatTimeForDB(closingTime),
+          is_manually_closed: false,
+          status: 'draft'
+        };
+
+        const { success, shop: createdShop, error } = await createShop(shopData);
+
+        if (!success || !createdShop) {
+          throw new Error(error || 'Failed to create shop');
+        }
+
+        shop = createdShop;
+        console.log('✅ Business created:', shop.id);
+      }
+
+      if (shop) {
         console.log('Shop created:', shop.id);
         
         // Step 1: Upload images to Supabase Storage
@@ -251,27 +390,41 @@ const CreateShopScreen = ({ navigation }) => {
         let logoUrl = null;
         let coverUrl = null;
 
-        // Upload logo
+        // Upload logo (only if it's a new local URI, not an existing URL)
         if (logoImage) {
-          const logoResult = await uploadShopImage(logoImage, shop.id, 'logo');
-          if (logoResult.success) {
-            logoUrl = logoResult.url;
-            console.log('✅ Logo uploaded:', logoUrl);
+          const isLocalUri = logoImage.startsWith('file://') || logoImage.startsWith('content://');
+          if (isLocalUri) {
+            const logoResult = await uploadShopImage(logoImage, shop.id, 'logo');
+            if (logoResult.success) {
+              logoUrl = logoResult.url;
+              console.log('✅ Logo uploaded:', logoUrl);
+            } else {
+              console.error('❌ Logo upload failed:', logoResult.error);
+              uploadErrors.push('logo');
+            }
           } else {
-            console.error('❌ Logo upload failed:', logoResult.error);
-            uploadErrors.push('logo');
+            // Keep existing URL
+            logoUrl = logoImage;
+            console.log('📌 Keeping existing logo URL');
           }
         }
 
-        // Upload cover
+        // Upload cover (only if it's a new local URI, not an existing URL)
         if (coverImage) {
-          const coverResult = await uploadShopImage(coverImage, shop.id, 'cover');
-          if (coverResult.success) {
-            coverUrl = coverResult.url;
-            console.log('✅ Cover uploaded:', coverUrl);
+          const isLocalUri = coverImage.startsWith('file://') || coverImage.startsWith('content://');
+          if (isLocalUri) {
+            const coverResult = await uploadShopImage(coverImage, shop.id, 'cover');
+            if (coverResult.success) {
+              coverUrl = coverResult.url;
+              console.log('✅ Cover uploaded:', coverUrl);
+            } else {
+              console.error('❌ Cover upload failed:', coverResult.error);
+              uploadErrors.push('cover');
+            }
           } else {
-            console.error('❌ Cover upload failed:', coverResult.error);
-            uploadErrors.push('cover');
+            // Keep existing URL
+            coverUrl = coverImage;
+            console.log('📌 Keeping existing cover URL');
           }
         }
 
@@ -301,37 +454,104 @@ const CreateShopScreen = ({ navigation }) => {
         const { data: { user } } = await supabase.auth.getUser();
         const currentUserId = user?.id;
 
-        // Step 3: Add barbers to shop_staff (skip if current user)
-        for (const barber of barbers) {
-          // Skip if this is the creator (already added as admin)
-          if (barber.id === currentUserId) {
-            console.log('Skipping creator (already admin):', barber.name);
-            continue;
+        // Step 3: Handle services (update for edit mode, insert for create mode)
+        console.log('📦 Handling services. Mode:', isEditMode ? 'EDIT' : 'CREATE');
+        console.log('📦 Total services to save:', services.length);
+        console.log('📦 Services:', services);
+
+        if (isEditMode) {
+          // EDIT MODE: Sync services with database
+          console.log('🔄 Syncing services for edit mode...');
+
+          // Get existing services from DB
+          const { data: existingServices } = await supabase
+            .from('shop_services')
+            .select('id, name')
+            .eq('shop_id', shopId);
+
+          const existingServiceNames = (existingServices || []).map(s => s.name);
+          const currentServiceNames = services.map(s => s.name);
+
+          // Delete services that were removed
+          const servicesToDelete = (existingServices || []).filter(
+            s => !currentServiceNames.includes(s.name)
+          );
+
+          for (const service of servicesToDelete) {
+            await supabase
+              .from('shop_services')
+              .delete()
+              .eq('id', service.id);
+            console.log('🗑️ Deleted service:', service.name);
           }
-          
-          try {
-            await addShopStaff(shop.id, barber.id, 'barber');
-            console.log('Added barber:', barber.name);
-          } catch (err) {
-            console.error('❌ Error adding barber:', err);
+
+          // Add new services
+          const newServices = services.filter(
+            s => !existingServiceNames.includes(s.name)
+          );
+
+          for (const service of newServices) {
+            const { error: serviceError } = await supabase
+              .from('shop_services')
+              .insert({
+                shop_id: shop.id,
+                name: service.name,
+                description: service.description,
+                price: service.price,
+                duration: service.duration || 30,
+                is_active: true,
+              });
+
+            if (serviceError) {
+              console.error('❌ Error adding service:', serviceError);
+            } else {
+              console.log('✅ Added new service:', service.name);
+            }
           }
-        }
-        
-        // Step 4: Add services (link existing services from catalog to shop)
-        for (const service of services) {
-          try {
-            // service.service_id is the ID from the global services catalog
-            await addServiceToShop(shop.id, service.service_id, service.price);
-            console.log('Added service:', service.name);
-          } catch (err) {
-            console.error('❌ Error adding service:', err);
+
+        } else {
+          // CREATE MODE: Add all services
+          console.log('✨ CREATE MODE: Adding', services.length, 'services...');
+
+          for (const service of services) {
+            try {
+              console.log('➕ Inserting service:', service.name, {
+                shop_id: shop.id,
+                name: service.name,
+                price: service.price,
+                duration: service.duration || 30
+              });
+
+              const { error: serviceError } = await supabase
+                .from('shop_services')
+                .insert({
+                  shop_id: shop.id,
+                  name: service.name,
+                  description: service.description || '',
+                  price: service.price,
+                  duration: service.duration || 30,
+                  is_active: true,
+                });
+
+              if (serviceError) {
+                console.error('❌ Error adding service:', service.name, serviceError);
+              } else {
+                console.log('✅ Successfully added service:', service.name);
+              }
+            } catch (err) {
+              console.error('❌ Exception adding service:', service.name, err);
+            }
           }
+
+          console.log('✅ Finished adding all services');
         }
         
         // Success - navigate to review submission screen
         Alert.alert(
-          'Shop Created!',
-          `Your shop "${shop.name}" is ready. Now submit it for review to go live!`,
+          isEditMode ? 'Business Updated!' : 'Business Listed!',
+          isEditMode
+            ? `Your business "${shop.name}" has been updated successfully!`
+            : `Your business "${shop.name}" is ready. Now submit it for review to go live!`,
           [
             {
               text: 'Continue',
@@ -378,7 +598,7 @@ const CreateShopScreen = ({ navigation }) => {
           <TouchableOpacity onPress={handleCancel} style={styles.backButton}>
             <Ionicons name="close" size={24} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.title}>Create Shop</Text>
+          <Text style={styles.title}>{isEditMode ? "Edit Business" : "List Your Business"}</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -610,55 +830,6 @@ const CreateShopScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Barbers Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeaderContainer}>
-              <Ionicons name="cut-outline" size={24} color="#FF6B35" />
-              <Text style={styles.sectionTitle}>Barbers *</Text>
-            </View>
-            
-            <TouchableOpacity
-              style={styles.addStaffButton}
-              onPress={() => setShowBarberModal(true)}
-            >
-              <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
-              <Text style={styles.addStaffButtonText}>Add Barber</Text>
-            </TouchableOpacity>
-
-            {barbers.length === 0 ? (
-              <View style={styles.emptyStateCard}>
-                <Ionicons name="cut-outline" size={32} color="#999" />
-                <Text style={styles.emptyText}>No barbers added yet</Text>
-                <Text style={styles.emptySubtext}>Add at least 1 barber to continue</Text>
-              </View>
-            ) : (
-              <View style={styles.staffList}>
-                {barbers.map((barber, index) => (
-                  <View key={barber.tempId || index} style={styles.staffCard}>
-                    <View style={styles.staffCardLeft}>
-                      <View style={[styles.staffAvatar, { backgroundColor: '#FF6B35' }]}>
-                        <Text style={styles.staffAvatarText}>
-                          {barber.name?.charAt(0).toUpperCase() || 'B'}
-                        </Text>
-                      </View>
-                      <View style={styles.staffInfo}>
-                        <Text style={styles.staffName}>{barber.name || 'Barber'}</Text>
-                        <Text style={styles.staffContact}>{barber.email || barber.phone}</Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity 
-                      onPress={() => handleRemoveBarber(barber.tempId)}
-                      style={styles.removeButton}
-                    >
-                      <Ionicons name="close-circle" size={24} color="#FF3B30" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-            {errors.barbers && <Text style={styles.errorText}>{errors.barbers}</Text>}
-          </View>
-
           {/* Services Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderContainer}>
@@ -735,7 +906,7 @@ const CreateShopScreen = ({ navigation }) => {
           <View style={styles.infoCard}>
             <Ionicons name="information-circle-outline" size={24} color="#007AFF" />
             <Text style={styles.infoCardText}>
-              After creating your shop, you can add managers and more barbers from Staff Management.
+              After creating your shop, you can add managers and more staff from Staff Management.
             </Text>
           </View>
         </ScrollView>
@@ -752,8 +923,10 @@ const CreateShopScreen = ({ navigation }) => {
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <>
-                  <Ionicons name="storefront" size={20} color="#FFFFFF" />
-                  <Text style={styles.createButtonText}>Create Shop</Text>
+                  <Ionicons name={isEditMode ? "checkmark-circle" : "storefront"} size={20} color="#FFFFFF" />
+                  <Text style={styles.createButtonText}>
+                    {isEditMode ? "Update Business" : "List Business"}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -762,17 +935,10 @@ const CreateShopScreen = ({ navigation }) => {
       </KeyboardAvoidingView>
 
       {/* Modals */}
-      <AddStaffModal
-        visible={showBarberModal}
-        onClose={() => setShowBarberModal(false)}
-        onAdd={handleAddBarber}
-        existingStaff={barbers}
-      />
-
-      <ServiceSelectorModal
+      <AddCustomServiceModal
         visible={showServiceModal}
         onClose={() => setShowServiceModal(false)}
-        onServicesSelected={handleAddService}
+        onAdd={handleAddService}
       />
     </SafeAreaView>
   );

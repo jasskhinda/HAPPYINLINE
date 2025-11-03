@@ -130,7 +130,10 @@ const CustomerRegistration = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('GetStarted')}
+        >
           <Ionicons name="arrow-back" size={24} color="#FF6B6B" />
         </TouchableOpacity>
 

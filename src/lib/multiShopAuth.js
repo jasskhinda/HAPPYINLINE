@@ -191,7 +191,9 @@ export const getShopDetails = async (shopId) => {
  */
 export const getShopServices = async (shopId) => {
   try {
-    const { data: services, error } = await supabase
+    console.log('🔍 Fetching services for shop:', shopId);
+
+    const { data: shopServices, error } = await supabase
       .from('shop_services')
       .select('*')
       .eq('shop_id', shopId)
@@ -203,7 +205,21 @@ export const getShopServices = async (shopId) => {
       return { success: false, error: error.message };
     }
 
-    return { success: true, services: services || [] };
+    // Transform to consistent structure
+    const services = (shopServices || []).map(ss => ({
+      id: ss.id,
+      service_id: ss.service_id || null,
+      name: ss.name || 'Unnamed Service',
+      description: ss.description || '',
+      duration: ss.duration || 30,
+      category: ss.category || 'General',
+      icon_url: ss.icon_url || null,
+      price: ss.price || ss.custom_price || 0,
+      is_active: ss.is_active
+    }));
+
+    console.log(`✅ Found ${services.length} services for shop`);
+    return { success: true, services };
   } catch (error) {
     console.error('❌ Unexpected error:', error);
     return { success: false, error: error.message };

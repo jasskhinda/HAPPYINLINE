@@ -101,8 +101,19 @@ const BusinessRegistration = ({ navigation }) => {
       });
 
       if (authError) {
-        console.error('❌ Auth error:', authError);
-        Alert.alert('Registration Failed', authError.message);
+        console.log('⚠️ Registration error:', authError.message);
+
+        // Provide user-friendly error messages
+        let errorMessage = authError.message;
+        if (authError.message.includes('User already registered') || authError.message.includes('already registered')) {
+          errorMessage = 'This email is already registered. Please use a different email or try logging in instead.';
+        } else if (authError.message.includes('Invalid email')) {
+          errorMessage = 'Please enter a valid email address.';
+        } else if (authError.message.includes('Password')) {
+          errorMessage = 'Password must be at least 6 characters long.';
+        }
+
+        Alert.alert('Registration Failed', errorMessage);
         setLoading(false);
         return;
       }
@@ -177,7 +188,10 @@ const BusinessRegistration = ({ navigation }) => {
               <Ionicons name="arrow-forward" size={20} color="#FFF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.goBack()}>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('GetStarted')}
+            >
               <Text style={styles.secondaryButtonText}>Back</Text>
             </TouchableOpacity>
           </View>

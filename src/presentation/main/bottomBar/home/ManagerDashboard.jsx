@@ -18,7 +18,8 @@ const ManagerDashboard = () => {
   const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [shop, setShop] = useState(null);
+  const [shops, setShops] = useState([]); // Changed to array for multiple listings
+  const [ownerName, setOwnerName] = useState('');
   const [userRole, setUserRole] = useState(null); // 'owner' or 'manager'
   const [stats, setStats] = useState({
     todayBookings: 0,
@@ -41,28 +42,32 @@ const ManagerDashboard = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get user's profile to check role (owner vs manager)
+      // Get user's profile to get name and role
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, name')
         .eq('id', user.id)
         .single();
 
       const profileRole = profile?.role || 'customer';
       setUserRole(profileRole);
+      setOwnerName(profile?.name || 'Business Owner');
 
-      // Check if user has a shop (is manager/admin of any shop)
+      // Fetch ALL shops where user is manager/admin (support multiple listings)
       const { data: shopStaffData, error: staffError } = await supabase
         .from('shop_staff')
-        .select('shop_id, role')
+        .select(`
+          shop_id,
+          role,
+          shops (*)
+        `)
         .eq('user_id', user.id)
-        .in('role', ['manager', 'admin'])
-        .limit(1)
-        .single();
+        .in('role', ['manager', 'admin']);
 
-      if (staffError || !shopStaffData) {
-        console.log('No shop found for this user');
+      if (staffError || !shopStaffData || shopStaffData.length === 0) {
+        console.log('No shops found for this user');
         setHasShop(false);
+        setShops([]);
         setLoading(false);
         setRefreshing(false);
         return;
@@ -70,20 +75,15 @@ const ManagerDashboard = () => {
 
       setHasShop(true);
 
-      // Fetch shop details
-      const { data: shopData, error: shopError } = await supabase
-        .from('shops')
-        .select('*')
-        .eq('id', shopStaffData.shop_id)
-        .single();
+      // Extract all shops
+      const allShops = shopStaffData.map(item => item.shops).filter(Boolean);
+      setShops(allShops);
 
-      if (shopError) throw shopError;
-      setShop(shopData);
-
-      // Only fetch stats if shop is approved
-      if (shopData.status === 'approved') {
-        await fetchStats(shopStaffData.shop_id);
-        await fetchTodayAppointments(shopStaffData.shop_id);
+      // Fetch stats from the first approved shop (or first shop if none approved)
+      const approvedShop = allShops.find(s => s.status === 'approved') || allShops[0];
+      if (approvedShop && approvedShop.status === 'approved') {
+        await fetchStats(approvedShop.id);
+        await fetchTodayAppointments(approvedShop.id);
       }
 
     } catch (error) {
@@ -193,10 +193,8 @@ const ManagerDashboard = () => {
     fetchDashboardData(true);
   };
 
-  const getStatusInfo = () => {
-    if (!shop) return { text: 'No Shop', color: '#999', icon: 'help-circle', bg: '#F5F5F5' };
-
-    switch (shop.status) {
+  const getStatusInfo = (shopStatus) => {
+    switch (shopStatus) {
       case 'draft':
         return { text: 'DRAFT - Complete Setup', color: '#FF9800', icon: 'create', bg: '#FFF3E0' };
       case 'pending_review':
@@ -277,8 +275,6 @@ const ManagerDashboard = () => {
     );
   }
 
-  const statusInfo = getStatusInfo();
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -286,160 +282,93 @@ const ManagerDashboard = () => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6B6B']} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header with Shop Info */}
+        {/* Header with Owner Info */}
         <View style={styles.header}>
-          <View style={styles.shopInfo}>
-            {shop?.logo_url ? (
-              <Image source={{ uri: shop.logo_url }} style={styles.shopLogo} />
-            ) : (
-              <View style={[styles.shopLogo, styles.shopLogoPlaceholder]}>
-                <Ionicons name="storefront" size={32} color="#FF6B6B" />
-              </View>
-            )}
-            <View style={styles.shopDetails}>
-              <Text style={styles.shopName}>{shop?.name || 'My Shop'}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: statusInfo.bg }]}>
-                <Ionicons name={statusInfo.icon} size={14} color={statusInfo.color} />
-                <Text style={[styles.statusText, { color: statusInfo.color }]}>
-                  {statusInfo.text}
-                </Text>
-              </View>
+          <View style={styles.ownerInfo}>
+            <View>
+              <Text style={styles.welcomeText}>Welcome,</Text>
+              <Text style={styles.ownerName}>{ownerName}</Text>
+              <Text style={styles.ownerRole}>Business Owner</Text>
             </View>
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={() => navigation.navigate('SettingsScreen')}
+            >
+              <Ionicons name="person-circle" size={48} color="#FF6B6B" />
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Status-based Content */}
-        {shop?.status === 'draft' && (
-          <View style={styles.alertCard}>
-            <View style={styles.alertHeader}>
-              <Ionicons name="rocket" size={24} color="#FF6B6B" />
-              <Text style={styles.alertTitle}>Complete Your Shop Setup</Text>
-            </View>
-            <Text style={styles.alertText}>
-              Finish setting up your shop to submit it for review and go live
-            </Text>
-            <TouchableOpacity
-              style={styles.alertButton}
-              onPress={() => navigation.navigate('CreateShopScreen')}
-            >
-              <Text style={styles.alertButtonText}>Continue Setup</Text>
-              <Ionicons name="arrow-forward" size={18} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {shop?.status === 'pending_review' && (
-          <View style={[styles.alertCard, { backgroundColor: '#FFF3E0' }]}>
-            <View style={styles.alertHeader}>
-              <Ionicons name="time" size={24} color="#FF9800" />
-              <Text style={styles.alertTitle}>Under Review</Text>
-            </View>
-            <Text style={styles.alertText}>
-              Your shop is being reviewed. We'll notify you within 24-48 hours.
-            </Text>
-            <TouchableOpacity
-              style={[styles.alertButton, { backgroundColor: '#FF9800' }]}
-              onPress={() => navigation.navigate('ShopPendingReview', { shopId: shop.id })}
-            >
-              <Text style={styles.alertButtonText}>View Status</Text>
-              <Ionicons name="arrow-forward" size={18} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {shop?.status === 'rejected' && (
-          <View style={[styles.alertCard, { backgroundColor: '#FFEBEE' }]}>
-            <View style={styles.alertHeader}>
-              <Ionicons name="alert-circle" size={24} color="#F44336" />
-              <Text style={styles.alertTitle}>Action Required</Text>
-            </View>
-            <Text style={styles.alertText}>
-              {shop.rejection_reason || 'Your shop needs updates before approval'}
-            </Text>
-            <TouchableOpacity
-              style={[styles.alertButton, { backgroundColor: '#F44336' }]}
-              onPress={() => navigation.navigate('ShopPendingReview', { shopId: shop.id })}
-            >
-              <Text style={styles.alertButtonText}>Fix & Resubmit</Text>
-              <Ionicons name="arrow-forward" size={18} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Quick Stats - Only show if approved */}
-        {shop?.status === 'approved' && (
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <Ionicons name="calendar" size={24} color="#2196F3" />
-              <Text style={styles.statNumber}>{stats.todayBookings}</Text>
-              <Text style={styles.statLabel}>Today's Bookings</Text>
-            </View>
-
-            <View style={styles.statCard}>
-              <Ionicons name="cash" size={24} color="#4CAF50" />
-              <Text style={styles.statNumber}>${stats.weekRevenue}</Text>
-              <Text style={styles.statLabel}>Week Revenue</Text>
-            </View>
-
-            <View style={styles.statCard}>
-              <Ionicons name="star" size={24} color="#FF9800" />
-              <Text style={styles.statNumber}>{stats.rating}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
-            </View>
-
-            <View style={styles.statCard}>
-              <Ionicons name="people" size={24} color="#9C27B0" />
-              <Text style={styles.statNumber}>{stats.newCustomers}</Text>
-              <Text style={styles.statLabel}>New Customers</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Today's Appointments - Only show if approved */}
-        {shop?.status === 'approved' && todayAppointments.length > 0 && (
+        {/* Your Businesses Section */}
+        {shops.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Today's Schedule</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('BookingManagementScreen')}>
-                <Text style={styles.sectionLink}>View All</Text>
-              </TouchableOpacity>
+              <Text style={styles.sectionTitle}>Your Businesses ({shops.length})</Text>
             </View>
 
-            {todayAppointments.map((appointment) => (
-              <View key={appointment.id} style={styles.appointmentCard}>
-                <View style={styles.appointmentTime}>
-                  <Ionicons name="time-outline" size={20} color="#666" />
-                  <Text style={styles.appointmentTimeText}>{appointment.start_time}</Text>
-                </View>
-                <View style={styles.appointmentDetails}>
-                  <Text style={styles.appointmentCustomer}>
-                    {appointment.profiles?.name || 'Customer'}
-                  </Text>
-                  <Text style={styles.appointmentService}>
-                    {appointment.shop_services?.services?.name || 'Service'}
-                  </Text>
-                </View>
-                <View style={[styles.appointmentStatus, styles[`status${appointment.status}`]]}>
-                  <Text style={styles.appointmentStatusText}>{appointment.status}</Text>
-                </View>
-              </View>
-            ))}
+            {shops.map((shop) => {
+              const statusInfo = getStatusInfo(shop.status);
+              return (
+                <TouchableOpacity
+                  key={shop.id}
+                  style={styles.businessCard}
+                  onPress={() => {
+                    if (shop.status === 'draft') {
+                      navigation.navigate('CreateShopScreen', { shopId: shop.id });
+                    } else if (shop.status === 'pending_review' || shop.status === 'rejected') {
+                      navigation.navigate('ShopPendingReview', { shopId: shop.id });
+                    } else {
+                      navigation.navigate('ShopSettingsScreen', { shopId: shop.id });
+                    }
+                  }}
+                >
+                  <View style={styles.businessCardLeft}>
+                    {shop.logo_url ? (
+                      <Image source={{ uri: shop.logo_url }} style={styles.businessLogo} />
+                    ) : (
+                      <View style={[styles.businessLogo, styles.businessLogoPlaceholder]}>
+                        <Ionicons name="storefront" size={24} color="#FF6B6B" />
+                      </View>
+                    )}
+                    <View style={styles.businessDetails}>
+                      <Text style={styles.businessName}>{shop.name}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: statusInfo.bg }]}>
+                        <Ionicons name={statusInfo.icon} size={12} color={statusInfo.color} />
+                        <Text style={[styles.statusText, { color: statusInfo.color }]}>
+                          {statusInfo.text}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={24} color="#CCC" />
+                </TouchableOpacity>
+              );
+            })}
+
+            <TouchableOpacity
+              style={styles.addBusinessButton}
+              onPress={() => navigation.navigate('CreateShopScreen')}
+            >
+              <Ionicons name="add-circle" size={24} color="#FF6B6B" />
+              <Text style={styles.addBusinessText}>Add Another Business</Text>
+            </TouchableOpacity>
           </View>
         )}
 
-        {/* Quick Actions */}
+
+        {/* Quick Actions - 4 Cards Only */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
 
           <View style={styles.quickActionsGrid}>
             <TouchableOpacity
               style={styles.quickActionCard}
-              onPress={() => navigation.navigate('ServiceManagementScreen')}
+              onPress={() => navigation.navigate('BookingManagementScreen')}
             >
-              <View style={[styles.quickActionIcon, { backgroundColor: '#E3F2FD' }]}>
-                <Ionicons name="cut" size={28} color="#2196F3" />
+              <View style={[styles.quickActionIcon, { backgroundColor: '#E8F5E9' }]}>
+                <Ionicons name="calendar" size={28} color="#4CAF50" />
               </View>
-              <Text style={styles.quickActionText}>Services</Text>
+              <Text style={styles.quickActionText}>Bookings</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -454,113 +383,30 @@ const ManagerDashboard = () => {
 
             <TouchableOpacity
               style={styles.quickActionCard}
-              onPress={() => navigation.navigate('BookingManagementScreen')}
+              onPress={() => {
+                if (shops.length === 1) {
+                  navigation.navigate('ShopSettingsScreen', { shopId: shops[0].id });
+                } else {
+                  navigation.navigate('ShopSelectionScreen');
+                }
+              }}
             >
-              <View style={[styles.quickActionIcon, { backgroundColor: '#E8F5E9' }]}>
-                <Ionicons name="calendar" size={28} color="#4CAF50" />
+              <View style={[styles.quickActionIcon, { backgroundColor: '#E3F2FD' }]}>
+                <Ionicons name="storefront" size={28} color="#2196F3" />
               </View>
-              <Text style={styles.quickActionText}>Bookings</Text>
+              <Text style={styles.quickActionText}>Manage Listings</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.quickActionCard}
-              onPress={() => navigation.navigate('ShopSettingsScreen', { shopId: shop?.id })}
+              onPress={() => navigation.navigate('SettingsScreen')}
             >
               <View style={[styles.quickActionIcon, { backgroundColor: '#FFF3E0' }]}>
                 <Ionicons name="settings" size={28} color="#FF9800" />
               </View>
-              <Text style={styles.quickActionText}>Settings</Text>
+              <Text style={styles.quickActionText}>Profile Settings</Text>
             </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Management Menu */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Manage Your Shop</Text>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => navigation.navigate('BookingManagementScreen')}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="calendar" size={24} color="#FF6B6B" />
-              <View style={styles.menuItemText}>
-                <Text style={styles.menuItemTitle}>Bookings & Appointments</Text>
-                <Text style={styles.menuItemSubtitle}>View and manage all bookings</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#CCC" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => navigation.navigate('ServiceManagementScreen')}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="cut" size={24} color="#FF6B6B" />
-              <View style={styles.menuItemText}>
-                <Text style={styles.menuItemTitle}>Services & Pricing</Text>
-                <Text style={styles.menuItemSubtitle}>Edit services and prices</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#CCC" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => navigation.navigate('StaffManagementScreen')}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="people" size={24} color="#FF6B6B" />
-              <View style={styles.menuItemText}>
-                <Text style={styles.menuItemTitle}>Staff Management</Text>
-                <Text style={styles.menuItemSubtitle}>Manage staff and managers</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#CCC" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => navigation.navigate('ShopSettingsScreen', { shopId: shop?.id })}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="time" size={24} color="#FF6B6B" />
-              <View style={styles.menuItemText}>
-                <Text style={styles.menuItemTitle}>Operating Hours</Text>
-                <Text style={styles.menuItemSubtitle}>Update shop hours and holidays</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#CCC" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => navigation.navigate('ShopSettingsScreen', { shopId: shop?.id })}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="images" size={24} color="#FF6B6B" />
-              <View style={styles.menuItemText}>
-                <Text style={styles.menuItemTitle}>Shop Profile</Text>
-                <Text style={styles.menuItemSubtitle}>Photos, description, location</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#CCC" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => navigation.navigate('ShopSettingsScreen', { shopId: shop?.id })}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="settings" size={24} color="#FF6B6B" />
-              <View style={styles.menuItemText}>
-                <Text style={styles.menuItemTitle}>Shop Settings</Text>
-                <Text style={styles.menuItemSubtitle}>Notifications, policies</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#CCC" />
-          </TouchableOpacity>
         </View>
 
         <View style={{ height: 40 }} />
@@ -585,33 +431,89 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#FFF',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
   },
-  shopInfo: {
+  ownerInfo: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  shopLogo: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 16,
+  welcomeText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
   },
-  shopLogoPlaceholder: {
+  ownerName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 2,
+  },
+  ownerRole: {
+    fontSize: 14,
+    color: '#FF6B6B',
+    fontWeight: '600',
+  },
+  profileButton: {
+    padding: 4,
+  },
+  businessCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  businessCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  businessLogo: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+  },
+  businessLogoPlaceholder: {
     backgroundColor: '#FFE5E5',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  shopDetails: {
+  businessDetails: {
     flex: 1,
   },
-  shopName: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  businessName: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#000',
     marginBottom: 6,
+  },
+  addBusinessButton: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FF6B6B',
+    borderStyle: 'dashed',
+    gap: 8,
+  },
+  addBusinessText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF6B6B',
   },
   statusBadge: {
     flexDirection: 'row',

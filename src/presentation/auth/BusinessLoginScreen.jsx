@@ -41,7 +41,7 @@ const BusinessLoginScreen = ({ navigation }) => {
       });
 
       if (error) {
-        console.error('❌ Login error:', error);
+        console.log('⚠️ Login error:', error.message);
 
         // User-friendly error messages
         let errorMessage = 'Failed to login. Please try again.';
@@ -67,7 +67,7 @@ const BusinessLoginScreen = ({ navigation }) => {
       });
 
     } catch (error) {
-      console.error('❌ Login error:', error);
+      console.log('⚠️ Unexpected login error:', error.message);
       Alert.alert('Error', 'Failed to login. Please try again.');
       setLoading(false);
     }
@@ -82,7 +82,12 @@ const BusinessLoginScreen = ({ navigation }) => {
   };
 
   const handleBack = () => {
-    navigation.goBack();
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      // If no screen to go back to, navigate to GetStarted
+      navigation.navigate('GetStarted');
+    }
   };
 
   return (

@@ -42,11 +42,24 @@ const CustomerLogin = ({ navigation }) => {
       });
 
       if (error) {
-        console.error('❌ Login error:', error);
+        console.log('⚠️ Login error:', error.message);
+
+        // User-friendly error messages
+        let errorMessage = 'Failed to login. Please try again.';
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password. Please check your credentials.';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Please verify your email before logging in.';
+        } else if (error.message.includes('Too many requests')) {
+          errorMessage = 'Too many attempts. Please wait a few minutes.';
+        } else if (error.message.includes('User not found')) {
+          errorMessage = 'No account found with this email.';
+        }
+
         Toast.show({
           type: 'error',
           text1: 'Login Failed',
-          text2: error.message,
+          text2: errorMessage,
         });
         setLoading(false);
         return;
@@ -83,7 +96,10 @@ const CustomerLogin = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('GetStarted')}
+        >
           <Ionicons name="arrow-back" size={24} color="#FF6B6B" />
         </TouchableOpacity>
 

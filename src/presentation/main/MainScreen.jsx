@@ -3,16 +3,16 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import HomeScreen from '../main/bottomBar/home/HomeScreen';
-import ChatScreen from '../main/bottomBar/chat/ChatScreen';
+import ProfessionalChatScreen from '../main/bottomBar/chat/ProfessionalChatScreen';
 import ProfileScreen from '../main/bottomBar/profile/ProfileScreen';
-import MyBookingScreen from '../main/bottomBar/bookings/MyBookingScreen';
+import BookingsTabScreen from '../main/bottomBar/bookings/BookingsTabScreen';
 
 const Tab = createBottomTabNavigator();
 
 const TAB_ICONS = {
   HomeScreen: 'home-outline',
   ChatScreen: 'chatbubble-ellipses-outline',
-  MyBookingScreen: 'calendar-outline',
+  BookingsTabScreen: 'calendar-outline',
   ProfileScreen: 'person-outline',
 };
 
@@ -28,23 +28,32 @@ const getScreenOptions = ({ route }) => ({
     borderTopWidth: 0,
     elevation: 10,
   },
-  tabBarIcon: ({ color, size, focused }) => (
-    <View style={styles.tabItem}>
-      <Icon
-        name={TAB_ICONS[route.name]}
-        size={focused ? size + 6 : size}
-        color={focused ? 'white' : 'rgba(255,255,255,0.5)'}
-      />
-      {focused && (
-        <Text 
-          numberOfLines={1}
-          ellipsizeMode="tail"
-          style={styles.activeLabel}>
-          {route.name.replace('Screen', '')}
-        </Text>
-      )}
-    </View>
-  ),
+  tabBarIcon: ({ color, size, focused }) => {
+    // Custom labels for each tab
+    const labels = {
+      HomeScreen: 'Home',
+      ChatScreen: 'Chat',
+      BookingsTabScreen: 'Bookings',
+      ProfileScreen: 'Profile',
+    };
+
+    return (
+      <View style={styles.tabItem}>
+        <Icon
+          name={TAB_ICONS[route.name]}
+          size={focused ? size + 4 : size}
+          color={focused ? 'white' : 'rgba(255,255,255,0.5)'}
+        />
+        {focused && (
+          <Text
+            numberOfLines={1}
+            style={styles.activeLabel}>
+            {labels[route.name] || route.name}
+          </Text>
+        )}
+      </View>
+    );
+  },
   tabBarShowLabel: false,
 });
 
@@ -58,8 +67,8 @@ const MainScreen = () => {
       />
       <Tab.Navigator screenOptions={getScreenOptions} >
         <Tab.Screen name="HomeScreen" component={HomeScreen} />
-        <Tab.Screen name="ChatScreen" component={ChatScreen} />
-        <Tab.Screen name="MyBookingScreen" component={MyBookingScreen} />
+        <Tab.Screen name="ChatScreen" component={ProfessionalChatScreen} />
+        <Tab.Screen name="BookingsTabScreen" component={BookingsTabScreen} />
         <Tab.Screen name="ProfileScreen" component={ProfileScreen} />
       </Tab.Navigator>
     </SafeAreaProvider>
@@ -71,16 +80,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'column',
+    minWidth: 60,
   },
   activeLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: 'white',
-    fontWeight: '600',
-    marginTop: 4,
+    fontWeight: '700',
+    marginTop: 2,
     textAlign: 'center',
-    includeFontPadding: false, // Android-specific
+    includeFontPadding: false,
     textAlignVertical: 'center',
-    lineHeight: 12, // Optional, helps prevent wrapping
   },
 });
 

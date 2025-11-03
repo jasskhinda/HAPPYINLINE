@@ -29,24 +29,28 @@ const BookingManagementScreen = () => {
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'pending', title: 'Pending' },
-    { key: 'confirmed', title: 'Confirmed' },
-    { key: 'completed', title: 'Completed' },
+    { key: 'approved', title: 'Approved' },
+    { key: 'completed', title: 'Done' },
+    { key: 'rejected', title: 'Rejected' },
   ]);
 
   const [bookings, setBookings] = useState({
     pending: [],
-    confirmed: [],
+    approved: [],
     completed: [],
+    rejected: [],
   });
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
   // Modal states
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [bookingIdInput, setBookingIdInput] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
   const [cancellationReason, setCancellationReason] = useState('');
 
   // Fetch bookings on component mount
@@ -103,38 +107,66 @@ const BookingManagementScreen = () => {
     setRefreshing(false);
   }, []);
 
-  const handleConfirmBooking = (booking) => {
+  const handleApproveBooking = (booking) => {
     setSelectedBooking(booking);
     setBookingIdInput('');
-    setShowConfirmModal(true);
+    setShowApproveModal(true);
   };
 
-  const confirmBookingWithVerification = async () => {
+  const approveBookingAction = async () => {
     if (!selectedBooking) return;
 
-    // Verify booking ID
-    if (bookingIdInput.trim().toUpperCase() !== selectedBooking.booking_id.toUpperCase()) {
-      Alert.alert('Invalid Booking ID', 'The booking ID you entered does not match. Please try again.');
-      return;
-    }
-
     try {
-      console.log('✅ Confirming booking:', selectedBooking.id);
+      console.log('✅ Approving booking:', selectedBooking.id);
       const result = await confirmBooking(selectedBooking.id);
-      
+
       if (result.success) {
-        setShowConfirmModal(false);
+        setShowApproveModal(false);
         setBookingIdInput('');
         setSelectedBooking(null);
         // Refresh bookings
         await loadBookings(true);
-        Alert.alert('✅ Success', 'Booking confirmed successfully!');
+        Alert.alert('✅ Success', 'Booking approved successfully!');
       } else {
-        Alert.alert('Error', 'Failed to confirm booking: ' + result.error);
+        Alert.alert('Error', 'Failed to approve booking: ' + result.error);
       }
     } catch (error) {
-      console.error('❌ Error confirming booking:', error);
-      Alert.alert('Error', 'An error occurred while confirming the booking');
+      console.error('❌ Error approving booking:', error);
+      Alert.alert('Error', 'An error occurred while approving the booking');
+    }
+  };
+
+  const handleRejectBooking = (booking) => {
+    setSelectedBooking(booking);
+    setRejectionReason('');
+    setShowRejectModal(true);
+  };
+
+  const rejectBookingWithReason = async () => {
+    if (!selectedBooking) return;
+
+    if (!rejectionReason.trim()) {
+      Alert.alert('Reason Required', 'Please provide a reason for rejection.');
+      return;
+    }
+
+    try {
+      console.log('❌ Rejecting booking:', selectedBooking.id);
+      const result = await cancelBooking(selectedBooking.id, `[REJECTED] ${rejectionReason.trim()}`);
+
+      if (result.success) {
+        setShowRejectModal(false);
+        setRejectionReason('');
+        setSelectedBooking(null);
+        // Refresh bookings
+        await loadBookings(true);
+        Alert.alert('✅ Success', 'Booking rejected successfully!');
+      } else {
+        Alert.alert('Error', 'Failed to reject booking: ' + result.error);
+      }
+    } catch (error) {
+      console.error('❌ Error rejecting booking:', error);
+      Alert.alert('Error', 'An error occurred while rejecting the booking');
     }
   };
 
@@ -282,23 +314,23 @@ const BookingManagementScreen = () => {
         {item.status === 'pending' && (
           <>
             <TouchableOpacity
-              style={[styles.actionButton, styles.confirmButton]}
-              onPress={() => handleConfirmBooking(item)}
+              style={[styles.actionButton, styles.approveButton]}
+              onPress={() => handleApproveBooking(item)}
             >
-              <Ionicons name="checkmark" size={16} color="white" />
-              <Text style={styles.confirmButtonText}>Confirm</Text>
+              <Ionicons name="checkmark-circle" size={16} color="white" />
+              <Text style={styles.approveButtonText}>Approve</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionButton, styles.cancelButton]}
-              onPress={() => handleCancelBooking(item, tabKey)}
+              style={[styles.actionButton, styles.rejectButton]}
+              onPress={() => handleRejectBooking(item)}
             >
-              <Ionicons name="close" size={16} color="white" />
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Ionicons name="close-circle" size={16} color="white" />
+              <Text style={styles.rejectButtonText}>Reject</Text>
             </TouchableOpacity>
           </>
         )}
 
-        {item.status === 'confirmed' && (
+        {(item.status === 'confirmed' || item.status === 'approved') && (
           <>
             <TouchableOpacity
               style={[styles.actionButton, styles.completeButton]}
@@ -321,6 +353,13 @@ const BookingManagementScreen = () => {
           <View style={styles.completedInfo}>
             <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
             <Text style={styles.completedText}>Service Completed</Text>
+          </View>
+        )}
+
+        {item.status === 'cancelled' && item.cancellation_reason && (
+          <View style={styles.rejectedInfo}>
+            <Ionicons name="close-circle" size={20} color="#FF3B30" />
+            <Text style={styles.rejectedText}>{item.cancellation_reason}</Text>
           </View>
         )}
         </View>
@@ -354,11 +393,11 @@ const BookingManagementScreen = () => {
     </View>
   );
 
-  const ConfirmedTab = () => (
+  const ApprovedTab = () => (
     <View style={styles.tabContent}>
       <FlatList
-        data={bookings.confirmed}
-        renderItem={({ item }) => renderBookingItem({ item, tabKey: 'confirmed' })}
+        data={bookings.approved}
+        renderItem={({ item }) => renderBookingItem({ item, tabKey: 'approved' })}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 15 }}
@@ -373,7 +412,33 @@ const BookingManagementScreen = () => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="checkmark-circle-outline" size={50} color="#CCC" />
-            <Text style={styles.emptyText}>No confirmed bookings</Text>
+            <Text style={styles.emptyText}>No approved bookings</Text>
+          </View>
+        }
+      />
+    </View>
+  );
+
+  const RejectedTab = () => (
+    <View style={styles.tabContent}>
+      <FlatList
+        data={bookings.rejected}
+        renderItem={({ item }) => renderBookingItem({ item, tabKey: 'rejected' })}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 15 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#FF6B6B']}
+            tintColor="#FF6B6B"
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="close-circle-outline" size={50} color="#CCC" />
+            <Text style={styles.emptyText}>No rejected bookings</Text>
           </View>
         }
       />
@@ -408,8 +473,9 @@ const BookingManagementScreen = () => {
 
   const renderScene = SceneMap({
     pending: PendingTab,
-    confirmed: ConfirmedTab,
+    approved: ApprovedTab,
     completed: CompletedTab,
+    rejected: RejectedTab,
   });
 
   const renderTabBar = props => (
@@ -419,7 +485,10 @@ const BookingManagementScreen = () => {
       style={styles.tabBar}
       labelStyle={styles.tabLabel}
       activeColor="#FF6B6B"
-      inactiveColor="#666"
+      inactiveColor="#999"
+      pressColor="rgba(255, 107, 107, 0.1)"
+      scrollEnabled={false}
+      tabStyle={{ width: 'auto', minWidth: 80 }}
     />
   );
 
@@ -437,13 +506,15 @@ const BookingManagementScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.container}>
-            <SettingAppBar title="Booking Management" />
-            
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Booking Management</Text>
+              <Text style={styles.headerSubtitle}>Review and manage customer bookings</Text>
+            </View>
+
             <View style={styles.content}>
-                <Text style={styles.title}>Manage Bookings</Text>
-                
                 <TabView
                 navigationState={{ index, routes }}
                 renderScene={renderScene}
@@ -454,18 +525,78 @@ const BookingManagementScreen = () => {
             </View>
         </View>
 
-        {/* Confirm Booking Modal */}
+        {/* Approve Booking Modal */}
         <Modal
-          visible={showConfirmModal}
+          visible={showApproveModal}
           transparent
           animationType="fade"
-          onRequestClose={() => setShowConfirmModal(false)}
+          onRequestClose={() => setShowApproveModal(false)}
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Ionicons name="checkmark-circle-outline" size={48} color="#4CAF50" />
-                <Text style={styles.modalTitle}>Confirm Booking</Text>
+                <Text style={styles.modalTitle}>Approve Booking</Text>
+              </View>
+
+              {selectedBooking && (
+                <View style={styles.modalBody}>
+                  <Text style={styles.modalText}>
+                    Customer: <Text style={styles.bold}>{selectedBooking.customer?.name || 'N/A'}</Text>
+                  </Text>
+                  <Text style={styles.modalText}>
+                    Service: <Text style={styles.bold}>
+                      {selectedBooking.services && Array.isArray(selectedBooking.services)
+                        ? selectedBooking.services.map(s => s.name).join(', ')
+                        : 'N/A'}
+                    </Text>
+                  </Text>
+                  <Text style={styles.modalText}>
+                    Booking ID: <Text style={styles.boldOrange}>{selectedBooking.booking_id}</Text>
+                  </Text>
+
+                  <View style={styles.infoBox}>
+                    <Ionicons name="information-circle" size={20} color="#4CAF50" />
+                    <Text style={styles.infoText}>
+                      Approving this booking will confirm the appointment. Customer will be notified.
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelModalButton]}
+                  onPress={() => {
+                    setShowApproveModal(false);
+                    setBookingIdInput('');
+                  }}
+                >
+                  <Text style={styles.cancelModalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.approveModalButton]}
+                  onPress={approveBookingAction}
+                >
+                  <Text style={styles.approveModalButtonText}>Approve</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Reject Booking Modal */}
+        <Modal
+          visible={showRejectModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowRejectModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Ionicons name="close-circle-outline" size={48} color="#FF9800" />
+                <Text style={styles.modalTitle}>Reject Booking</Text>
               </View>
 
               {selectedBooking && (
@@ -476,21 +607,22 @@ const BookingManagementScreen = () => {
                   <Text style={styles.modalText}>
                     Booking ID: <Text style={styles.boldOrange}>{selectedBooking.booking_id}</Text>
                   </Text>
-                  
+
                   <View style={styles.verificationBox}>
                     <Text style={styles.verificationLabel}>
-                      Type booking ID to confirm:
+                      Rejection Reason: *
                     </Text>
                     <TextInput
-                      style={styles.verificationInput}
-                      placeholder="Enter Booking ID"
-                      value={bookingIdInput}
-                      onChangeText={setBookingIdInput}
-                      autoCapitalize="characters"
-                      autoCorrect={false}
+                      style={[styles.verificationInput, styles.textArea]}
+                      placeholder="Enter reason for rejection..."
+                      value={rejectionReason}
+                      onChangeText={setRejectionReason}
+                      multiline
+                      numberOfLines={4}
+                      textAlignVertical="top"
                     />
                     <Text style={styles.verificationHint}>
-                      Customer should show you this ID at the shop
+                      Customer will be notified with this reason
                     </Text>
                   </View>
                 </View>
@@ -500,17 +632,17 @@ const BookingManagementScreen = () => {
                 <TouchableOpacity
                   style={[styles.modalButton, styles.cancelModalButton]}
                   onPress={() => {
-                    setShowConfirmModal(false);
-                    setBookingIdInput('');
+                    setShowRejectModal(false);
+                    setRejectionReason('');
                   }}
                 >
-                  <Text style={styles.cancelModalButtonText}>Cancel</Text>
+                  <Text style={styles.cancelModalButtonText}>Back</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.confirmModalButton]}
-                  onPress={confirmBookingWithVerification}
+                  style={[styles.modalButton, styles.rejectModalButton]}
+                  onPress={rejectBookingWithReason}
                 >
-                  <Text style={styles.confirmModalButtonText}>Confirm</Text>
+                  <Text style={styles.rejectModalButtonText}>Reject Booking</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -587,7 +719,7 @@ const BookingManagementScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F5F5F5',
   },
   loadingContainer: {
     flex: 1,
@@ -601,41 +733,58 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
+  header: {
+    backgroundColor: '#FFF',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
   content: {
     flex: 1,
-    padding: 15,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
   },
   tabBar: {
-    backgroundColor: 'white',
+    backgroundColor: '#FFF',
     elevation: 0,
     shadowOpacity: 0,
-    borderRadius: 10,
-    marginBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
   tabLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    textTransform: 'capitalize',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginHorizontal: 0,
+    paddingHorizontal: 4,
   },
   tabContent: {
     flex: 1,
+    backgroundColor: '#F5F5F5',
   },
   bookingCard: {
-    backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 15,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   bookingHeader: {
     flexDirection: 'row',
@@ -659,11 +808,20 @@ const styles = StyleSheet.create({
   pendingBadge: {
     backgroundColor: '#FFA50020',
   },
+  approvedBadge: {
+    backgroundColor: '#2196F320',
+  },
   confirmedBadge: {
     backgroundColor: '#2196F320',
   },
   completedBadge: {
     backgroundColor: '#4CAF5020',
+  },
+  rejectedBadge: {
+    backgroundColor: '#FF3B3020',
+  },
+  cancelledBadge: {
+    backgroundColor: '#99999920',
   },
   statusText: {
     fontSize: 12,
@@ -672,11 +830,20 @@ const styles = StyleSheet.create({
   pendingText: {
     color: '#FFA500',
   },
+  approvedText: {
+    color: '#2196F3',
+  },
   confirmedText: {
     color: '#2196F3',
   },
   completedText: {
     color: '#4CAF50',
+  },
+  rejectedText: {
+    color: '#FF3B30',
+  },
+  cancelledText: {
+    color: '#999',
   },
   bookingDetails: {
     marginBottom: 15,
@@ -704,8 +871,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 5,
   },
-  confirmButton: {
+  approveButton: {
     backgroundColor: '#4CAF50',
+  },
+  rejectButton: {
+    backgroundColor: '#FF9800',
   },
   cancelButton: {
     backgroundColor: '#FF6B6B',
@@ -713,7 +883,12 @@ const styles = StyleSheet.create({
   completeButton: {
     backgroundColor: '#2196F3',
   },
-  confirmButtonText: {
+  approveButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  rejectButtonText: {
     color: 'white',
     fontWeight: 'bold',
     fontSize: 14,
@@ -739,6 +914,20 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  rejectedInfo: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    flex: 1,
+    gap: 8,
+    backgroundColor: '#FFF3E0',
+    padding: 12,
+    borderRadius: 8,
+  },
+  rejectedText: {
+    color: '#E65100',
+    fontSize: 13,
+    lineHeight: 18,
   },
   emptyContainer: {
     flex: 1,
@@ -864,10 +1053,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#666',
   },
-  confirmModalButton: {
+  approveModalButton: {
     backgroundColor: '#4CAF50',
   },
-  confirmModalButtonText: {
+  approveModalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  rejectModalButton: {
+    backgroundColor: '#FF9800',
+  },
+  rejectModalButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFF',
@@ -879,6 +1076,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFF',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    backgroundColor: '#E8F5E9',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4CAF50',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#2E7D32',
+    lineHeight: 18,
   },
 });
 
