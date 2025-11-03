@@ -33,8 +33,8 @@ export const getConversationDetails = async (conversationId) => {
       .from('conversations')
       .select(`
         *,
-        participant_1:profiles!conversations_participant_1_id_fkey(id, name, email, profile_picture_url),
-        participant_2:profiles!conversations_participant_2_id_fkey(id, name, email, profile_picture_url),
+        user1:profiles!conversations_user1_id_fkey(id, name, email, profile_image),
+        user2:profiles!conversations_user2_id_fkey(id, name, email, profile_image),
         shop:shops(id, name)
       `)
       .eq('id', conversationId)
@@ -61,10 +61,9 @@ export const getConversationMessages = async (conversationId) => {
       .from('messages')
       .select(`
         *,
-        sender:profiles!messages_sender_id_fkey(id, name, email, profile_picture_url)
+        sender:profiles!messages_sender_id_fkey(id, name, email, profile_image)
       `)
       .eq('conversation_id', conversationId)
-      .eq('is_deleted', false)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -89,14 +88,11 @@ export const sendMessage = async (conversationId, senderId, messageText, attachm
       .insert({
         conversation_id: conversationId,
         sender_id: senderId,
-        message_text: messageText,
-        attachment_url: attachmentUrl,
-        is_delivered: true,
-        delivered_at: new Date().toISOString(),
+        content: messageText,
       })
       .select(`
         *,
-        sender:profiles!messages_sender_id_fkey(id, name, email, profile_picture_url)
+        sender:profiles!messages_sender_id_fkey(id, name, email, profile_image)
       `)
       .single();
 
@@ -154,7 +150,7 @@ export const subscribeToMessages = (conversationId, callback) => {
           .from('messages')
           .select(`
             *,
-            sender:profiles!messages_sender_id_fkey(id, name, email, profile_picture_url)
+            sender:profiles!messages_sender_id_fkey(id, name, email, profile_image)
           `)
           .eq('id', payload.new.id)
           .single();
@@ -187,12 +183,11 @@ export const getUserConversations = async (userId) => {
       .from('conversations')
       .select(`
         *,
-        participant_1:profiles!conversations_participant_1_id_fkey(id, name, email, profile_picture_url),
-        participant_2:profiles!conversations_participant_2_id_fkey(id, name, email, profile_picture_url),
+        user1:profiles!conversations_user1_id_fkey(id, name, email, profile_image),
+        user2:profiles!conversations_user2_id_fkey(id, name, email, profile_image),
         shop:shops(id, name)
       `)
-      .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`)
-      .eq('is_archived', false)
+      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
       .order('updated_at', { ascending: false });
 
     if (error) {

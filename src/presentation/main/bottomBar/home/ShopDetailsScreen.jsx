@@ -182,26 +182,40 @@ const ShopDetailsScreen = ({ route, navigation }) => {
         return;
       }
 
-      // Get shop owner/manager ID from shop staff (try admin/owner first, then manager)
-      let { data: ownerData } = await supabase
+      console.log('🔍 Looking for shop admin/manager for shopId:', shopId);
+
+      // Get shop owner/manager ID from shop staff (try admin first, then manager)
+      const { data: ownerData, error: queryError } = await supabase
         .from('shop_staff')
         .select('user_id, role')
         .eq('shop_id', shopId)
-        .in('role', ['admin', 'owner', 'manager'])
+        .in('role', ['admin', 'manager'])
         .eq('is_active', true)
-        .order('role', { ascending: true }) // admin/owner first
+        .order('role', { ascending: true }) // admin first, then manager
         .limit(1)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to avoid error if not found
+
+      console.log('📊 Query result:', { ownerData, queryError });
+
+      if (queryError) {
+        console.error('❌ Query error:', queryError);
+        Alert.alert('Error', 'Database error: ' + queryError.message);
+        return;
+      }
 
       if (!ownerData) {
+        console.error('❌ No admin/manager found for shop:', shopId);
         Alert.alert('Error', 'Could not find shop owner or manager');
         return;
       }
+
+      console.log('✅ Found admin/manager:', ownerData);
 
       // Create or get existing conversation
       const conversation = await getOrCreateConversation(currentUser.id, ownerData.user_id, shopId);
 
       if (conversation) {
+        console.log('✅ Conversation created/found:', conversation.id);
         // Navigate to chat conversation screen
         navigation.navigate('ChatConversationScreen', {
           conversationId: conversation.id,
@@ -210,8 +224,8 @@ const ShopDetailsScreen = ({ route, navigation }) => {
         });
       }
     } catch (error) {
-      console.error('Error starting conversation:', error);
-      Alert.alert('Error', 'Could not start conversation');
+      console.error('❌ Error starting conversation:', error);
+      Alert.alert('Error', 'Could not start conversation: ' + error.message);
     }
   };
 
