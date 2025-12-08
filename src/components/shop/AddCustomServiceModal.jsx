@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#F0F0F0',
   },
   addButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#0393d5',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',

@@ -11,10 +11,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { 
-  getMyShops, 
-  setCurrentShopId, 
-  createShop 
+import {
+  getMyShops,
+  setCurrentShopId
 } from '../../lib/shopAuth';
 
 const ShopSelectionScreen = ({ navigation }) => {
@@ -48,24 +47,12 @@ const ShopSelectionScreen = ({ navigation }) => {
 
   const handleShopSelect = async (shopId) => {
     try {
-      const success = await setCurrentShopId(shopId);
-      if (success) {
-        // Navigate to main app
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainScreen' }],
-        });
-      } else {
-        Alert.alert('Error', 'Failed to select shop');
-      }
+      // Navigate to shop settings/management screen
+      navigation.navigate('ShopSettingsScreen', { shopId });
     } catch (error) {
-      console.error('Error selecting shop:', error);
-      Alert.alert('Error', 'Failed to select shop');
+      console.error('Error navigating to shop:', error);
+      Alert.alert('Error', 'Failed to open shop settings');
     }
-  };
-
-  const handleCreateShop = () => {
-    navigation.navigate('CreateShopScreen');
   };
 
   const handleRefresh = () => {
@@ -76,7 +63,7 @@ const ShopSelectionScreen = ({ navigation }) => {
   const getRoleColor = (role) => {
     switch (role) {
       case 'owner': return '#4CAF50';
-      case 'manager': return '#FF9800';
+      case 'admin': return '#FF9800';
       case 'barber': return '#2196F3';
       default: return '#757575';
     }
@@ -85,7 +72,7 @@ const ShopSelectionScreen = ({ navigation }) => {
   const getRoleIcon = (role) => {
     switch (role) {
       case 'owner': return 'crown';
-      case 'manager': return 'people';
+      case 'admin': return 'people';
       case 'barber': return 'cut';
       default: return 'person';
     }
@@ -171,16 +158,6 @@ const ShopSelectionScreen = ({ navigation }) => {
             ))}
           </View>
         )}
-
-        {/* Create Shop Button */}
-        <TouchableOpacity
-          style={styles.createShopButton}
-          onPress={handleCreateShop}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add-circle" size={24} color="#007AFF" />
-          <Text style={styles.createShopText}>Create New Shop</Text>
-        </TouchableOpacity>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
@@ -321,26 +298,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: 'bold',
-  },
-  createShopButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    padding: 20,
-    marginHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 32,
-    borderWidth: 2,
-    borderColor: '#007AFF',
-    borderStyle: 'dashed',
-  },
-  createShopText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#007AFF',
-    marginLeft: 8,
   },
   footer: {
     paddingHorizontal: 40,

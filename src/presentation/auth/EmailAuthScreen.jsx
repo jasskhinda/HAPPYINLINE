@@ -87,7 +87,7 @@ const EmailAuthScreen = ({ route }) => {
   };
 
   return (
-    <View style={{flex: 1, backgroundColor: '#9F9F87'}}>
+    <View style={{flex: 1, backgroundColor: '#FFFFFF'}}>
       <View style={styles.container}>
         {/* LOADING BAR */}
         {loading && <CircularProgressBar loaderText={"Sending OTP..."} />}
@@ -153,11 +153,11 @@ const EmailAuthScreen = ({ route }) => {
             <View style={{ paddingHorizontal: 15, marginTop: 25 }}>
               <Text style={{ textAlign: 'center', flexWrap: 'wrap', fontSize: 12, color: 'rgba(0, 0, 0, 0.6)' }}>
                 By continuing, you agree to Happy Inline{' '}
-                <Text style={{ color: '#FF6B6B', fontWeight: 'bold' }}>
+                <Text style={{ color: '#4A90E2', fontWeight: 'bold' }}>
                   Terms of Service
                 </Text>{' '}
                 and{' '}
-                <Text style={{ color: '#FF6B6B', fontWeight: 'bold' }}>
+                <Text style={{ color: '#4A90E2', fontWeight: 'bold' }}>
                   Privacy Policy
                 </Text>
               </Text>
@@ -178,14 +178,14 @@ export default EmailAuthScreen;
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
     justifyContent: 'center',
     alignItems: 'start',
     borderBottomLeftRadius: 60,
     borderBottomRightRadius: 60
   },  
   authHeading: {
-    color: '#FF6B6B',
+    color: '#4A90E2',
     fontWeight: 'bold',
     fontSize: 30
   },
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   continueButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     borderRadius: 20,
     marginTop: 10,
     padding: 18,
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   toggleLink: {
-    color: '#FF6B6B',
+    color: '#4A90E2',
     fontSize: 14,
     fontWeight: 'bold',
   },

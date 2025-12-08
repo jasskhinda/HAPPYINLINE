@@ -34,9 +34,9 @@ const InputField = ({ type, value, onChange, isSignUp }) => {
         {/* Prefix Icon */}
         <View style={styles.iconLeft}>
           {type === 'email' ? (
-            <MaterialIcons name="email" size={20} color="#FF6B6B" />
+            <MaterialIcons name="email" size={20} color="#4A90E2" />
           ) : (
-            <Feather name="lock" size={20} color="#FF6B6B" />
+            <Feather name="lock" size={20} color="#4A90E2" />
           )}
         </View>
 
@@ -104,6 +104,7 @@ const styles = StyleSheet.create({
       flex: 1,
       paddingVertical: 10,
       fontSize: 16,
+      letterSpacing: 0,
     },
     iconRightContainer: {
       flexDirection: 'row',

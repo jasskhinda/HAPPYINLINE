@@ -70,7 +70,7 @@ const SearchScreen = () => {
           />
         ) : (
           <View style={[styles.shopLogo, styles.shopLogoPlaceholder]}>
-            <Ionicons name="storefront" size={40} color="#FF6B35" />
+            <Ionicons name="storefront" size={40} color="#4A90E2" />
           </View>
         )}
 
@@ -122,7 +122,7 @@ const SearchScreen = () => {
     if (loading) {
       return (
         <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color="#FF6B35" />
+          <ActivityIndicator size="large" color="#4A90E2" />
           <Text style={styles.emptyText}>Loading businesses...</Text>
         </View>
       );

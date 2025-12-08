@@ -86,7 +86,7 @@ const ServiceBarbersScreen = () => {
               resizeMode="contain"
             />
           ) : (
-            <Ionicons name="cut" size={24} color="#FF6B6B" />
+            <Ionicons name="cut" size={24} color="#4A90E2" />
           )}
           <Text style={styles.serviceTitle}>{serviceName}</Text>
         </View>
@@ -138,7 +138,7 @@ const ServiceBarbersScreen = () => {
         <SafeAreaView style={styles.container}>
           <SettingAppBar title={`${serviceName} Service`} />
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FF6B6B" />
+            <ActivityIndicator size="large" color="#4A90E2" />
             <Text style={styles.loadingText}>Loading barbers...</Text>
           </View>
         </SafeAreaView>
@@ -171,7 +171,7 @@ export default ServiceBarbersScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   serviceInfoSection: {
     paddingHorizontal: 20,
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   serviceTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FF6B6B',
+    color: '#4A90E2',
     marginLeft: 12,
   },
   serviceDescription: {

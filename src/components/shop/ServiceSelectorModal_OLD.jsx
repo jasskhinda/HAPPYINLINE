@@ -56,7 +56,7 @@ const ServiceSelectorModal = ({ visible, onClose, onAdd, shopId }) => {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -181,7 +181,7 @@ const ServiceSelectorModal = ({ visible, onClose, onAdd, shopId }) => {
                 >
                   {uploadingImage ? (
                     <View style={styles.iconPlaceholder}>
-                      <ActivityIndicator size="large" color="#FF6B35" />
+                      <ActivityIndicator size="large" color="#4A90E2" />
                       <Text style={styles.iconPlaceholderText}>Uploading...</Text>
                     </View>
                   ) : formData.icon_url ? (
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   modeButtonActive: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
   },
   modeButtonText: {
     fontSize: 14,
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
   createNewButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
   serviceCardPrice: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: '#FF6B35',
+    color: '#4A90E2',
   },
   serviceCardDuration: {
     fontSize: 13,
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
     paddingVertical: 14,
     borderRadius: 8,
     marginTop: 12,

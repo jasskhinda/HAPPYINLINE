@@ -22,7 +22,7 @@ const CustomerOnboarding = ({ navigation }) => {
     {
       id: 1,
       icon: 'search',
-      iconColor: '#FF6B6B',
+      iconColor: '#4A90E2',
       iconBg: '#FFE5E5',
       title: 'Find the Best Professionals',
       subtitle: 'Discover top-rated shops and professionals near you',
@@ -48,7 +48,7 @@ const CustomerOnboarding = ({ navigation }) => {
     {
       id: 3,
       icon: 'person-circle',
-      iconColor: '#FF6B6B',
+      iconColor: '#4A90E2',
       iconBg: '#FFE5E5',
       title: 'Manage Everything',
       subtitle: 'Track bookings, save favorites, and more',
@@ -194,7 +194,7 @@ const CustomerOnboarding = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   skipButton: {
     position: 'absolute',
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 16,
-    color: '#FF6B6B',
+    color: '#4A90E2',
     fontWeight: '600',
   },
   slide: {
@@ -278,11 +278,11 @@ const styles = StyleSheet.create({
   dot: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     marginHorizontal: 4,
   },
   continueButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     borderRadius: 20,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   signInLink: {
-    color: '#FF6B6B',
+    color: '#4A90E2',
     fontWeight: '600',
   },
 });

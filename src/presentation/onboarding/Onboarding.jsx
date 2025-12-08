@@ -22,7 +22,7 @@ const { width } = Dimensions.get('window');
 const slides = [
   {
     id: 1,
-    title: 'Welcome to Happy Inline',
+    title: 'Welcome!',
     text: 'Discover top-rated service providers in your area, all in one convenient place. Find the perfect service with just a few taps.',
     image: 'https://png.pngtree.com/png-clipart/20241114/original/pngtree-barbers-hairdresser-cutting-png-image_17032465.png',
   },
@@ -73,7 +73,7 @@ const Onboarding = () => {
         console.log('✅ User already has name:', authState.profile.name);
         console.log('🚫 DO NOT SHOW NAME INPUT - User exists in database');
         console.log('→ Redirecting to MainScreen immediately');
-        navigation.replace('MainScreen');
+        navigation.replace('SplashScreen');
         setLoading(false);
         return;
       }
@@ -178,7 +178,7 @@ const Onboarding = () => {
         });
         
         // Navigate to main app
-        navigation.replace('MainScreen');
+        navigation.replace('SplashScreen');
       } else {
         console.error('❌ Profile setup failed:', result.error);
         Toast.show({
@@ -294,7 +294,7 @@ const Onboarding = () => {
 export default Onboarding;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#EEEEEE' },
+  container: { flex: 1, backgroundColor: '#F8F9FA' },
 
   skipButton: {
     position: 'absolute',
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#FF6B6B',
+    color: '#4A90E2',
   },
   text: {
     fontSize: 16,
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   activeDot: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     width: 10,
     height: 10,
     borderRadius: 5,
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   navButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     paddingVertical: 10,
     paddingHorizontal: 25,
     borderRadius: 25,
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   startButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 25,
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   nameInputTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#FF6B6B',
+    color: '#4A90E2',
     marginBottom: 10,
     textAlign: 'center',
   },
@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     width: '100%',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     borderRadius: 20,
     padding: 18,
     alignItems: 'center',

@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 25,
     marginRight: 10,
-    backgroundColor: '#EEEEEE'
+    backgroundColor: '#F8F9FA'
   },
   statusBadge: {
     alignSelf: 'flex-end',

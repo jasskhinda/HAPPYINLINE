@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,24 +7,63 @@ import {
   TouchableOpacity,
   Alert,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import { cancelBooking } from '../../../../lib/auth';
+import { supabase } from '../../../../lib/supabase';
 
 const BookingDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { booking, isBarberMode = false } = route.params || {};
+  const { booking: initialBooking, isBarberMode = false } = route.params || {};
+  const [booking, setBooking] = useState(initialBooking);
   const [cancelling, setCancelling] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Reload booking data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (initialBooking?.id) {
+        loadBookingDetails();
+      }
+    }, [initialBooking?.id])
+  );
+
+  const loadBookingDetails = async () => {
+    try {
+      setRefreshing(true);
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          shop:shops!bookings_shop_id_fkey(id, name, address, phone, logo_url),
+          customer:profiles!bookings_customer_id_fkey(id, name, email, phone),
+          barber:profiles!bookings_barber_id_fkey(id, name, email, phone, profile_image)
+        `)
+        .eq('id', initialBooking.id)
+        .single();
+
+      if (error) {
+        console.error('Error loading booking:', error);
+      } else if (data) {
+        setBooking(data);
+      }
+    } catch (error) {
+      console.error('Error loading booking:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   if (!booking) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color="#FF6B6B" />
+          <Ionicons name="alert-circle-outline" size={64} color="#4A90E2" />
           <Text style={styles.errorText}>Booking not found</Text>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Text style={styles.backButtonText}>Go Back</Text>
@@ -37,22 +76,27 @@ const BookingDetailScreen = () => {
   // Format date and time
   const formatDateTime = () => {
     if (!booking.appointment_date || !booking.appointment_time) return 'N/A';
-    
-    const date = new Date(booking.appointment_date);
-    const formattedDate = date.toLocaleDateString('en-US', { 
+
+    // Parse date in local timezone to avoid timezone shift
+    // When you use new Date('2025-01-12'), it's interpreted as UTC midnight
+    // which can shift to the previous day in local time
+    const [year, month, day] = booking.appointment_date.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
+
+    const formattedDate = date.toLocaleDateString('en-US', {
       weekday: 'long',
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
-    
+
     // Convert 24h to 12h format
     const [hours, minutes] = booking.appointment_time.split(':');
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const hour12 = hour % 12 || 12;
     const formattedTime = `${hour12}:${minutes} ${ampm}`;
-    
+
     return { date: formattedDate, time: formattedTime };
   };
 
@@ -80,7 +124,7 @@ const BookingDetailScreen = () => {
       pending: { color: '#FFD97D', icon: 'time-outline', label: 'Pending Confirmation' },
       confirmed: { color: '#74D7A3', icon: 'checkmark-circle-outline', label: 'Confirmed' },
       completed: { color: '#72C4F6', icon: 'checkmark-done-outline', label: 'Completed' },
-      cancelled: { color: '#FF6B6B', icon: 'close-circle-outline', label: 'Cancelled' },
+      cancelled: { color: '#4A90E2', icon: 'close-circle-outline', label: 'Cancelled' },
       no_show: { color: '#CCCCCC', icon: 'ban-outline', label: 'No Show' },
     };
     return statusConfig[status] || statusConfig.pending;
@@ -117,6 +161,9 @@ const BookingDetailScreen = () => {
             try {
               const result = await cancelBooking(booking.id, reason || 'No reason provided');
               if (result.success) {
+                // Update local booking state immediately
+                setBooking(prev => ({ ...prev, status: 'cancelled', customer_notes: reason || 'No reason provided' }));
+
                 Alert.alert(
                   '✅ Booking Cancelled',
                   'Your appointment has been cancelled successfully.',
@@ -157,32 +204,34 @@ const BookingDetailScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Booking Details</Text>
-        <View style={styles.headerButton} />
+        <View style={styles.headerButton}>
+          {refreshing && <ActivityIndicator size="small" color="#4A90E2" />}
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Status Banner */}
         <View style={[styles.statusBanner, { backgroundColor: statusDetails.color }]}>
-          <Ionicons name={statusDetails.icon} size={32} color="#FFF" />
+          <Ionicons name={statusDetails.icon} size={28} color="#FFF" />
           <Text style={styles.statusBannerText}>{statusDetails.label}</Text>
         </View>
 
         {/* Booking Reference Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="qr-code-outline" size={24} color="#6366F1" />
+            <Ionicons name="qr-code-outline" size={22} color="#4A90E2" />
             <Text style={styles.cardTitle}>Booking Reference</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.referenceContainer} 
+          <TouchableOpacity
+            style={styles.referenceContainer}
             onPress={copyBookingReference}
             activeOpacity={0.7}
           >
             <Text style={styles.referenceText}>{bookingReference}</Text>
-            <Ionicons name="copy-outline" size={20} color="#6366F1" />
+            <Ionicons name="copy-outline" size={20} color="#4A90E2" />
           </TouchableOpacity>
           <Text style={styles.referenceHint}>Tap to copy</Text>
         </View>
@@ -190,17 +239,15 @@ const BookingDetailScreen = () => {
         {/* Date & Time Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="calendar-outline" size={24} color="#FF6B35" />
+            <Ionicons name="calendar-outline" size={22} color="#4A90E2" />
             <Text style={styles.cardTitle}>Appointment Details</Text>
           </View>
           <View style={styles.infoRow}>
-            <Ionicons name="calendar" size={20} color="#666" />
-            <Text style={styles.infoLabel}>Date:</Text>
+            <Ionicons name="calendar" size={18} color="#4A90E2" />
             <Text style={styles.infoValue}>{date}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Ionicons name="time" size={20} color="#666" />
-            <Text style={styles.infoLabel}>Time:</Text>
+            <Ionicons name="time" size={18} color="#4A90E2" />
             <Text style={styles.infoValue}>{time}</Text>
           </View>
         </View>
@@ -208,12 +255,12 @@ const BookingDetailScreen = () => {
         {/* Shop/Customer Info Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name={isBarberMode ? "person-outline" : "storefront-outline"} size={24} color="#4CAF50" />
+            <Ionicons name={isBarberMode ? "person-outline" : "storefront-outline"} size={22} color="#4A90E2" />
             <Text style={styles.cardTitle}>
               {isBarberMode ? 'Customer Information' : 'Shop Information'}
             </Text>
           </View>
-          
+
           {isBarberMode ? (
             // For barbers: show customer info
             <>
@@ -222,13 +269,13 @@ const BookingDetailScreen = () => {
               </View>
               {booking.customer?.phone && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="call-outline" size={18} color="#666" />
+                  <Ionicons name="call-outline" size={18} color="#4A90E2" />
                   <Text style={styles.infoValue}>{booking.customer.phone}</Text>
                 </View>
               )}
               {booking.customer?.email && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="mail-outline" size={18} color="#666" />
+                  <Ionicons name="mail-outline" size={18} color="#4A90E2" />
                   <Text style={styles.infoValue}>{booking.customer.email}</Text>
                 </View>
               )}
@@ -237,24 +284,26 @@ const BookingDetailScreen = () => {
             // For customers: show shop info
             <>
               {booking.shop?.logo_url && (
-                <Image 
-                  source={{ uri: booking.shop.logo_url }} 
-                  style={styles.shopLogo}
-                  resizeMode="cover"
-                />
+                <View style={styles.shopLogoContainer}>
+                  <Image
+                    source={{ uri: booking.shop.logo_url }}
+                    style={styles.shopLogo}
+                    resizeMode="contain"
+                  />
+                </View>
               )}
               <View style={styles.shopInfoRow}>
                 <Text style={styles.shopName}>{booking.shop?.name || 'Barbershop'}</Text>
               </View>
               {booking.shop?.address && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="location-outline" size={18} color="#666" />
+                  <Ionicons name="location-outline" size={18} color="#4A90E2" />
                   <Text style={styles.infoValue}>{booking.shop.address}</Text>
                 </View>
               )}
               {booking.shop?.phone && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="call-outline" size={18} color="#666" />
+                  <Ionicons name="call-outline" size={18} color="#4A90E2" />
                   <Text style={styles.infoValue}>{booking.shop.phone}</Text>
                 </View>
               )}
@@ -262,24 +311,22 @@ const BookingDetailScreen = () => {
           )}
         </View>
 
-        {/* Barber Info (for customers) */}
-        {!isBarberMode && (
+        {/* Barber Info (for customers) - Only show if barber is assigned */}
+        {!isBarberMode && booking.barber_id && booking.barber?.name && (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Ionicons name="cut-outline" size={24} color="#9C27B0" />
-              <Text style={styles.cardTitle}>Barber</Text>
+              <Ionicons name="person-outline" size={22} color="#4A90E2" />
+              <Text style={styles.cardTitle}>Service Provider</Text>
             </View>
             <View style={styles.barberInfo}>
               {booking.barber?.profile_image && (
-                <Image 
-                  source={{ uri: booking.barber.profile_image }} 
+                <Image
+                  source={{ uri: booking.barber.profile_image }}
                   style={styles.barberImage}
                   resizeMode="cover"
                 />
               )}
-              <Text style={styles.barberName}>
-                {booking.barber?.name || 'Any Available Barber'}
-              </Text>
+              <Text style={styles.barberName}>{booking.barber.name}</Text>
             </View>
           </View>
         )}
@@ -287,7 +334,7 @@ const BookingDetailScreen = () => {
         {/* Services Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="list-outline" size={24} color="#2196F3" />
+            <Ionicons name="cut-outline" size={22} color="#4A90E2" />
             <Text style={styles.cardTitle}>Services</Text>
           </View>
           {services.length > 0 ? (
@@ -307,12 +354,22 @@ const BookingDetailScreen = () => {
           ) : (
             <Text style={styles.noServices}>No services listed</Text>
           )}
-          
+
           {booking.total_amount && (
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Amount:</Text>
-              <Text style={styles.totalAmount}>${booking.total_amount}</Text>
-            </View>
+            <>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={styles.totalAmount}>${booking.total_amount}</Text>
+              </View>
+
+              {/* Payment Notice - Only show for customers */}
+              {!isBarberMode && (
+                <View style={styles.paymentNotice}>
+                  <Ionicons name="cash-outline" size={18} color="#007AFF" />
+                  <Text style={styles.paymentNoticeText}>Payment due at store</Text>
+                </View>
+              )}
+            </>
           )}
         </View>
 
@@ -344,23 +401,23 @@ const BookingDetailScreen = () => {
       {/* Action Buttons */}
       {!isBarberMode && !isPastBooking && (
         <View style={styles.actionContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.rescheduleButton}
             onPress={handleReschedule}
             disabled={cancelling}
           >
-            <Ionicons name="calendar-outline" size={20} color="#2196F3" />
+            <Ionicons name="calendar-outline" size={20} color="#4A90E2" />
             <Text style={styles.rescheduleButtonText}>Reschedule</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.cancelButton, cancelling && styles.disabledButton]}
             onPress={handleCancelBooking}
             disabled={cancelling}
           >
             <Ionicons name="close-circle-outline" size={20} color="#FFF" />
             <Text style={styles.cancelButtonText}>
-              {cancelling ? 'Cancelling...' : 'Cancel Booking'}
+              {cancelling ? 'Cancelling...' : 'Cancel'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -369,7 +426,7 @@ const BookingDetailScreen = () => {
       {/* Rate Service Button */}
       {!isBarberMode && booking.status === 'completed' && (
         <View style={styles.actionContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.rateButton}
             onPress={handleRateService}
           >
@@ -387,14 +444,14 @@ export default BookingDetailScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
@@ -406,9 +463,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
   },
   scrollView: {
     flex: 1,
@@ -417,12 +474,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 20,
+    paddingVertical: 18,
     marginBottom: 16,
-    gap: 12,
+    gap: 10,
   },
   statusBannerText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#FFF',
   },
@@ -430,40 +487,40 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     marginHorizontal: 16,
     marginBottom: 16,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
-    gap: 8,
+    gap: 10,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#000',
   },
   referenceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F0F0FF',
+    backgroundColor: '#FFF5F0',
     padding: 16,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#6366F1',
+    borderColor: '#4A90E2',
     borderStyle: 'dashed',
   },
   referenceText: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#6366F1',
+    color: '#4A90E2',
     letterSpacing: 2,
   },
   referenceHint: {
@@ -475,7 +532,7 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
     gap: 8,
   },
   infoLabel: {
@@ -485,24 +542,32 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   infoValue: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#333',
     flex: 1,
+    fontWeight: '500',
+  },
+  shopLogoContainer: {
+    width: '100%',
+    height: 140,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#F0F0F0',
   },
   shopLogo: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-    alignSelf: 'center',
-    marginBottom: 12,
+    width: '100%',
+    height: '100%',
   },
   shopInfoRow: {
-    marginBottom: 12,
+    marginBottom: 14,
   },
   shopName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#000',
     textAlign: 'center',
   },
   barberInfo: {
@@ -543,7 +608,7 @@ const styles = StyleSheet.create({
   servicePrice: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: '#000',
   },
   noServices: {
     fontSize: 14,
@@ -558,17 +623,33 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 2,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: '#F0F0F0',
   },
   totalLabel: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#666',
   },
   totalAmount: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: '#000',
+  },
+  paymentNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#F0F8FF',
+    borderRadius: 8,
+    gap: 8,
+  },
+  paymentNoticeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   notesText: {
     fontSize: 14,
@@ -594,29 +675,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#000',
     paddingVertical: 14,
     borderRadius: 12,
     gap: 8,
   },
   rescheduleButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#2196F3',
+    fontWeight: 'bold',
+    color: '#4A90E2',
   },
   cancelButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF3B30',
+    backgroundColor: '#4A90E2',
     paddingVertical: 14,
     borderRadius: 12,
     gap: 8,
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#FFF',
   },
   rateButton: {
@@ -624,14 +705,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF9800',
+    backgroundColor: '#4A90E2',
     paddingVertical: 14,
     borderRadius: 12,
     gap: 8,
   },
   rateButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#FFF',
   },
   disabledButton: {

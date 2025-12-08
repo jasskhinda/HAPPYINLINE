@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../../../../../lib/supabase';
@@ -21,13 +22,25 @@ const EditProfileScreen = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [userRole, setUserRole] = useState(null);
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
     phone: '',
     address: '',
     profile_image: null,
+  });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
   });
 
   useEffect(() => {
@@ -65,6 +78,7 @@ const EditProfileScreen = () => {
         address: profile.address || '',
         profile_image: profile.profile_image || null,
       });
+      setUserRole(profile.role || 'customer');
 
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -134,14 +148,12 @@ const EditProfileScreen = () => {
 
       if (source === 'camera') {
         result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
           aspect: [1, 1],
           quality: 0.7,
         });
       } else {
         result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
           aspect: [1, 1],
           quality: 0.7,
@@ -183,13 +195,13 @@ const EditProfileScreen = () => {
       if (profileData.profile_image) {
         const oldPath = profileData.profile_image.split('/').pop();
         await supabase.storage
-          .from('profile-images')
+          .from('profile-pictures')
           .remove([`${userId}/${oldPath}`]);
       }
 
       // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('profile-images')
+        .from('profile-pictures')
         .upload(filePath, decode(base64), {
           contentType: `image/${fileExt}`,
           upsert: true,
@@ -202,7 +214,7 @@ const EditProfileScreen = () => {
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('profile-images')
+        .from('profile-pictures')
         .getPublicUrl(filePath);
 
       // Update profile in database
@@ -268,12 +280,83 @@ const EditProfileScreen = () => {
     }
   };
 
+  const handlePasswordChange = (field, value) => {
+    setPasswordData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  };
+
+  const handleChangePassword = async () => {
+    // Validate passwords
+    if (!passwordData.newPassword.trim()) {
+      Alert.alert('Error', 'Please enter a new password');
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      Alert.alert('Error', 'New passwords do not match');
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+      console.log('🔐 Starting password change...');
+
+      // Update password using Supabase Auth with timeout
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out. Please try again.')), 15000)
+      );
+
+      const updatePromise = supabase.auth.updateUser({
+        password: passwordData.newPassword,
+      });
+
+      const { data, error } = await Promise.race([updatePromise, timeoutPromise]);
+
+      console.log('🔐 Password update response:', { data, error });
+
+      if (error) throw error;
+
+      // Clear password fields
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+
+      Alert.alert('Success', 'Password changed successfully! Please use your new password next time you log in.');
+    } catch (error) {
+      // Handle specific error codes - don't use console.error to avoid LogBox display
+      let errorMessage = 'Failed to change password. Please try again.';
+      if (error.code === 'same_password' || error.message?.includes('same password')) {
+        errorMessage = 'New password must be different from your current password.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert('Password Change Failed', errorMessage);
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
         <SettingAppBar title="Edit Profile" />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B6B" />
+          <ActivityIndicator size="large" color="#4A90E2" />
           <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       </View>
@@ -290,14 +373,14 @@ const EditProfileScreen = () => {
           <View style={styles.profilePictureContainer}>
             {uploadingImage ? (
               <View style={styles.profilePicture}>
-                <ActivityIndicator size="large" color="#FF6B6B" />
+                <ActivityIndicator size="large" color="#4A90E2" />
               </View>
             ) : (
               <Image
                 source={
                   profileData.profile_image
                     ? { uri: profileData.profile_image }
-                    : require('../../../../../../assets/logo.png')
+                    : require('../../../../../../assets/logowithouttagline.png')
                 }
                 style={styles.profilePicture}
                 resizeMode="cover"
@@ -380,18 +463,99 @@ const EditProfileScreen = () => {
           </View>
         </View>
 
-        {/* Save Button */}
+        {/* Save Button with Gradient */}
         <TouchableOpacity
-          style={[styles.saveButton, (saving || uploadingImage) && styles.saveButtonDisabled]}
           onPress={handleSaveProfile}
           disabled={saving || uploadingImage}
+          activeOpacity={0.9}
         >
-          {saving ? (
-            <ActivityIndicator color="#FFF" size="small" />
-          ) : (
-            <Text style={styles.saveButtonText}>Save Changes</Text>
-          )}
+          <LinearGradient
+            colors={saving || uploadingImage ? ['#CCCCCC', '#999999'] : ['#4A90E2', '#3A7BC8', '#2A6BA8']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.saveButton}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save Changes</Text>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
+
+        {/* Change Password Section */}
+        <View style={styles.passwordSection}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="lock-closed-outline" size={24} color="#4A90E2" />
+            <Text style={styles.sectionTitle}>Change Password</Text>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>New Password</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="key-outline" size={20} color="#666" style={styles.inputIcon} />
+              <TextInput
+                style={styles.textInput}
+                value={passwordData.newPassword}
+                onChangeText={(value) => handlePasswordChange('newPassword', value)}
+                placeholder="Enter new password"
+                placeholderTextColor="#999"
+                secureTextEntry={!showPasswords.new}
+              />
+              <TouchableOpacity onPress={() => togglePasswordVisibility('new')}>
+                <Ionicons
+                  name={showPasswords.new ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Confirm New Password</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="key-outline" size={20} color="#666" style={styles.inputIcon} />
+              <TextInput
+                style={styles.textInput}
+                value={passwordData.confirmPassword}
+                onChangeText={(value) => handlePasswordChange('confirmPassword', value)}
+                placeholder="Confirm new password"
+                placeholderTextColor="#999"
+                secureTextEntry={!showPasswords.confirm}
+              />
+              <TouchableOpacity onPress={() => togglePasswordVisibility('confirm')}>
+                <Ionicons
+                  name={showPasswords.confirm ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            onPress={handleChangePassword}
+            disabled={changingPassword}
+            activeOpacity={0.9}
+          >
+            <LinearGradient
+              colors={changingPassword ? ['#CCCCCC', '#999999'] : ['#4A90E2', '#3A7BC8', '#2A6BA8']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.changePasswordButton}
+            >
+              {changingPassword ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="key" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                  <Text style={styles.changePasswordButtonText}>Update Password</Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
 
       </ScrollView>
     </View>
@@ -401,7 +565,7 @@ const EditProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   loadingContainer: {
     flex: 1,
@@ -430,7 +594,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 4,
-    borderColor: '#FF6B6B',
+    borderColor: '#4A90E2',
     backgroundColor: '#F0F0F0',
     justifyContent: 'center',
     alignItems: 'center',
@@ -439,7 +603,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 5,
     right: 5,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     width: 35,
     height: 35,
     borderRadius: 17.5,
@@ -510,23 +674,62 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   saveButton: {
-    backgroundColor: '#FF6B6B',
     paddingVertical: 15,
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 30,
-    shadowColor: '#000',
+    shadowColor: '#4A90E2',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
-  },
-  saveButtonDisabled: {
-    opacity: 0.6,
   },
   saveButtonText: {
     color: 'white',
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  passwordSection: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEE',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginLeft: 10,
+  },
+  changePasswordButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 10,
+    shadowColor: '#4A90E2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  changePasswordButtonText: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

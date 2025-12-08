@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { getShopDetails, updateShopDetails, deleteShop, uploadShopImage } from '../../../../lib/shopAuth';
 import OperatingHoursSelector from '../../../../components/shop/OperatingHoursSelector';
+import ShopQRCodeModal from '../../../../components/shop/ShopQRCodeModal';
 
 const ShopSettingsScreen = ({ route, navigation }) => {
   const { shopId } = route.params;
@@ -24,6 +25,7 @@ const ShopSettingsScreen = ({ route, navigation }) => {
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -181,7 +183,7 @@ const ShopSettingsScreen = ({ route, navigation }) => {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: type === 'logo' ? [1, 1] : [16, 9],
         quality: 0.8,
@@ -334,7 +336,9 @@ const ShopSettingsScreen = ({ route, navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Shop Settings</Text>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity onPress={() => setShowQRModal(true)} style={styles.shareButton}>
+          <Ionicons name="qr-code" size={24} color="#4A90E2" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
@@ -570,6 +574,14 @@ const ShopSettingsScreen = ({ route, navigation }) => {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* QR Code Modal */}
+      <ShopQRCodeModal
+        visible={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        shopId={shopId}
+        shopName={formData.name}
+      />
     </SafeAreaView>
   );
 };
@@ -603,6 +615,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
+  },
+  shareButton: {
+    padding: 4,
   },
   scrollView: {
     flex: 1,

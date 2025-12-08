@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,19 +9,77 @@ import {
   ScrollView,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { supabase } from '../../lib/supabase';
 
-const AddServiceModal = ({ visible, onClose, onAdd }) => {
+const AddServiceModal = ({ visible, onClose, onAdd, shopId }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     price: '',
     duration_minutes: '',
     icon_url: null,
+    provider_ids: [],
   });
   const [errors, setErrors] = useState({});
+  const [providers, setProviders] = useState([]);
+  const [loadingProviders, setLoadingProviders] = useState(false);
+
+  // Load providers when modal opens
+  useEffect(() => {
+    if (visible && shopId) {
+      loadProviders();
+    }
+  }, [visible, shopId]);
+
+  const loadProviders = async () => {
+    try {
+      setLoadingProviders(true);
+
+      // Get all staff members with role 'barber' for this shop
+      const { data, error } = await supabase
+        .from('shop_staff')
+        .select(`
+          user_id,
+          profiles:user_id (
+            id,
+            name,
+            email
+          )
+        `)
+        .eq('shop_id', shopId)
+        .eq('role', 'barber');
+
+      if (error) throw error;
+
+      const providersList = data
+        .filter(item => item.profiles)
+        .map(item => ({
+          id: item.profiles.id,
+          name: item.profiles.name || item.profiles.email,
+          email: item.profiles.email,
+        }));
+
+      setProviders(providersList);
+    } catch (error) {
+      console.error('Error loading providers:', error);
+      Alert.alert('Error', 'Failed to load providers');
+    } finally {
+      setLoadingProviders(false);
+    }
+  };
+
+  const toggleProvider = (providerId) => {
+    setFormData(prev => ({
+      ...prev,
+      provider_ids: prev.provider_ids.includes(providerId)
+        ? prev.provider_ids.filter(id => id !== providerId)
+        : [...prev.provider_ids, providerId]
+    }));
+  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -41,7 +99,7 @@ const AddServiceModal = ({ visible, onClose, onAdd }) => {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -102,8 +160,10 @@ const AddServiceModal = ({ visible, onClose, onAdd }) => {
       price: '',
       duration_minutes: '',
       icon_url: null,
+      provider_ids: [],
     });
     setErrors({});
+    setProviders([]);
     onClose();
   };
 
@@ -199,6 +259,64 @@ const AddServiceModal = ({ visible, onClose, onAdd }) => {
                 />
                 {errors.duration_minutes && (
                   <Text style={styles.errorText}>{errors.duration_minutes}</Text>
+                )}
+              </View>
+
+              {/* Providers */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Assign Providers</Text>
+                <Text style={styles.sublabel}>
+                  Select staff members who can provide this service
+                </Text>
+
+                {loadingProviders ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color="#0393d5" />
+                  </View>
+                ) : providers.length === 0 ? (
+                  <View style={styles.emptyProvidersContainer}>
+                    <Ionicons name="people-outline" size={32} color="#999" />
+                    <Text style={styles.emptyProvidersText}>
+                      No staff members found. Add staff first.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.providersContainer}>
+                    {providers.map((provider) => (
+                      <TouchableOpacity
+                        key={provider.id}
+                        style={[
+                          styles.providerItem,
+                          formData.provider_ids.includes(provider.id) && styles.providerItemSelected
+                        ]}
+                        onPress={() => toggleProvider(provider.id)}
+                      >
+                        <View style={styles.providerInfo}>
+                          <View style={styles.providerAvatar}>
+                            <Ionicons
+                              name="person"
+                              size={20}
+                              color={formData.provider_ids.includes(provider.id) ? '#FFF' : '#666'}
+                            />
+                          </View>
+                          <View style={styles.providerDetails}>
+                            <Text style={[
+                              styles.providerName,
+                              formData.provider_ids.includes(provider.id) && styles.providerNameSelected
+                            ]}>
+                              {provider.name}
+                            </Text>
+                            <Text style={styles.providerRole}>Provider</Text>
+                          </View>
+                        </View>
+                        <Ionicons
+                          name={formData.provider_ids.includes(provider.id) ? 'checkbox' : 'square-outline'}
+                          size={24}
+                          color={formData.provider_ids.includes(provider.id) ? '#0393d5' : '#CCC'}
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 )}
               </View>
             </View>
@@ -339,13 +457,85 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   addButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#0393d5',
     marginLeft: 8,
   },
   addButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFF',
+  },
+  sublabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyProvidersContainer: {
+    padding: 30,
+    alignItems: 'center',
+    backgroundColor: '#F8F8F8',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderStyle: 'dashed',
+  },
+  emptyProvidersText: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  providersContainer: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  providerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  providerItemSelected: {
+    backgroundColor: '#FFF5F5',
+  },
+  providerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  providerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F0F0F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  providerDetails: {
+    flex: 1,
+  },
+  providerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  providerNameSelected: {
+    color: '#0393d5',
+  },
+  providerRole: {
+    fontSize: 12,
+    color: '#999',
   },
 });
 

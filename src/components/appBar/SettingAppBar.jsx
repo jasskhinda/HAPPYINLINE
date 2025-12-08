@@ -25,22 +25,23 @@ export default SettingAppBar
 
 const styles = StyleSheet.create({
     safeArea: {
-        backgroundColor: '#EEEEEE'
+        backgroundColor: '#F8F9FA'
     },
     container: {
         flexDirection: 'row',
-        padding: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
         alignItems: 'center',
-        backgroundColor: '#EEEEEE'
+        backgroundColor: '#F8F9FA'
     },
     backButton: {
-        padding: 5,
+        padding: 4,
     },
     title: {
         flex: 1,
         fontWeight: 'bold',
         fontSize: 18,
-        marginLeft: 8
+        marginLeft: 6
     },
     separator: {
         height: 1,

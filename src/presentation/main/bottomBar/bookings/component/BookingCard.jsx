@@ -1,4 +1,4 @@
-import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import * as Clipboard from 'expo-clipboard';
@@ -15,7 +15,7 @@ const getStatusColor = (status) => {
     case 'completed':
       return '#72C4F6'; // Clear sky blue
     case 'cancelled':
-      return '#FF6B6B'; // Red
+      return '#0393d5'; // Red
     case 'no_show':
       return '#CCCCCC'; // Gray
     default:
@@ -47,24 +47,27 @@ const BookingCard = ({ booking, isBarberMode = false, userRole = 'customer', onB
   const statusColor = getStatusColor(booking.status);
   const statusLabel = getStatusLabel(booking.status);
   
-  // Determine if user is manager/admin
-  const isManagerOrAdmin = userRole === 'manager' || userRole === 'admin';
+  // Determine if user is admin
+  const isAdmin = userRole === 'admin';
 
   // Format date and time
   const formatDateTime = () => {
     if (!booking.appointment_date || !booking.appointment_time) return 'N/A';
-    
-    const date = new Date(booking.appointment_date);
+
+    // Parse date in local timezone to avoid timezone shift
+    const [year, month, day] = booking.appointment_date.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
+
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const formattedDate = `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
-    
+
     // Convert 24h to 12h format
     const [hours, minutes] = booking.appointment_time.split(':');
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const hour12 = hour % 12 || 12;
     const formattedTime = `${hour12}:${minutes} ${ampm}`;
-    
+
     return `${formattedDate} • ${formattedTime}`;
   };
 
@@ -77,12 +80,17 @@ const BookingCard = ({ booking, isBarberMode = false, userRole = 'customer', onB
     return booking.shop?.name || 'Barbershop';
   };
 
-  // Get barber name for display (for customers)
-  const getBarberName = () => {
+  // Get provider name for display (for customers)
+  const getProviderName = () => {
+    // First check for provider_id and provider relationship
+    if (booking.provider_id && booking.provider?.name) {
+      return booking.provider.name;
+    }
+    // Fallback to barber for backwards compatibility
     if (booking.barber_id && booking.barber?.name) {
       return booking.barber.name;
     }
-    return 'Any Available Barber';
+    return null;
   };
 
   // Get services list
@@ -130,9 +138,9 @@ const BookingCard = ({ booking, isBarberMode = false, userRole = 'customer', onB
   };
 
   const handleCancelBooking = () => {
-    // Different prompts for manager vs customer
-    if (isManagerOrAdmin) {
-      // Manager/Admin: MUST provide cancellation reason
+    // Different prompts for admin vs customer
+    if (isAdmin) {
+      // Admin: MUST provide cancellation reason
       Alert.prompt(
         'Cancel Appointment',
         `Cancel ${booking.customer?.name || 'customer'}'s appointment on ${formatDateTime()}?\n\n⚠️ Customer will see your reason. Please provide explanation:`,
@@ -278,55 +286,70 @@ const BookingCard = ({ booking, isBarberMode = false, userRole = 'customer', onB
       onPress={handleViewDetails}
       activeOpacity={0.7}
     >
-      {/* Booking Reference with Copy Button */}
+      {/* Header Section */}
+      <View style={styles.cardHeader}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.shopNameText}>{getDisplayName()}</Text>
+          {booking.shop?.address && !isBarberMode && (
+            <View style={styles.addressRow}>
+              <Ionicons name="location-outline" size={14} color="#666" />
+              <Text style={styles.shopAddress} numberOfLines={1}>{booking.shop.address}</Text>
+            </View>
+          )}
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+          <Text style={styles.statusText}>{statusLabel}</Text>
+        </View>
+      </View>
+
+      {/* Booking Reference */}
       {bookingReference && (
         <View style={styles.bookingIdRow}>
-          <Text style={styles.bookingIdLabel}>💳 Booking Ref: </Text>
+          <Ionicons name="qr-code-outline" size={16} color="#0393d5" />
+          <Text style={styles.bookingIdLabel}>Booking Ref: </Text>
           <Text style={styles.bookingIdText}>{bookingReference}</Text>
           <TouchableOpacity onPress={copyBookingId} style={styles.copyButton}>
-            <Ionicons name="copy-outline" size={18} color="#6366F1" />
+            <Ionicons name="copy-outline" size={18} color="#0393d5" />
           </TouchableOpacity>
         </View>
       )}
 
-      <View style={{ flexDirection: 'row', marginTop: 8 }}>
-        <Image
-          source={
-            booking.shop?.logo_url
-              ? { uri: booking.shop.logo_url }
-              : require('../../../../../../assets/image.png')
-          }
-          style={styles.logo}
-          resizeMode="cover"
-        />
-        <View style={{ justifyContent: 'center', flex: 1 }}>
-          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-            <Text style={styles.statusText}>{statusLabel}</Text>
-          </View>
+      {/* Date & Time */}
+      <View style={styles.infoSection}>
+        <View style={styles.infoRow}>
+          <Ionicons name="calendar-outline" size={18} color="#0393d5" />
           <Text style={styles.dateText}>{formatDateTime()}</Text>
-          <View style={{ height: 4 }} />
-          <Text style={styles.nameText}>{getDisplayName()}</Text>
-          {!isBarberMode && (
-            <Text style={styles.barberNameText}>👤 {getBarberName()}</Text>
-          )}
-          {booking.shop?.address && !isBarberMode && (
-            <Text style={styles.shopAddress} numberOfLines={1}>📍 {booking.shop.address}</Text>
-          )}
-          <View style={{ flex: 1 }} />
-          <Text style={styles.serviceText} numberOfLines={2}>
-            Services: {getServices()}
-          </Text>
-          {booking.total_amount && (
-            <Text style={styles.priceText}>Total: ${booking.total_amount}</Text>
-          )}
         </View>
+
+        {/* Services */}
+        <View style={styles.infoRow}>
+          <Ionicons name="cut-outline" size={18} color="#0393d5" />
+          <Text style={styles.serviceText} numberOfLines={2}>
+            {getServices()}
+          </Text>
+        </View>
+
+        {!isBarberMode && getProviderName() && (
+          <View style={styles.infoRow}>
+            <Ionicons name="person-outline" size={18} color="#0393d5" />
+            <Text style={styles.providerNameText}>{getProviderName()}</Text>
+          </View>
+        )}
+
+        {/* Price */}
+        {booking.total_amount && (
+          <View style={styles.priceRow}>
+            <Text style={styles.priceLabel}>Total</Text>
+            <Text style={styles.priceText}>${booking.total_amount}</Text>
+          </View>
+        )}
       </View>
 
       {/* Action buttons - Role-based rendering */}
       {!isPastBooking && (
         <>
-          {/* MANAGER/ADMIN: Confirm & Cancel buttons */}
-          {isManagerOrAdmin && (
+          {/* ADMIN: Confirm & Cancel buttons */}
+          {isAdmin && (
             <View style={styles.buttonRow}>
               {booking.status === 'pending' && (
                 <TouchableOpacity 
@@ -353,7 +376,7 @@ const BookingCard = ({ booking, isBarberMode = false, userRole = 'customer', onB
           )}
 
           {/* CUSTOMER: Reschedule & Cancel buttons */}
-          {!isManagerOrAdmin && !isBarberMode && (
+          {!isAdmin && !isBarberMode && (
             <View style={styles.buttonRow}>
               <TouchableOpacity 
                 style={styles.rescheduleButton} 
@@ -380,7 +403,7 @@ const BookingCard = ({ booking, isBarberMode = false, userRole = 'customer', onB
       )}
 
       {/* Rate button for completed bookings (customer only) */}
-      {!isBarberMode && !isManagerOrAdmin && booking.status === 'completed' && (
+      {!isBarberMode && !isAdmin && booking.status === 'completed' && (
         <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.rateButton} onPress={handleRateService}>
             <Text style={[styles.buttonText, { color: 'white' }]}>Rate the Service</Text>
@@ -402,11 +425,11 @@ const BookingCard = ({ booking, isBarberMode = false, userRole = 'customer', onB
           <View style={styles.cancellationHeader}>
             <Ionicons name="alert-circle" size={18} color="#FF3B30" />
             <Text style={styles.cancellationLabel}>
-              {isManagerOrAdmin ? 'Cancellation Reason:' : '❗ Why was this cancelled?'}
+              {isAdmin ? 'Cancellation Reason:' : '❗ Why was this cancelled?'}
             </Text>
           </View>
           <Text style={styles.cancellationText}>{booking.customer_notes}</Text>
-          {!isManagerOrAdmin && (
+          {!isAdmin && (
             <Text style={styles.cancellationFooter}>
               Contact the shop if you have questions.
             </Text>
@@ -436,11 +459,14 @@ const styles = StyleSheet.create({
   bookingIdRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#FFF5F0',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#0393d5',
+    borderStyle: 'dashed',
   },
   bookingIdLabel: {
     fontSize: 12,
@@ -450,18 +476,61 @@ const styles = StyleSheet.create({
   bookingIdText: {
     fontSize: 13,
     fontWeight: 'bold',
-    color: '#6366F1',
+    color: '#0393d5',
     flex: 1,
   },
   copyButton: {
     padding: 4,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  headerLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  shopNameText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 4,
+  },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  infoSection: {
+    marginTop: 4,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  priceLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
   },
   logo: {
     width: 90,
     height: 120,
     borderRadius: 25,
     marginRight: 10,
-    backgroundColor: '#EEEEEE'
+    backgroundColor: '#F8F9FA'
   },
   statusBadge: {
     alignSelf: 'flex-end',
@@ -495,6 +564,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
+  providerNameText: {
+    color: '#666',
+    fontWeight: '500',
+    marginLeft: 5,
+    fontSize: 13,
+    marginTop: 2,
+  },
   shopAddress: {
     color: '#888',
     fontWeight: 'normal',
@@ -510,7 +586,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   priceText: {
-    color: '#6366F1',
+    color: '#0393d5',
     fontWeight: 'bold',
     marginLeft: 5,
     fontSize: 15,
@@ -559,7 +635,7 @@ const styles = StyleSheet.create({
   },
   rateButton: {
     flex: 1,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#0393d5',
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,

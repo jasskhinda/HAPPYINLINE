@@ -9,56 +9,271 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import {
+  getConversationMessages,
+  sendMessage as sendMessageToDb,
+  subscribeToMessages,
+  markConversationAsRead,
+} from '../../../../lib/messaging';
+import {
+  startPresenceHeartbeat,
+  stopPresenceHeartbeat,
+  getUserOnlineStatus,
+  subscribeToUserPresence,
+  unsubscribeFromPresence,
+  formatLastSeen,
+} from '../../../../lib/presence';
+import { supabase } from '../../../../lib/supabase';
 
 const ChatConversationScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { userName, userImage } = route.params || {};
-  
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([
-    {
-      id: '1',
-      text: 'Hello! I\'m interested in booking an appointment.',
-      sender: 'other',
-      timestamp: new Date(Date.now() - 60000 * 30),
-    },
-    {
-      id: '2',
-      text: 'Hi! I\'d be happy to help you. What service are you looking for?',
-      sender: 'me',
-      timestamp: new Date(Date.now() - 60000 * 25),
-    },
-    {
-      id: '3',
-      text: 'I need a haircut and beard trim. When are you available?',
-      sender: 'other',
-      timestamp: new Date(Date.now() - 60000 * 20),
-    },
-  ]);
-  
-  const flatListRef = useRef(null);
+  const { conversationId, recipientName, recipientId } = route.params || {};
 
-  const sendMessage = () => {
-    if (message.trim()) {
-      const newMessage = {
-        id: Date.now().toString(),
-        text: message.trim(),
-        sender: 'me',
-        timestamp: new Date(),
-      };
-      
-      setMessages(prev => [...prev, newMessage]);
-      setMessage('');
-      
-      // Auto scroll to bottom
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+  const [message, setMessage] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [recipientOnline, setRecipientOnline] = useState(false);
+  const [recipientLastSeen, setRecipientLastSeen] = useState(null);
+
+  const flatListRef = useRef(null);
+  const subscriptionRef = useRef(null);
+  const presenceSubscriptionRef = useRef(null);
+  const heartbeatIntervalRef = useRef(null);
+
+  useEffect(() => {
+    console.log('🔄 ChatConversation useEffect triggered for conversation:', conversationId);
+
+    initializeChat();
+
+    return () => {
+      // Cleanup subscriptions on unmount
+      console.log('🧹 Cleaning up subscriptions for conversation:', conversationId);
+
+      if (subscriptionRef.current) {
+        // Call unsubscribe directly on the subscription object
+        if (subscriptionRef.current.unsubscribe) {
+          subscriptionRef.current.unsubscribe();
+        }
+        subscriptionRef.current = null;
+      }
+
+      if (presenceSubscriptionRef.current) {
+        unsubscribeFromPresence(presenceSubscriptionRef.current);
+        presenceSubscriptionRef.current = null;
+      }
+
+      if (heartbeatIntervalRef.current && currentUserId) {
+        stopPresenceHeartbeat(heartbeatIntervalRef.current, currentUserId);
+        heartbeatIntervalRef.current = null;
+      }
+    };
+  }, [conversationId, currentUserId]);
+
+  const initializeChat = async () => {
+    try {
+      setLoading(true);
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'You must be logged in to chat');
+        navigation.goBack();
+        return;
+      }
+      setCurrentUserId(user.id);
+
+      if (!conversationId) {
+        Alert.alert('Error', 'Conversation not found');
+        navigation.goBack();
+        return;
+      }
+
+      // Load existing messages
+      await loadMessages();
+
+      // Mark conversation as read
+      await markConversationAsRead(conversationId, user.id);
+
+      // Subscribe to new messages
+      console.log('📡 Setting up real-time message subscription for conversation:', conversationId);
+      console.log('📡 Current user ID for subscription:', user.id);
+
+      subscriptionRef.current = subscribeToMessages(conversationId, (newMessage) => {
+        console.log('📨 New message received via real-time:', {
+          id: newMessage.id,
+          sender_id: newMessage.sender_id,
+          content: newMessage.content,
+          created_at: newMessage.created_at
+        });
+
+        setMessages(prev => {
+          console.log('🔍 Checking for duplicates...');
+          console.log('   - New message ID:', newMessage.id);
+          console.log('   - Existing message IDs:', prev.map(m => m.id));
+
+          // Check for duplicates by ID (both string and number)
+          const exists = prev.some(msg =>
+            msg.id === newMessage.id.toString() ||
+            msg.id === newMessage.id ||
+            msg.id === `temp-${newMessage.id}` // Check against temp IDs too
+          );
+
+          if (exists) {
+            console.log('⚠️ Message already exists, skipping');
+            return prev;
+          }
+
+          console.log('✅ Adding new message to chat');
+          const transformedMessage = transformMessage(newMessage, user.id);
+          console.log('✅ Transformed message:', transformedMessage);
+
+          return [...prev, transformedMessage];
+        });
+
+        // Mark as read when new message arrives
+        markConversationAsRead(conversationId, user.id);
+
+        // Auto scroll to bottom
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      });
+      console.log('✅ Real-time subscription established');
+
+      // Start presence heartbeat for current user
+      console.log('💓 Starting presence heartbeat for current user');
+      heartbeatIntervalRef.current = startPresenceHeartbeat(user.id);
+
+      // Get recipient's initial online status
+      if (recipientId) {
+        console.log('👤 Getting initial online status for recipient:', recipientId);
+        const statusResult = await getUserOnlineStatus(recipientId);
+        if (statusResult.success) {
+          setRecipientOnline(statusResult.isOnline);
+          setRecipientLastSeen(statusResult.lastSeen);
+          console.log(`👤 Recipient online: ${statusResult.isOnline}`);
+        }
+
+        // Subscribe to recipient's presence updates
+        console.log('👀 Subscribing to recipient presence updates');
+        presenceSubscriptionRef.current = subscribeToUserPresence(recipientId, (presence) => {
+          console.log('👤 Recipient presence updated:', presence);
+          setRecipientOnline(presence.isOnline);
+          setRecipientLastSeen(presence.lastSeen);
+        });
+      }
+
+    } catch (error) {
+      console.error('Error initializing chat:', error);
+      Alert.alert('Error', 'Failed to load chat');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMessages = async () => {
+    const result = await getConversationMessages(conversationId);
+
+    if (result.success) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const transformedMessages = result.messages.map(msg =>
+        transformMessage(msg, user.id)
+      );
+      setMessages(transformedMessages);
+    } else {
+      console.error('Error loading messages:', result.error);
+    }
+  };
+
+  const transformMessage = (dbMessage, currentUserId) => {
+    return {
+      id: dbMessage.id.toString(),
+      text: dbMessage.content,
+      sender: dbMessage.sender_id === currentUserId ? 'me' : 'other',
+      timestamp: new Date(dbMessage.created_at),
+      senderName: dbMessage.sender?.name || 'Unknown',
+    };
+  };
+
+  const handleSendMessage = async () => {
+    if (!message.trim() || sending) return;
+
+    const messageText = message.trim();
+    setMessage('');
+    setSending(true);
+
+    // Create optimistic message for immediate display
+    const optimisticMessage = {
+      id: `temp-${Date.now()}`,
+      text: messageText,
+      sender: 'me',
+      timestamp: new Date(),
+      senderName: 'You',
+      sending: true, // Mark as sending
+    };
+
+    // Add optimistic message to UI immediately
+    setMessages(prev => [...prev, optimisticMessage]);
+
+    // Auto scroll to bottom
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+
+    try {
+      const result = await sendMessageToDb(
+        conversationId,
+        currentUserId,
+        messageText
+      );
+
+      if (result.success) {
+        console.log('✅ Message sent successfully:', result.message.id);
+
+        // Replace optimistic message with real message
+        setMessages(prev => {
+          // Remove the optimistic message
+          const filtered = prev.filter(msg => msg.id !== optimisticMessage.id);
+
+          // Check if real-time already added this message
+          const exists = filtered.some(msg => msg.id === result.message.id.toString());
+          if (exists) {
+            console.log('⚠️ Message already added by real-time, using that version');
+            return filtered;
+          }
+
+          // Add the real message
+          const realMessage = transformMessage(result.message, currentUserId);
+          return [...filtered, realMessage];
+        });
+
+        // Auto scroll to bottom again
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      } else {
+        // Remove optimistic message on failure
+        setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+        Alert.alert('Error', 'Failed to send message');
+        // Restore message if send failed
+        setMessage(messageText);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+      Alert.alert('Error', 'Failed to send message');
+      setMessage(messageText);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -112,6 +327,27 @@ const ChatConversationScreen = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView edges={['top']} style={styles.header}>
+          <View style={styles.headerContent}>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Ionicons name="chevron-back" size={24} color="black" />
+            </TouchableOpacity>
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{recipientName || 'Chat'}</Text>
+            </View>
+          </View>
+        </SafeAreaView>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4A90E2" />
+          <Text style={styles.loadingText}>Loading messages...</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.header}>
@@ -119,61 +355,79 @@ const ChatConversationScreen = () => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={24} color="black" />
           </TouchableOpacity>
-          
+
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>{userName}</Text>
-            <Text style={styles.userStatus}>Online</Text>
+            <Text style={styles.userName}>{recipientName || 'Chat'}</Text>
+            <View style={styles.statusRow}>
+              {recipientOnline && <View style={styles.onlineIndicator} />}
+              <Text style={[styles.userStatus, recipientOnline && styles.userStatusOnline]}>
+                {recipientOnline ? 'Online' : formatLastSeen(recipientLastSeen)}
+              </Text>
+            </View>
           </View>
-          
+
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.headerButton} onPress={handleMoreOptionsPress}>
-              <Ionicons name="ellipsis-vertical" size={22} color="#FF6B6B" />
+              <Ionicons name="ellipsis-vertical" size={22} color="#4A90E2" />
             </TouchableOpacity>
           </View>
         </View>
       </SafeAreaView>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.chatContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={renderMessage}
-          contentContainerStyle={styles.messagesList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        />
+        {messages.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="chatbubbles-outline" size={64} color="#CCC" />
+            <Text style={styles.emptyText}>No messages yet</Text>
+            <Text style={styles.emptySubtext}>Start the conversation!</Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            renderItem={renderMessage}
+            contentContainerStyle={styles.messagesList}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          />
+        )}
 
         <SafeAreaView>
-            <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.textInput}
-            value={message}
-            onChangeText={setMessage}
-            placeholder="Type a message..."
-            placeholderTextColor="#999"
-            multiline
-            maxLength={500}
-          />
-          
-          <TouchableOpacity 
-            style={[
-              styles.sendButton,
-              message.trim() ? styles.sendButtonActive : styles.sendButtonInactive
-            ]}
-            onPress={sendMessage}
-            disabled={!message.trim()}
-          >
-            <Ionicons 
-              name="send" 
-              size={20} 
-              color={message.trim() ? 'white' : '#999'} 
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.textInput}
+              value={message}
+              onChangeText={setMessage}
+              placeholder="Type a message..."
+              placeholderTextColor="#999"
+              multiline
+              maxLength={500}
+              editable={!sending}
             />
-          </TouchableOpacity>
-        </View>
+
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                (message.trim() && !sending) ? styles.sendButtonActive : styles.sendButtonInactive
+              ]}
+              onPress={handleSendMessage}
+              disabled={!message.trim() || sending}
+            >
+              {sending ? (
+                <ActivityIndicator size="small" color="#999" />
+              ) : (
+                <Ionicons
+                  name="send"
+                  size={20}
+                  color={message.trim() ? 'white' : '#999'}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
     </View>
@@ -187,8 +441,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F5F5',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
   header: {
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
   },
@@ -207,10 +471,25 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  userStatus: {
-    fontSize: 14,
-    color: '#4CAF50',
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 2,
+  },
+  onlineIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#4CAF50',
+    marginRight: 6,
+  },
+  userStatus: {
+    fontSize: 13,
+    color: '#999',
+  },
+  userStatusOnline: {
+    color: '#4CAF50',
+    fontWeight: '500',
   },
   headerActions: {
     flexDirection: 'row',
@@ -221,6 +500,23 @@ const styles = StyleSheet.create({
   },
   chatContainer: {
     flex: 1,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 100,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#999',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#BBB',
+    marginTop: 8,
   },
   messagesList: {
     paddingHorizontal: 15,
@@ -242,7 +538,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   myMessageBubble: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
   },
   otherMessageBubble: {
     backgroundColor: 'white',
@@ -298,7 +594,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendButtonActive: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
   },
   sendButtonInactive: {
     backgroundColor: '#F0F0F0',

@@ -178,7 +178,7 @@ const OperatingHoursSelector = ({
               style={styles.timeButton}
               onPress={openOpeningTimePicker}
             >
-              <Ionicons name="time-outline" size={20} color="#FF6B35" />
+              <Ionicons name="time-outline" size={20} color="#4A90E2" />
               <Text style={styles.timeText}>{formatTime(openingTime)}</Text>
               <Ionicons name="chevron-down" size={20} color="#999" />
             </TouchableOpacity>
@@ -194,7 +194,7 @@ const OperatingHoursSelector = ({
               style={styles.timeButton}
               onPress={openClosingTimePicker}
             >
-              <Ionicons name="time-outline" size={20} color="#FF6B35" />
+              <Ionicons name="time-outline" size={20} color="#4A90E2" />
               <Text style={styles.timeText}>{formatTime(closingTime)}</Text>
               <Ionicons name="chevron-down" size={20} color="#999" />
             </TouchableOpacity>
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   },
   dayButtonSelected: {
     backgroundColor: '#FFF5F0',
-    borderColor: '#FF6B35',
+    borderColor: '#4A90E2',
   },
   dayButtonText: {
     fontSize: 14,
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   dayButtonTextSelected: {
-    color: '#FF6B35',
+    color: '#4A90E2',
   },
   timeContainer: {
     flexDirection: 'row',
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     fontSize: 16,
-    color: '#FF6B35',
+    color: '#4A90E2',
     fontWeight: 'bold',
   },
 });

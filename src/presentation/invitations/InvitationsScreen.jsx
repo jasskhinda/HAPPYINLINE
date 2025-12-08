@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { fetchPendingInvitations, acceptInvitation, declineInvitation } from '../../lib/shopAuth';
+import { getRoleDisplayName } from '../../utils/roleDisplay';
 
 const InvitationsScreen = ({ navigation }) => {
   const [invitations, setInvitations] = useState([]);
@@ -54,7 +55,7 @@ const InvitationsScreen = ({ navigation }) => {
               if (result.success) {
                 Alert.alert(
                   'Success!',
-                  `You are now ${invitation.role === 'manager' ? 'a manager' : 'a barber'} at ${invitation.shops?.name}`,
+                  `You are now ${invitation.role === 'admin' ? 'an admin' : 'a barber'} at ${invitation.shops?.name}`,
                   [
                     {
                       text: 'OK',
@@ -133,11 +134,11 @@ const InvitationsScreen = ({ navigation }) => {
   };
 
   const getRoleIcon = (role) => {
-    return role === 'manager' ? 'briefcase' : 'cut';
+    return role === 'admin' ? 'briefcase' : 'cut';
   };
 
   const getRoleColor = (role) => {
-    return role === 'manager' ? '#2196F3' : '#FF9800';
+    return role === 'admin' ? '#2196F3' : '#FF9800';
   };
 
   const renderInvitation = ({ item }) => {
@@ -259,7 +260,7 @@ const InvitationsScreen = ({ navigation }) => {
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B6B" />
+          <ActivityIndicator size="large" color="#4A90E2" />
           <Text style={styles.loadingText}>Loading invitations...</Text>
         </View>
       </SafeAreaView>
@@ -291,7 +292,7 @@ const InvitationsScreen = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#FF6B6B']}
+            colors={['#4A90E2']}
           />
         }
       />
@@ -410,7 +411,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#FF6B6B',
+    borderLeftColor: '#4A90E2',
   },
   messageText: {
     fontSize: 13,

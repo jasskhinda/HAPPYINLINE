@@ -47,8 +47,8 @@ const StaffManagementScreen = ({ route, navigation }) => {
       const { success: staffSuccess, staff: staffData } = await getShopStaff(shopId);
       if (staffSuccess && staffData) {
         setStaff(staffData);
-        // Managers are those with 'admin' role in shop_staff (both owners and managers have this role)
-        const managersData = staffData.filter(s => s.role === 'admin' || s.role === 'manager');
+        // Admins are those with 'admin' role in shop_staff
+        const managersData = staffData.filter(s => s.role === 'admin');
         const barbersData = staffData.filter(s => s.role === 'barber');
         setManagers(managersData);
         setBarbers(barbersData);
@@ -66,9 +66,9 @@ const StaffManagementScreen = ({ route, navigation }) => {
       return;
     }
 
-    // Check permissions
-    if (userRole === 'manager' && addRole !== 'barber') {
-      Alert.alert('Permission Denied', 'Managers can only add barbers');
+    // Check permissions - admins can only add barbers
+    if (userRole === 'admin' && addRole !== 'barber') {
+      Alert.alert('Permission Denied', 'Admins can only add barbers');
       return;
     }
 
@@ -94,19 +94,35 @@ const StaffManagementScreen = ({ route, navigation }) => {
         return;
       }
 
-      // Add staff member
-      const { error: insertError } = await supabase
-        .from('shop_staff')
-        .insert({
-          shop_id: shopId,
-          user_id: userData.id,
-          role: addRole,
-          is_active: true,
+      // Add staff member using RPC function to bypass RLS
+      const { data: rpcResult, error: rpcError } = await supabase
+        .rpc('add_staff_to_shop', {
+          p_shop_id: shopId,
+          p_user_id: userData.id,
+          p_role: addRole,
+          p_invited_by: null
         });
 
-      if (insertError) {
-        console.error('Insert error:', insertError);
-        Alert.alert('Error', 'Failed to add staff member');
+      if (rpcError) {
+        console.error('RPC error:', rpcError);
+        // Fallback to direct insert
+        const { error: insertError } = await supabase
+          .from('shop_staff')
+          .insert({
+            shop_id: shopId,
+            user_id: userData.id,
+            role: addRole,
+            is_active: true,
+          });
+
+        if (insertError) {
+          console.error('Insert error:', insertError);
+          Alert.alert('Error', 'Failed to add staff member');
+          return;
+        }
+      } else if (!rpcResult?.success) {
+        console.error('RPC returned error:', rpcResult?.error);
+        Alert.alert('Error', rpcResult?.error || 'Failed to add staff member');
         return;
       }
 
@@ -129,9 +145,9 @@ const StaffManagementScreen = ({ route, navigation }) => {
   };
 
   const handleRemoveStaff = (staffMember) => {
-    // Check permissions
-    if (userRole === 'manager' && staffMember.role !== 'barber') {
-      Alert.alert('Permission Denied', 'Managers can only remove barbers');
+    // Check permissions - admins can remove barbers only
+    if (userRole === 'admin' && staffMember.role !== 'barber') {
+      Alert.alert('Permission Denied', 'Admins can only remove barbers');
       return;
     }
 
@@ -206,7 +222,7 @@ const StaffManagementScreen = ({ route, navigation }) => {
   };
 
   const renderStaffMember = (staffMember) => {
-    const canRemove = userRole === 'admin' || (userRole === 'manager' && staffMember.role === 'barber');
+    const canRemove = userRole === 'admin';
     const canChangeRole = userRole === 'admin';
 
     return (
@@ -231,7 +247,6 @@ const StaffManagementScreen = ({ route, navigation }) => {
             <View style={[
               styles.roleBadge,
               staffMember.role === 'admin' && styles.adminBadge,
-              staffMember.role === 'manager' && styles.managerBadge,
               staffMember.role === 'barber' && styles.barberBadge,
             ]}>
               <Text style={styles.roleBadgeText}>{staffMember.role.toUpperCase()}</Text>
@@ -245,10 +260,10 @@ const StaffManagementScreen = ({ route, navigation }) => {
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => {
-                const availableRoles = staffMember.role === 'manager' 
-                  ? ['barber'] 
-                  : ['manager'];
-                
+                const availableRoles = staffMember.role === 'admin'
+                  ? ['barber']
+                  : ['admin'];
+
                 Alert.alert(
                   'Change Role',
                   'Select new role:',
@@ -303,15 +318,15 @@ const StaffManagementScreen = ({ route, navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {section === 'managers' ? 'Manage Managers' : 'Manage Barbers'}
+          {section === 'managers' ? 'Manage Admins' : 'Manage Barbers'}
         </Text>
         <TouchableOpacity
           onPress={() => {
-            if (userRole === 'manager' && section === 'managers') {
-              Alert.alert('Permission Denied', 'Only admins can add managers');
+            if (userRole === 'admin' && section === 'managers') {
+              Alert.alert('Permission Denied', 'Only owners can add admins');
               return;
             }
-            setAddRole(section === 'managers' ? 'manager' : 'barber');
+            setAddRole(section === 'managers' ? 'admin' : 'barber');
             setShowAddModal(true);
           }}
         >
@@ -335,7 +350,7 @@ const StaffManagementScreen = ({ route, navigation }) => {
             {managers.length === 0 ? (
               <View style={styles.emptyState}>
                 <Ionicons name="people-outline" size={60} color="#DDD" />
-                <Text style={styles.emptyText}>No managers yet</Text>
+                <Text style={styles.emptyText}>No admins yet</Text>
               </View>
             ) : (
               managers.map(renderStaffMember)
@@ -366,7 +381,7 @@ const StaffManagementScreen = ({ route, navigation }) => {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                Add {addRole === 'manager' ? 'Manager' : 'Barber'}
+                Add {addRole === 'admin' ? 'Admin' : 'Barber'}
               </Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
                 <Ionicons name="close" size={24} color="#333" />
@@ -525,7 +540,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
   },
   barberBadge: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
   },
   roleBadgeText: {
     fontSize: 11,

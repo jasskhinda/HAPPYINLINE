@@ -38,6 +38,7 @@ const ManagerManagementScreen = () => {
   const [managerName, setManagerName] = useState('');
   const [managerPhone, setManagerPhone] = useState('');
   const [managerEmail, setManagerEmail] = useState('');
+  const [managerPassword, setManagerPassword] = useState('');
 
   // Load managers on mount
   useEffect(() => {
@@ -89,6 +90,7 @@ const ManagerManagementScreen = () => {
     setManagerName('');
     setManagerPhone('');
     setManagerEmail('');
+    setManagerPassword('');
     setModalVisible(true);
   };
 
@@ -109,6 +111,18 @@ const ManagerManagementScreen = () => {
     if (!managerEmail.trim()) {
       Alert.alert('Error', 'Please enter email address');
       return;
+    }
+
+    // Password validation for new managers only
+    if (!editingManager) {
+      if (!managerPassword.trim()) {
+        Alert.alert('Error', 'Please enter a password for the new manager');
+        return;
+      }
+      if (managerPassword.trim().length < 6) {
+        Alert.alert('Error', 'Password must be at least 6 characters');
+        return;
+      }
     }
 
     try {
@@ -137,6 +151,7 @@ const ManagerManagementScreen = () => {
           name: managerName.trim(),
           phone: managerPhone.trim() || null,
           email: managerEmail.trim(),
+          password: managerPassword.trim(),
         };
 
         const result = await createManager(managerData);
@@ -200,7 +215,7 @@ const ManagerManagementScreen = () => {
       <View style={styles.managerCard}>
         {isDeleting && (
           <View style={styles.cardOverlay}>
-            <ActivityIndicator size="large" color="#FF6B6B" />
+            <ActivityIndicator size="large" color="#4A90E2" />
             <Text style={styles.overlayText}>Removing...</Text>
           </View>
         )}
@@ -229,7 +244,7 @@ const ManagerManagementScreen = () => {
               onPress={() => handleDeleteManager(item.id, item.name)}
               disabled={isDeleting}
             >
-              <Ionicons name="trash" size={20} color="#FF6B6B" />
+              <Ionicons name="trash" size={20} color="#4A90E2" />
             </TouchableOpacity>
           </View>
         </View>
@@ -257,7 +272,7 @@ const ManagerManagementScreen = () => {
       {deleting && (
         <View style={styles.globalOverlay}>
           <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color="#FF6B6B" />
+            <ActivityIndicator size="large" color="#4A90E2" />
             <Text style={styles.loadingCardText}>Removing manager...</Text>
           </View>
         </View>
@@ -370,9 +385,22 @@ const ManagerManagementScreen = () => {
               />
 
               {!editingManager && (
-                <Text style={styles.noteText}>
-                  💡 A manager profile will be created. They can login with OTP when ready. You won't be signed out.
-                </Text>
+                <>
+                  <Text style={styles.inputLabel}>
+                    Password * <Text style={styles.inputHint}>(Only required for new managers)</Text>
+                  </Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={managerPassword}
+                    onChangeText={setManagerPassword}
+                    placeholder="Enter password (min 6 characters)"
+                    secureTextEntry={true}
+                    autoCapitalize="none"
+                  />
+                  <Text style={styles.noteText}>
+                    💡 The manager can login immediately with their email and password.
+                  </Text>
+                </>
               )}
             </ScrollView>
 
@@ -409,7 +437,7 @@ const ManagerManagementScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   content: {
     flex: 1,
@@ -597,7 +625,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FF6B6B20',
+    backgroundColor: '#4A90E220',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -635,6 +663,12 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 8,
     marginTop: 15,
+  },
+  inputHint: {
+    fontSize: 12,
+    fontWeight: 'normal',
+    color: '#999',
+    fontStyle: 'italic',
   },
   textInput: {
     borderWidth: 1,

@@ -148,7 +148,7 @@ const ServiceManagementScreen = ({ route, navigation }) => {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: [ImagePicker.MediaType.Images],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -186,7 +186,7 @@ const ServiceManagementScreen = ({ route, navigation }) => {
         <Image source={{ uri: item.icon_url }} style={styles.serviceIcon} />
       ) : (
         <View style={styles.serviceIconPlaceholder}>
-          <Ionicons name="cut" size={24} color="#FF6B35" />
+          <Ionicons name="cut" size={24} color="#4A90E2" />
         </View>
       )}
       
@@ -227,7 +227,7 @@ const ServiceManagementScreen = ({ route, navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B35" />
+          <ActivityIndicator size="large" color="#4A90E2" />
         </View>
       </SafeAreaView>
     );
@@ -242,7 +242,7 @@ const ServiceManagementScreen = ({ route, navigation }) => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Manage Services</Text>
         <TouchableOpacity onPress={handleAddService}>
-          <Ionicons name="add-circle" size={28} color="#FF6B35" />
+          <Ionicons name="add-circle" size={28} color="#4A90E2" />
         </TouchableOpacity>
       </View>
 
@@ -331,7 +331,7 @@ const ServiceManagementScreen = ({ route, navigation }) => {
                 <Switch
                   value={formData.is_active}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, is_active: value }))}
-                  trackColor={{ false: '#DDD', true: '#FF6B35' }}
+                  trackColor={{ false: '#DDD', true: '#4A90E2' }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   servicePrice: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#FF6B35',
+    color: '#4A90E2',
     marginRight: 12,
   },
   serviceDuration: {
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   saveButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',

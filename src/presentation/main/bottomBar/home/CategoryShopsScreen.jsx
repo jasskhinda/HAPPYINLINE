@@ -95,7 +95,7 @@ const CategoryShopsScreen = () => {
           <Image source={{ uri: item.logo_url }} style={styles.shopImage} />
         ) : (
           <View style={[styles.shopImage, styles.placeholderImage]}>
-            <Ionicons name="storefront" size={40} color="#FF6B35" />
+            <Ionicons name="storefront" size={40} color="#4A90E2" />
           </View>
         )}
 
@@ -178,7 +178,7 @@ const CategoryShopsScreen = () => {
           </View>
 
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FF6B35" />
+            <ActivityIndicator size="large" color="#4A90E2" />
             <Text style={styles.loadingText}>Finding businesses...</Text>
           </View>
         </SafeAreaView>

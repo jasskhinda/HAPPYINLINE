@@ -73,8 +73,9 @@ const CustomerLogin = ({ navigation }) => {
         text2: 'Logged in successfully',
       });
 
-      // Navigate to main app
-      navigation.replace('MainScreen');
+      // Navigate to SplashScreen to handle routing based on user type
+      // SplashScreen will check if user is exclusive and route accordingly
+      navigation.replace('SplashScreen');
 
     } catch (error) {
       console.error('❌ Login error:', error);
@@ -86,6 +87,10 @@ const CustomerLogin = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForgotPassword = () => {
+    navigation.navigate('ForgotPasswordScreen');
   };
 
   return (
@@ -100,7 +105,7 @@ const CustomerLogin = ({ navigation }) => {
           style={styles.backButton}
           onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('GetStarted')}
         >
-          <Ionicons name="arrow-back" size={24} color="#FF6B6B" />
+          <Ionicons name="arrow-back" size={24} color="#4A90E2" />
         </TouchableOpacity>
 
         <Text style={styles.title}>Welcome Back</Text>
@@ -148,6 +153,11 @@ const CustomerLogin = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Forgot Password */}
+          <TouchableOpacity style={styles.forgotPasswordContainer} onPress={handleForgotPassword}>
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Login Button */}
@@ -165,19 +175,6 @@ const CustomerLogin = ({ navigation }) => {
             </>
           )}
         </TouchableOpacity>
-
-        {/* Sign Up Link */}
-        <View style={styles.signUpContainer}>
-          <Text style={styles.signUpText}>
-            Don't have an account?{' '}
-            <Text
-              style={styles.signUpLink}
-              onPress={() => navigation.navigate('CustomerRegistration')}
-            >
-              Sign Up
-            </Text>
-          </Text>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -186,7 +183,7 @@ const CustomerLogin = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   scrollContent: {
     flexGrow: 1,
@@ -237,9 +234,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     fontSize: 16,
     color: '#000',
+    letterSpacing: 0,
   },
   loginButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     borderRadius: 20,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -257,16 +255,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#CCC',
     opacity: 0.6,
   },
-  signUpContainer: {
-    alignItems: 'center',
-    paddingVertical: 12,
+  forgotPasswordContainer: {
+    alignItems: 'flex-end',
+    marginTop: 12,
   },
-  signUpText: {
-    fontSize: 15,
-    color: '#666',
-  },
-  signUpLink: {
-    color: '#FF6B6B',
+  forgotPasswordText: {
+    fontSize: 14,
+    color: '#4A90E2',
     fontWeight: '600',
   },
 });

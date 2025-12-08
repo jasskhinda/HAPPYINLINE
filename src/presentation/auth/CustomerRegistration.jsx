@@ -107,8 +107,9 @@ const CustomerRegistration = ({ navigation }) => {
         text2: 'Welcome to Happy Inline',
       });
 
-      // Navigate to main app (they're automatically logged in)
-      navigation.replace('MainScreen');
+      // Navigate to SplashScreen to handle routing based on user type
+      // SplashScreen will check if user is exclusive and route accordingly
+      navigation.replace('SplashScreen');
 
     } catch (error) {
       console.error('❌ Registration error:', error);
@@ -134,7 +135,7 @@ const CustomerRegistration = ({ navigation }) => {
           style={styles.backButton}
           onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('GetStarted')}
         >
-          <Ionicons name="arrow-back" size={24} color="#FF6B6B" />
+          <Ionicons name="arrow-back" size={24} color="#4A90E2" />
         </TouchableOpacity>
 
         <Text style={styles.title}>Create Account</Text>
@@ -286,7 +287,7 @@ const CustomerRegistration = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   scrollContent: {
     flexGrow: 1,
@@ -340,12 +341,12 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 13,
-    color: '#FF6B6B',
+    color: '#4A90E2',
     marginTop: 6,
     marginLeft: 4,
   },
   registerButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     borderRadius: 20,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -372,7 +373,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   signInLink: {
-    color: '#FF6B6B',
+    color: '#4A90E2',
     fontWeight: '600',
   },
 });

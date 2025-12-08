@@ -154,7 +154,7 @@ export default BarberReviewsScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   listContent: {
     paddingBottom: 20,

@@ -1,5 +1,6 @@
 import { FlatList, StyleSheet, Text, View, RefreshControl, ActivityIndicator } from 'react-native'
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { fetchUserBookings } from '../../../../../lib/auth';
 import BookingCard from '../component/BookingCard';
 
@@ -11,6 +12,13 @@ const UpcomingTabScreen = ({ isBarberMode = false, userRole = 'customer' }) => {
   useEffect(() => {
     loadBookings();
   }, []);
+
+  // Reload bookings when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadBookings();
+    }, [])
+  );
 
   const loadBookings = async () => {
     try {

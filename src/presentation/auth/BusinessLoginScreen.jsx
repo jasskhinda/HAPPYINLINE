@@ -60,7 +60,7 @@ const BusinessLoginScreen = ({ navigation }) => {
 
       console.log('✅ Login successful:', data.user?.email);
 
-      // Navigate to MainScreen (which will show Manager Dashboard for managers)
+      // Navigate to MainScreen (which will show Admin Dashboard for admins)
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainScreen' }],
@@ -74,19 +74,15 @@ const BusinessLoginScreen = ({ navigation }) => {
   };
 
   const handleForgotPassword = () => {
-    Alert.alert(
-      'Reset Password',
-      'Please contact support to reset your password.',
-      [{ text: 'OK' }]
-    );
+    navigation.navigate('ForgotPasswordScreen');
   };
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      // If no screen to go back to, navigate to GetStarted
-      navigation.navigate('GetStarted');
+      // If no screen to go back to, navigate to WelcomeScreen
+      navigation.navigate('WelcomeScreen');
     }
   };
 
@@ -108,7 +104,7 @@ const BusinessLoginScreen = ({ navigation }) => {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-              <Ionicons name="business" size={60} color="#FF6B6B" />
+              <Ionicons name="business" size={60} color="#FFFFFF" />
             </View>
             <Text style={styles.title}>Login To Your Business</Text>
             <Text style={styles.subtitle}>
@@ -187,7 +183,7 @@ const BusinessLoginScreen = ({ navigation }) => {
 
             {/* Info Box */}
             <View style={styles.infoBox}>
-              <Ionicons name="information-circle" size={20} color="#FF6B6B" />
+              <Ionicons name="information-circle" size={20} color="#FFFFFF" />
               <Text style={styles.infoText}>
                 For shop owners and managers only. Customers should use the main app flow.
               </Text>
@@ -210,7 +206,7 @@ const BusinessLoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
+    backgroundColor: '#FFFFFF',
   },
   keyboardAvoid: {
     flex: 1,
@@ -242,7 +238,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#FFE5E5',
+    backgroundColor: '#0393d5',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
@@ -295,25 +291,26 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: '#333',
+    letterSpacing: 0,
   },
   eyeButton: {
     padding: 8,
   },
   forgotPassword: {
     fontSize: 14,
-    color: '#FF6B6B',
+    color: '#0393d5',
     fontWeight: '600',
     textAlign: 'right',
     marginBottom: 24,
   },
   loginButton: {
     flexDirection: 'row',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#0393d5',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF6B6B',
+    shadowColor: '#0393d5',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -331,17 +328,15 @@ const styles = StyleSheet.create({
   },
   infoBox: {
     flexDirection: 'row',
-    backgroundColor: '#FFF5F0',
+    backgroundColor: '#0393d5',
     padding: 16,
     borderRadius: 12,
     gap: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF6B6B',
   },
   infoText: {
     flex: 1,
     fontSize: 14,
-    color: '#666',
+    color: '#FFFFFF',
     lineHeight: 20,
   },
   footer: {
@@ -355,7 +350,7 @@ const styles = StyleSheet.create({
   },
   registerLink: {
     fontSize: 16,
-    color: '#FF6B6B',
+    color: '#0393d5',
     fontWeight: 'bold',
     textDecorationLine: 'underline',
   },

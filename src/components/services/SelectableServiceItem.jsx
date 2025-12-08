@@ -56,7 +56,7 @@ const SelectableServiceItem = ({ service, selected, onToggle }) => {
           <Ionicons 
             name={getFallbackIcon(service)} 
             size={24} 
-            color='#FF6B6B'
+            color='#4A90E2'
           />
         )}
       </View>
@@ -74,7 +74,7 @@ const SelectableServiceItem = ({ service, selected, onToggle }) => {
       {/* Checkmark */}
       {selected && (
         <View style={styles.checkmark}>
-          <Ionicons name="checkmark-circle" size={26} color="#FF6B6B" />
+          <Ionicons name="checkmark-circle" size={26} color="#4A90E2" />
         </View>
       )}
       {!selected && (
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   containerSelected: {
-    borderColor: '#FF6B6B',
+    borderColor: '#4A90E2',
     backgroundColor: '#FFFFFF',
   },
   iconContainer: {

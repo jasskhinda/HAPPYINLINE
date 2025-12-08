@@ -2,6 +2,16 @@ import { supabase } from './supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // =====================================================
+// AUTH STATE FLAGS
+// =====================================================
+
+// Flag to suppress auth state changes during provider creation
+// This prevents the app from reacting to temporary session switches
+let _isCreatingProvider = false;
+
+export const isCreatingProvider = () => _isCreatingProvider;
+
+// =====================================================
 // PASSWORDLESS AUTHENTICATION
 // =====================================================
 
@@ -373,7 +383,7 @@ export const checkAuthState = async () => {
     // Check if profile exists in database - Try by ID first
     let { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, name, email, phone, onboarding_completed, is_platform_admin')
+      .select('id, name, email, phone, onboarding_completed, is_platform_admin, exclusive_shop_id')
       .eq('id', session.user.id)
       .single();
     
@@ -389,7 +399,7 @@ export const checkAuthState = async () => {
       
       const { data: profileByEmail, error: emailError } = await supabase
         .from('profiles')
-        .select('id, name, email, phone, onboarding_completed, is_platform_admin')
+        .select('id, name, email, phone, onboarding_completed, is_platform_admin, exclusive_shop_id')
         .eq('email', session.user.email)
         .single();
       
@@ -705,22 +715,32 @@ export const refreshSession = async () => {
 export const onAuthStateChange = (callback) => {
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
     async (event, session) => {
-      console.log('🔄 Auth state changed:', event);
-      
+      console.log('🔄 Auth state changed:', event, '| creating provider:', _isCreatingProvider);
+
+      // IMPORTANT: Skip all processing during provider creation
+      // This prevents async profile fetches from blocking the creation flow
+      if (_isCreatingProvider) {
+        console.log('⏳ [AUTH.JS] Skipping auth listener - provider creation in progress');
+        // Still call callback with minimal data so app doesn't hang waiting
+        // but don't do expensive profile fetch
+        callback(event, session, null);
+        return;
+      }
+
       // Ignore TOKEN_REFRESHED events - they don't change auth state
       // Token refresh happens automatically in background, no need to re-fetch profile
       if (event === 'TOKEN_REFRESHED') {
         console.log('🔄 Token refreshed automatically (ignoring, no action needed)');
         return; // Don't call callback, don't fetch profile
       }
-      
+
       // Handle signed out events
       if (event === 'SIGNED_OUT') {
         console.log('👋 User signed out');
         callback(event, null, null);
         return;
       }
-      
+
       // Only fetch profile for meaningful auth changes
       // INITIAL_SESSION, SIGNED_IN, USER_UPDATED
       let profile = null;
@@ -854,18 +874,41 @@ export const fetchServices = async () => {
 
 /**
  * Create a new service
- * @param {object} serviceData - Service details (name, description, icon_url, price, duration)
+ * @param {object} serviceData - Service details (name, description, icon_url, price, duration, provider_ids)
  * @returns {Promise<{success: boolean, data?: object, error?: string}>}
  */
 export const createService = async (serviceData) => {
   try {
+    // Extract provider_ids from serviceData
+    const { provider_ids, ...serviceFields } = serviceData;
+
+    // Insert service
     const { data, error } = await supabase
       .from('services')
-      .insert([serviceData])
+      .insert([serviceFields])
       .select()
       .single();
 
     if (error) throw error;
+
+    // If provider_ids provided, create service_providers relationships
+    if (provider_ids && provider_ids.length > 0) {
+      const serviceProviderRecords = provider_ids.map(providerId => ({
+        service_id: data.id,
+        provider_id: providerId,
+      }));
+
+      const { error: providerError } = await supabase
+        .from('service_providers')
+        .insert(serviceProviderRecords);
+
+      if (providerError) {
+        console.error('⚠️ Error linking providers:', providerError.message);
+        // Don't fail the entire operation, just log the error
+      } else {
+        console.log('✅ Service linked to', provider_ids.length, 'provider(s)');
+      }
+    }
 
     console.log('✅ Service created:', data);
     return { success: true, data };
@@ -878,19 +921,54 @@ export const createService = async (serviceData) => {
 /**
  * Update an existing service
  * @param {string} serviceId - Service ID
- * @param {object} updates - Fields to update
+ * @param {object} updates - Fields to update (including provider_ids)
  * @returns {Promise<{success: boolean, data?: object, error?: string}>}
  */
 export const updateService = async (serviceId, updates) => {
   try {
+    // Extract provider_ids from updates
+    const { provider_ids, ...serviceFields } = updates;
+
+    // Update service
     const { data, error } = await supabase
       .from('services')
-      .update(updates)
+      .update(serviceFields)
       .eq('id', serviceId)
       .select()
       .single();
 
     if (error) throw error;
+
+    // If provider_ids provided, update service_providers relationships
+    if (provider_ids !== undefined) {
+      // Delete existing provider relationships
+      const { error: deleteError } = await supabase
+        .from('service_providers')
+        .delete()
+        .eq('service_id', serviceId);
+
+      if (deleteError) {
+        console.error('⚠️ Error removing old providers:', deleteError.message);
+      }
+
+      // Insert new provider relationships
+      if (provider_ids.length > 0) {
+        const serviceProviderRecords = provider_ids.map(providerId => ({
+          service_id: serviceId,
+          provider_id: providerId,
+        }));
+
+        const { error: providerError } = await supabase
+          .from('service_providers')
+          .insert(serviceProviderRecords);
+
+        if (providerError) {
+          console.error('⚠️ Error linking providers:', providerError.message);
+        } else {
+          console.log('✅ Service linked to', provider_ids.length, 'provider(s)');
+        }
+      }
+    }
 
     console.log('✅ Service updated:', data);
     return { success: true, data };
@@ -969,21 +1047,116 @@ export const uploadServiceIcon = async (fileUri, serviceId) => {
 // =====================================================
 
 /**
- * Fetch all barbers with their details
+ * Fetch all barbers with their details - ONLY from the current owner's shops
  * @returns {Promise<{success: boolean, data: Array, error?: string}>}
  */
 export const fetchAllBarbers = async () => {
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('❌ User not authenticated');
+      return { success: false, error: 'User not authenticated', data: [] };
+    }
+
+    // Get shops where the current user is owner/admin
+    const { data: shopStaff, error: shopError } = await supabase
+      .from('shop_staff')
+      .select('shop_id')
+      .eq('user_id', user.id)
+      .in('role', ['admin', 'owner']);
+
+    if (shopError) throw shopError;
+
+    if (!shopStaff || shopStaff.length === 0) {
+      console.log('📭 No shops found for this user');
+      return { success: true, data: [] };
+    }
+
+    const shopIds = shopStaff.map(s => s.shop_id);
+
+    // Get all barbers from these shops via shop_staff table
+    const { data: barberStaff, error: barberError } = await supabase
+      .from('shop_staff')
+      .select(`
+        id,
+        shop_id,
+        user_id,
+        role,
+        profiles:user_id (
+          id,
+          name,
+          email,
+          phone,
+          profile_image,
+          role
+        )
+      `)
+      .in('shop_id', shopIds)
       .eq('role', 'barber')
-      .order('name');
+      .eq('is_active', true);
 
-    if (error) throw error;
+    if (barberError) throw barberError;
 
-    console.log('✅ Fetched all barbers:', data?.length || 0);
-    return { success: true, data: data || [] };
+    // Log raw staff data for debugging
+    console.log('📊 Raw barber staff entries:', barberStaff?.length || 0);
+
+    // Flatten the data and remove duplicates (if a barber is in multiple shops)
+    const uniqueBarbers = new Map();
+    barberStaff?.forEach(staff => {
+      const profileName = staff.profiles ? staff.profiles.name : 'NULL (RLS blocked)';
+      console.log('  → Staff entry:', staff.user_id, 'profile:', profileName);
+
+      if (staff.profiles && !uniqueBarbers.has(staff.profiles.id)) {
+        uniqueBarbers.set(staff.profiles.id, {
+          ...staff.profiles,
+          shop_staff_id: staff.id,
+          shop_id: staff.shop_id
+        });
+      } else if (!staff.profiles) {
+        // Profile join failed (likely RLS) - create minimal entry from shop_staff
+        console.log('  ⚠️ No profile data for user_id:', staff.user_id, '- fetching separately...');
+        // We'll handle this below
+      }
+    });
+
+    // If we have staff entries with null profiles, try to fetch them separately
+    const staffWithoutProfiles = barberStaff?.filter(s => !s.profiles) || [];
+    if (staffWithoutProfiles.length > 0) {
+      const missingUserIds = staffWithoutProfiles.map(s => s.user_id);
+      console.log('📥 Fetching missing profiles for:', missingUserIds.length, 'users');
+
+      const { data: missingProfiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, name, email, phone, profile_image, role')
+        .in('id', missingUserIds);
+
+      if (!profileError && missingProfiles) {
+        missingProfiles.forEach(profile => {
+          if (!uniqueBarbers.has(profile.id)) {
+            const staffEntry = staffWithoutProfiles.find(s => s.user_id === profile.id);
+            uniqueBarbers.set(profile.id, {
+              ...profile,
+              shop_staff_id: staffEntry?.id,
+              shop_id: staffEntry?.shop_id
+            });
+            console.log('  ✅ Added missing profile:', profile.name);
+          }
+        });
+      } else if (profileError) {
+        console.warn('  ⚠️ Could not fetch missing profiles:', profileError.message);
+      }
+    }
+
+    const barbersArray = Array.from(uniqueBarbers.values()).sort((a, b) =>
+      (a.name || '').localeCompare(b.name || '')
+    );
+
+    console.log('✅ Fetched barbers for owner shops:', barbersArray.length);
+    if (barbersArray.length > 0) {
+      console.log('   First barber:', barbersArray[0].name, barbersArray[0].email);
+    }
+    return { success: true, data: barbersArray };
   } catch (error) {
     console.error('❌ Error fetching barbers:', error.message);
     return { success: false, error: error.message, data: [] };
@@ -991,94 +1164,518 @@ export const fetchAllBarbers = async () => {
 };
 
 /**
- * Create a new barber profile
- * Note: This creates a profile without an auth account. 
- * The barber will need to sign up separately with the same email.
+ * Check if the current owner can add more service providers based on their subscription license limits
+ * @returns {Promise<{canAdd: boolean, currentCount: number, maxLicenses: number, planName: string, error?: string}>}
+ */
+export const checkLicenseAvailability = async () => {
+  try {
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { canAdd: false, currentCount: 0, maxLicenses: 0, planName: 'none', error: 'User not authenticated' };
+    }
+
+    // Get owner's subscription info from profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('subscription_plan, max_licenses, license_count')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return { canAdd: false, currentCount: 0, maxLicenses: 0, planName: 'none', error: 'Profile not found' };
+    }
+
+    const maxLicenses = profile.max_licenses || 0;
+    const planName = profile.subscription_plan || 'none';
+
+    // Get shops where the current user is owner/admin
+    const { data: shopStaff, error: shopError } = await supabase
+      .from('shop_staff')
+      .select('shop_id')
+      .eq('user_id', user.id)
+      .in('role', ['admin', 'owner']);
+
+    if (shopError) throw shopError;
+
+    if (!shopStaff || shopStaff.length === 0) {
+      return { canAdd: true, currentCount: 0, maxLicenses, planName };
+    }
+
+    const shopIds = shopStaff.map(s => s.shop_id);
+
+    // Count current barbers/providers in owner's shops
+    const { data: barberCount, error: countError } = await supabase
+      .from('shop_staff')
+      .select('user_id', { count: 'exact', head: true })
+      .in('shop_id', shopIds)
+      .eq('role', 'barber')
+      .eq('is_active', true);
+
+    if (countError) throw countError;
+
+    // Get actual count
+    const { count } = await supabase
+      .from('shop_staff')
+      .select('user_id', { count: 'exact' })
+      .in('shop_id', shopIds)
+      .eq('role', 'barber')
+      .eq('is_active', true);
+
+    const currentCount = count || 0;
+    const canAdd = currentCount < maxLicenses;
+
+    console.log(`📊 License check: ${currentCount}/${maxLicenses} used, canAdd: ${canAdd}`);
+
+    // Also sync license_count in profile to keep it accurate
+    if (profile.license_count !== currentCount) {
+      await supabase
+        .from('profiles')
+        .update({ license_count: currentCount })
+        .eq('id', user.id);
+      console.log(`📊 Synced license_count in profile: ${currentCount}`);
+    }
+
+    return {
+      canAdd,
+      currentCount,
+      maxLicenses,
+      planName,
+      remaining: maxLicenses - currentCount
+    };
+  } catch (error) {
+    console.error('❌ Error checking license availability:', error.message);
+    return { canAdd: false, currentCount: 0, maxLicenses: 0, planName: 'none', error: error.message };
+  }
+};
+
+/**
+ * Update license count in owner's profile
+ * @param {string} ownerId - Owner's user ID
+ * @param {number} delta - Change in count (+1 or -1)
+ * @returns {Promise<boolean>}
+ */
+export const updateLicenseCount = async (ownerId, delta) => {
+  try {
+    // Get current license_count
+    const { data: profile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('license_count')
+      .eq('id', ownerId)
+      .single();
+
+    if (fetchError) {
+      console.error('❌ Error fetching license count:', fetchError.message);
+      return false;
+    }
+
+    const currentCount = profile?.license_count || 0;
+    const newCount = Math.max(0, currentCount + delta); // Never go below 0
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ license_count: newCount })
+      .eq('id', ownerId);
+
+    if (updateError) {
+      console.error('❌ Error updating license count:', updateError.message);
+      return false;
+    }
+
+    console.log(`📊 Updated license_count: ${currentCount} → ${newCount}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error in updateLicenseCount:', error.message);
+    return false;
+  }
+};
+
+/**
+ * Send notification email to newly added provider
+ * Uses SendPulse via Supabase Edge Function
+ * @param {object} params - Email parameters
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export const sendProviderNotificationEmail = async ({
+  providerEmail,
+  providerName,
+  businessName,
+  inviterName,
+  shopId
+}) => {
+  try {
+    console.log('📧 Sending notification email to provider:', providerEmail);
+
+    const { data, error } = await supabase.functions.invoke('send-provider-notification', {
+      body: {
+        providerEmail,
+        providerName,
+        businessName,
+        inviterName,
+        shopId
+      }
+    });
+
+    if (error) {
+      console.error('❌ Email notification error:', error);
+      // Don't fail the whole operation if email fails
+      return { success: false, error: error.message };
+    }
+
+    if (data?.error) {
+      console.warn('⚠️ Email service error:', data.error);
+      return { success: false, error: data.error };
+    }
+
+    console.log('✅ Provider notification email sent');
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error sending notification email:', error.message);
+    // Don't fail the whole operation if email fails
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Create a new barber profile - OPTIMIZED VERSION
+ * Uses Supabase Auth signUp but with optimized flow
  * @param {object} barberData - Barber details
  * @returns {Promise<{success: boolean, data?: object, error?: string}>}
  */
-export const createBarber = async (barberData) => {
+export const createBarber = async (barberData, shopId = null) => {
   try {
-    console.log('� Checking if user already exists:', barberData.email);
-    
+    console.log('👤 Creating provider:', barberData.email);
+    if (shopId) {
+      console.log('🏪 Will auto-assign to shop:', shopId);
+    }
+
     // Step 1: Check if a profile with this email already exists
     const { data: existingProfile, error: checkError } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, email, name, phone, role')
       .eq('email', barberData.email)
       .maybeSingle();
-    
+
     if (checkError) {
       console.error('❌ Error checking existing profile:', checkError.message);
       return { success: false, error: checkError.message };
     }
 
+    // Get current owner's ID and name for invited_by field
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const ownerId = currentUser?.id || null;
+
+    // Get owner profile and shop info for email notification
+    let inviterName = null;
+    let businessName = null;
+    if (ownerId) {
+      const { data: ownerProfile } = await supabase
+        .from('profiles')
+        .select('name, business_name')
+        .eq('id', ownerId)
+        .single();
+      inviterName = ownerProfile?.name;
+      businessName = ownerProfile?.business_name;
+    }
+    // If shopId provided, get the shop name
+    if (shopId && !businessName) {
+      const { data: shop } = await supabase
+        .from('shops')
+        .select('name')
+        .eq('id', shopId)
+        .single();
+      businessName = shop?.name;
+    }
+
     if (existingProfile) {
-      console.log('✅ User exists, updating to barber role');
-      
-      // User exists, update their profile to barber
-      const { data: updatedProfile, error: updateError } = await supabase
+      console.log('✅ User exists with email:', barberData.email);
+      console.log('   Current role:', existingProfile.role);
+
+      // Check if this user is ALREADY a provider at this shop
+      if (shopId) {
+        const { data: existingStaff, error: staffCheckError } = await supabase
+          .from('shop_staff')
+          .select('id, role, is_active')
+          .eq('shop_id', shopId)
+          .eq('user_id', existingProfile.id)
+          .maybeSingle();
+
+        if (!staffCheckError && existingStaff) {
+          if (existingStaff.role === 'barber' && existingStaff.is_active) {
+            console.log('⚠️ User is already a provider at this shop');
+            return {
+              success: false,
+              error: `${barberData.email} is already a provider at this business.`
+            };
+          }
+          // If they're staff but not active barber, we'll update them below
+          console.log('📌 User exists in shop_staff but as:', existingStaff.role);
+        }
+      }
+
+      // Update profile role to barber (may fail due to RLS, but that's OK)
+      console.log('📝 Updating profile to barber role...');
+      const { data: updatedProfiles, error: updateError } = await supabase
         .from('profiles')
         .update({
           role: 'barber',
           name: barberData.name,
           phone: barberData.phone || existingProfile.phone,
-          bio: barberData.bio || existingProfile.bio,
-          specialties: barberData.specialties || [],
           onboarding_completed: true,
         })
         .eq('id', existingProfile.id)
-        .select()
-        .single();
+        .select();
 
       if (updateError) {
-        console.error('❌ Error updating profile:', updateError.message);
-        return { success: false, error: updateError.message };
+        console.warn('⚠️ Profile update blocked (RLS):', updateError.message);
+        // Don't fail - we can still add them to shop_staff
       }
 
-      console.log('✅ User promoted to barber:', updatedProfile);
-      return { 
-        success: true, 
-        data: updatedProfile,
-        message: `${barberData.name} has been promoted to barber!`
+      const updatedProfile = updatedProfiles?.[0];
+      if (!updatedProfile) {
+        console.warn('⚠️ Profile update returned no data - RLS may have blocked it');
+      } else {
+        console.log('✅ Profile updated successfully');
+      }
+
+      // Auto-assign to shop if shopId provided
+      if (shopId) {
+        console.log('📌 Assigning existing user to shop...');
+        // Use RPC function to bypass RLS
+        const { data: rpcResult, error: rpcError } = await supabase
+          .rpc('add_staff_to_shop', {
+            p_shop_id: shopId,
+            p_user_id: existingProfile.id,
+            p_role: 'barber',
+            p_invited_by: ownerId
+          });
+
+        if (rpcError) {
+          console.error('⚠️ Shop assignment RPC error:', rpcError.message);
+          // Fallback to direct upsert (may fail due to RLS)
+          const { error: assignError } = await supabase
+            .from('shop_staff')
+            .upsert({
+              shop_id: shopId,
+              user_id: existingProfile.id,
+              role: 'barber',
+              invited_by: ownerId,
+              is_available: true,
+              is_active: true
+            }, {
+              onConflict: 'shop_id,user_id'
+            });
+
+          if (assignError) {
+            console.error('❌ Shop assignment error:', assignError.message);
+            return { success: false, error: `Failed to assign provider to shop: ${assignError.message}` };
+          }
+          console.log('✅ Assigned to shop via fallback');
+        } else if (rpcResult?.success) {
+          console.log('✅ Assigned to shop via RPC');
+        } else {
+          console.error('❌ RPC returned error:', rpcResult?.error);
+          return { success: false, error: rpcResult?.error || 'Failed to assign provider to shop' };
+        }
+      }
+
+      const finalProfile = updatedProfile || {
+        ...existingProfile,
+        role: 'barber',
+        name: barberData.name
       };
-    } else {
-      console.log('� User does not exist, creating account directly...');
-      
-      // Create profile directly in database (no auth user yet)
-      // User will create auth account when they login with OTP for the first time
-      const { data: newProfile, error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          email: barberData.email,
+      console.log('✅ Provider ready:', finalProfile.name);
+
+      // Increment license count for the owner
+      if (ownerId) {
+        await updateLicenseCount(ownerId, 1);
+      }
+
+      // Send notification email to provider (don't wait, don't fail if email fails)
+      sendProviderNotificationEmail({
+        providerEmail: barberData.email,
+        providerName: barberData.name,
+        businessName,
+        inviterName,
+        shopId
+      }).catch(err => console.warn('⚠️ Email notification failed:', err.message));
+
+      return {
+        success: true,
+        data: finalProfile,
+        message: `${barberData.name} has been added as a provider!`
+      };
+    }
+
+    // User does not exist - create NEW provider via Auth
+    console.log('👤 Creating new provider account via Auth...');
+
+    // Set flag to suppress auth state changes during provider creation
+    _isCreatingProvider = true;
+    console.log('🚩 Provider creation flag SET to:', _isCreatingProvider);
+
+    // Save current session FIRST - we'll need to restore it after signUp
+    const { data: sessionData } = await supabase.auth.getSession();
+    const ownerSession = sessionData?.session;
+    const ownerAccessToken = ownerSession?.access_token;
+    const ownerRefreshToken = ownerSession?.refresh_token;
+    console.log('📦 Owner session saved:', ownerSession?.user?.email);
+
+    // Generate a readable password (8 chars: letters + numbers)
+    const generateReadablePassword = () => {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+      let pwd = '';
+      for (let i = 0; i < 8; i++) {
+        pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return pwd;
+    };
+    const password = generateReadablePassword();
+    console.log('🔐 Generated password for provider');
+
+    // Create auth user - this will trigger profile creation
+    // NOTE: signUp automatically signs in the new user, which triggers SIGNED_IN event
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email: barberData.email,
+      password: password,
+      options: {
+        data: {
           name: barberData.name,
           role: 'barber',
           phone: barberData.phone || null,
-          bio: barberData.bio || null,
-          specialties: barberData.specialties || [],
-          onboarding_completed: true,
-        })
-        .select()
-        .single();
+        },
+      },
+    });
 
-      if (insertError) {
-        console.error('Error creating barber profile:', insertError.message);
-        return { 
-          success: false, 
-          error: `Failed to create barber: ${insertError.message}` 
-        };
+    if (signUpError) {
+      console.error('❌ Auth signup error:', signUpError.message);
+      _isCreatingProvider = false; // Reset flag
+      // Restore owner session on error
+      if (ownerAccessToken && ownerRefreshToken) {
+        await supabase.auth.setSession({
+          access_token: ownerAccessToken,
+          refresh_token: ownerRefreshToken
+        });
       }
-
-      console.log('Barber profile created successfully!');
-      
-      return { 
-        success: true, 
-        message: `Barber created for ${barberData.email}. They can login with OTP when ready.`,
-        data: newProfile
-      };
+      return { success: false, error: signUpError.message };
     }
+
+    if (!authData.user) {
+      _isCreatingProvider = false; // Reset flag
+      // Restore owner session on error
+      if (ownerAccessToken && ownerRefreshToken) {
+        await supabase.auth.setSession({
+          access_token: ownerAccessToken,
+          refresh_token: ownerRefreshToken
+        });
+      }
+      return { success: false, error: 'Failed to create user account' };
+    }
+
+    const providerId = authData.user.id;
+    console.log('✅ Auth account created:', providerId);
+
+    // IMMEDIATELY restore owner session - this is critical!
+    // Without this, the app will think the newly created provider is logged in
+    if (ownerAccessToken && ownerRefreshToken) {
+      console.log('🔄 Restoring owner session immediately...');
+      const { error: restoreError } = await supabase.auth.setSession({
+        access_token: ownerAccessToken,
+        refresh_token: ownerRefreshToken
+      });
+      if (restoreError) {
+        console.error('⚠️ Session restore error:', restoreError.message);
+      } else {
+        console.log('✅ Owner session restored');
+      }
+    }
+
+    // Wait a moment for the trigger to create the profile
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Update profile with barber role
+    // Note: We use .select() without .single() to handle edge cases gracefully
+    const { data: updatedProfiles, error: updateError } = await supabase
+      .from('profiles')
+      .update({
+        role: 'barber',
+        name: barberData.name,
+        phone: barberData.phone || null,
+        onboarding_completed: true,
+      })
+      .eq('id', providerId)
+      .select();
+
+    if (updateError) {
+      console.warn('⚠️ Profile update warning:', updateError.message);
+    }
+
+    const updatedProfile = updatedProfiles?.[0];
+
+    // Auto-assign to shop if shopId provided
+    if (shopId) {
+      console.log('📌 Assigning new provider to shop...');
+      // Use RPC function to bypass RLS
+      const { data: rpcResult, error: rpcError } = await supabase
+        .rpc('add_staff_to_shop', {
+          p_shop_id: shopId,
+          p_user_id: providerId,
+          p_role: 'barber',
+          p_invited_by: ownerId
+        });
+
+      if (rpcError) {
+        console.error('⚠️ Shop assignment RPC error:', rpcError.message);
+        // Fallback to direct insert (may fail due to RLS)
+        const { error: assignError } = await supabase
+          .from('shop_staff')
+          .insert({
+            shop_id: shopId,
+            user_id: providerId,
+            role: 'barber',
+            invited_by: ownerId,
+            is_available: true,
+            is_active: true
+          });
+        if (assignError) {
+          console.error('⚠️ Fallback insert also failed:', assignError.message);
+        } else {
+          console.log('✅ Assigned to shop via fallback');
+        }
+      } else if (rpcResult?.success) {
+        console.log('✅ Assigned to shop via RPC');
+      } else {
+        console.error('⚠️ RPC returned error:', rpcResult?.error);
+      }
+    }
+
+    console.log('✅ Provider created successfully!');
+    _isCreatingProvider = false; // Reset flag on success
+
+    // Increment license count for the owner
+    if (ownerId) {
+      await updateLicenseCount(ownerId, 1);
+    }
+
+    // Send notification email to provider (don't wait, don't fail if email fails)
+    sendProviderNotificationEmail({
+      providerEmail: barberData.email,
+      providerName: barberData.name,
+      businessName,
+      inviterName,
+      shopId
+    }).catch(err => console.warn('⚠️ Email notification failed:', err.message));
+
+    return {
+      success: true,
+      message: `${barberData.name} has been added as a provider!`,
+      generatedPassword: password,
+      data: updatedProfile || { id: providerId, email: barberData.email, name: barberData.name }
+    };
+
   } catch (error) {
-    console.error('❌ Error creating barber:', error.message);
+    console.error('❌ Error creating provider:', error.message);
+    _isCreatingProvider = false; // Reset flag on error
     return { success: false, error: error.message };
   }
 };
@@ -1115,179 +1712,87 @@ export const updateBarber = async (barberId, updates) => {
  */
 export const deleteBarber = async (barberId) => {
   try {
-    // Soft delete: change role instead of deleting
-    const { error } = await supabase
+    console.log('🗑️ Removing provider:', barberId);
+
+    // Get current user to verify they have permission
+    const { data: { user } } = await supabase.auth.getUser();
+    console.log('👤 Current user:', user?.email);
+
+    // Step 1: Get all shop_staff records for this user first
+    const { data: existingStaff, error: fetchError } = await supabase
+      .from('shop_staff')
+      .select('id, shop_id, role')
+      .eq('user_id', barberId);
+
+    console.log('📋 Found shop_staff records:', existingStaff?.length || 0);
+    if (existingStaff) {
+      existingStaff.forEach(s => console.log('  - Record:', s.id, 'shop:', s.shop_id, 'role:', s.role));
+    }
+
+    // Step 2: Delete by ID for more reliable deletion (RLS might have issues with user_id filter)
+    if (existingStaff && existingStaff.length > 0) {
+      const barberRecords = existingStaff.filter(s => s.role === 'barber');
+      console.log('🗑️ Deleting', barberRecords.length, 'barber records');
+
+      for (const record of barberRecords) {
+        const { error: delError, count } = await supabase
+          .from('shop_staff')
+          .delete()
+          .eq('id', record.id);
+
+        if (delError) {
+          console.warn('⚠️ Error deleting shop_staff record', record.id, ':', delError.message);
+        } else {
+          console.log('✅ Deleted shop_staff record:', record.id);
+        }
+      }
+    }
+
+    // Step 3: Remove service assignments
+    const { error: serviceError } = await supabase
+      .from('service_providers')
+      .delete()
+      .eq('provider_id', barberId);
+
+    if (serviceError) {
+      console.warn('⚠️ Error removing service assignments:', serviceError.message);
+    } else {
+      console.log('✅ Removed service assignments');
+    }
+
+    // Step 4: Update profile role to customer
+    const { error: profileError } = await supabase
       .from('profiles')
-      .update({ role: 'customer', specialties: [] })
+      .update({ role: 'customer' })
       .eq('id', barberId);
 
-    if (error) throw error;
+    if (profileError) {
+      console.warn('⚠️ Error updating profile role:', profileError.message);
+    } else {
+      console.log('✅ Profile role changed to customer');
+    }
 
-    console.log('✅ Barber deleted (role changed):', barberId);
+    // Step 5: Verify deletion
+    const { data: checkStaff } = await supabase
+      .from('shop_staff')
+      .select('id')
+      .eq('user_id', barberId)
+      .eq('role', 'barber');
+
+    if (checkStaff && checkStaff.length > 0) {
+      console.error('❌ Provider still exists in shop_staff! RLS may be blocking delete.');
+      return { success: false, error: 'Unable to remove provider. Please check permissions.' };
+    }
+
+    // Step 6: Decrement license count for the owner (current user)
+    if (user?.id) {
+      await updateLicenseCount(user.id, -1);
+    }
+
+    console.log('✅ Provider removed successfully');
     return { success: true };
   } catch (error) {
     console.error('❌ Error deleting barber:', error.message);
-    return { success: false, error: error.message };
-  }
-};
-
-// =====================================================
-// MANAGER MANAGEMENT (Admin Only)
-// =====================================================
-
-/**
- * Fetch all managers
- * @returns {Promise<{success: boolean, data: Array, error?: string}>}
- */
-export const fetchAllManagers = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('role', 'manager')
-      .order('name');
-
-    if (error) throw error;
-
-    console.log('✅ Fetched all managers:', data?.length || 0);
-    return { success: true, data: data || [] };
-  } catch (error) {
-    console.error('❌ Error fetching managers:', error.message);
-    return { success: false, error: error.message, data: [] };
-  }
-};
-
-/**
- * Create a new manager profile (Admin only)
- * @param {object} managerData - Manager details
- * @returns {Promise<{success: boolean, data?: object, error?: string}>}
- */
-export const createManager = async (managerData) => {
-  try {
-    console.log('🔍 Checking if user already exists:', managerData.email);
-    
-    // Check if user exists
-    const { data: existingProfile, error: checkError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('email', managerData.email)
-      .maybeSingle();
-    
-    if (checkError) {
-      console.error('❌ Error checking existing profile:', checkError.message);
-      return { success: false, error: checkError.message };
-    }
-
-    if (existingProfile) {
-      console.log('✅ User exists, promoting to manager role');
-      
-      // Update to manager role
-      const { data: updatedProfile, error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          role: 'manager',
-          name: managerData.name,
-          phone: managerData.phone || existingProfile.phone,
-          onboarding_completed: true,
-        })
-        .eq('id', existingProfile.id)
-        .select()
-        .single();
-
-      if (updateError) {
-        console.error('❌ Error updating profile:', updateError.message);
-        return { success: false, error: updateError.message };
-      }
-
-      console.log('✅ User promoted to manager:', updatedProfile);
-      return { 
-        success: true, 
-        data: updatedProfile,
-        message: `${managerData.name} has been promoted to manager!`
-      };
-    } else {
-      console.log('👤 User does not exist, creating profile directly...');
-      
-      // Create profile directly in database (no auth user yet)
-      // User will create auth account when they login with OTP for the first time
-      const { data: newProfile, error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          email: managerData.email,
-          name: managerData.name,
-          role: 'manager',
-          phone: managerData.phone || null,
-          onboarding_completed: true,
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('Error creating manager profile:', insertError.message);
-        return { 
-          success: false, 
-          error: `Failed to create manager: ${insertError.message}` 
-        };
-      }
-
-      console.log('Manager profile created successfully!');
-      
-      return { 
-        success: true, 
-        message: `Manager created for ${managerData.email}. They can login with OTP when ready.`,
-        data: newProfile
-      };
-    }
-  } catch (error) {
-    console.error('❌ Error creating manager:', error.message);
-    return { success: false, error: error.message };
-  }
-};
-
-/**
- * Update manager profile (Admin only)
- * @param {string} managerId - Manager user ID
- * @param {object} updates - Fields to update
- * @returns {Promise<{success: boolean, data?: object, error?: string}>}
- */
-export const updateManager = async (managerId, updates) => {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', managerId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    console.log('✅ Manager updated:', data);
-    return { success: true, data };
-  } catch (error) {
-    console.error('❌ Error updating manager:', error.message);
-    return { success: false, error: error.message };
-  }
-};
-
-/**
- * Delete manager (soft delete by changing role to customer)
- * @param {string} managerId - Manager user ID
- * @returns {Promise<{success: boolean, error?: string}>}
- */
-export const deleteManager = async (managerId) => {
-  try {
-    // Soft delete: change role instead of deleting
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: 'customer' })
-      .eq('id', managerId);
-
-    if (error) throw error;
-
-    console.log('✅ Manager deleted (role changed):', managerId);
-    return { success: true };
-  } catch (error) {
-    console.error('❌ Error deleting manager:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -1532,65 +2037,138 @@ export const changePassword = async (newPassword) => {
  * @param {string} newEmail - New email address
  * @returns {Promise<{success: boolean, error?: string, message?: string}>}
  */
-export const changeEmail = async (newEmail) => {
+/**
+ * Send OTP to new email for email change verification
+ * Uses Edge Function to generate and store OTP, then sends email
+ * @param {string} newEmail - New email address
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export const sendEmailChangeOTP = async (newEmail) => {
   try {
-    console.log('📧 Changing email to:', newEmail);
-    
+    console.log('📧 Sending OTP for email change to:', newEmail);
+
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(newEmail)) {
-      return { 
-        success: false, 
-        error: 'Please enter a valid email address' 
+      return {
+        success: false,
+        error: 'Please enter a valid email address'
       };
     }
 
-    // Check if email already exists
-    const { data: existingProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', newEmail)
-      .maybeSingle();
-
-    if (existingProfile) {
-      return { 
-        success: false, 
-        error: 'This email is already in use by another account' 
-      };
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { success: false, error: 'No user logged in' };
     }
 
-    // Update email in Supabase Auth
-    const { error: authError } = await supabase.auth.updateUser({
-      email: newEmail
-    });
-
-    if (authError) {
-      console.error('❌ Email change failed:', authError.message);
-      return { success: false, error: authError.message };
-    }
-
-    // Update email in profiles table
-    const { user } = await getCurrentUser();
-    if (user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ email: newEmail })
-        .eq('id', user.id);
-
-      if (profileError) {
-        console.error('❌ Profile update failed:', profileError.message);
+    // Call Edge Function to send OTP
+    console.log('📧 Calling update-user-email Edge Function (send_otp)...');
+    const { data, error } = await supabase.functions.invoke(
+      'update-user-email',
+      {
+        body: {
+          userId: user.id,
+          newEmail: newEmail,
+          action: 'send_otp'
+        }
       }
+    );
+
+    if (error) {
+      console.error('❌ Edge Function error:', error.message);
+      return { success: false, error: 'Failed to send verification code. Please try again.' };
     }
 
-    console.log('✅ Email change initiated');
-    return { 
+    if (data?.error) {
+      console.error('❌ Edge Function returned error:', data.error);
+      return { success: false, error: data.error };
+    }
+
+    // For testing - log the OTP from debug response
+    if (data?._debug_otp) {
+      console.log('🔐 DEBUG OTP:', data._debug_otp);
+    }
+
+    console.log('✅ OTP sent to new email:', newEmail);
+    return {
       success: true,
-      message: 'Verification email sent to new address. Please verify to complete the change.'
+      message: data?.message || 'A verification code has been sent to your new email address.',
+      // For testing only - remove in production
+      _debug_otp: data?._debug_otp
     };
   } catch (error) {
     console.error('❌ Unexpected error:', error);
     return { success: false, error: error.message };
   }
+};
+
+/**
+ * Verify OTP and complete email change
+ * Uses Edge Function to verify OTP and update auth.users email
+ * @param {string} newEmail - New email address
+ * @param {string} otp - 6-digit OTP code
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export const verifyEmailChangeOTP = async (newEmail, otp) => {
+  try {
+    console.log('🔐 Verifying OTP for email change:', newEmail);
+
+    // Get current user first
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { success: false, error: 'No user logged in' };
+    }
+
+    const currentUserId = user.id;
+
+    // Call Edge Function to verify OTP and update email
+    console.log('📧 Calling update-user-email Edge Function (verify_otp)...');
+    const { data: updateData, error: updateError } = await supabase.functions.invoke(
+      'update-user-email',
+      {
+        body: {
+          userId: currentUserId,
+          newEmail: newEmail,
+          otp: otp,
+          action: 'verify_otp'
+        }
+      }
+    );
+
+    if (updateError) {
+      console.error('❌ Edge Function error:', updateError.message);
+      return { success: false, error: 'Failed to verify code. Please try again.' };
+    }
+
+    if (updateData?.error) {
+      console.error('❌ Edge Function returned error:', updateData.error);
+      return { success: false, error: updateData.error };
+    }
+
+    console.log('✅ Email updated successfully');
+
+    // Sign out the user so they can log in with new email
+    await supabase.auth.signOut();
+
+    return {
+      success: true,
+      message: 'Email changed successfully! Please log in with your new email.',
+      requiresRelogin: true
+    };
+  } catch (error) {
+    console.error('❌ Unexpected error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Change email (legacy - sends email link verification)
+ * @deprecated Use sendEmailChangeOTP + verifyEmailChangeOTP instead
+ */
+export const changeEmail = async (newEmail) => {
+  // Redirect to OTP-based flow
+  return sendEmailChangeOTP(newEmail);
 };
 
 // =====================================================
@@ -1784,7 +2362,7 @@ export const createBooking = async (bookingData) => {
       appointment_date: bookingData.appointmentDate,
       appointment_time: bookingData.appointmentTime,
       total_amount: bookingData.totalAmount,
-      status: 'pending', // Will be 'confirmed' after manager confirms
+      status: 'pending', // Will be 'confirmed' after admin confirms
       customer_notes: bookingData.customerNotes || null,
     };
     
@@ -1864,13 +2442,14 @@ export const fetchUserBookings = async (type = 'upcoming') => {
     }
     
     // Build base query
+    // Note: provider_id is the actual column in bookings table (not barber_id)
     let query = supabase
       .from('bookings')
       .select(`
         *,
         shop:shops!bookings_shop_id_fkey(id, name, address, phone, logo_url),
         customer:profiles!bookings_customer_id_fkey(id, name, email, phone),
-        barber:profiles!bookings_barber_id_fkey(id, name, email, phone, profile_image)
+        provider:profiles!bookings_provider_id_fkey(id, name, email, phone, profile_image)
       `);
     
     // Apply filters based on user role in current shop
@@ -1881,19 +2460,19 @@ export const fetchUserBookings = async (type = 'upcoming') => {
       query = query.eq('customer_id', user.id);
       
     } else if (userRoleInShop === 'barber') {
-      // BARBER ROLE = Show their assigned appointments in current shop
-      console.log('� Barber mode: Show my assigned appointments in current shop');
+      // BARBER/PROVIDER ROLE = Show their assigned appointments in current shop
+      console.log('💇 Provider mode: Show my assigned appointments in current shop');
       query = query
-        .eq('barber_id', user.id)
+        .eq('provider_id', user.id)
         .eq('shop_id', currentShopId);
       
-    } else if (userRoleInShop === 'manager' || userRoleInShop === 'admin') {
-      // MANAGER/ADMIN ROLE = Show all bookings in current shop
-      console.log('� Manager/Admin mode: Show all bookings in current shop');
+    } else if (userRoleInShop === 'admin') {
+      // ADMIN ROLE = Show all bookings in current shop
+      console.log('👔 Admin mode: Show all bookings in current shop');
       query = query.eq('shop_id', currentShopId);
     }
     
-    // Filter by upcoming or past
+    // Filter by upcoming, past, or cancelled
     if (type === 'upcoming') {
       query = query
         .gte('appointment_date', today)
@@ -1902,7 +2481,12 @@ export const fetchUserBookings = async (type = 'upcoming') => {
         .order('appointment_time', { ascending: true });
     } else if (type === 'past') {
       query = query
-        .or(`appointment_date.lt.${today},status.in.(completed,cancelled,no_show)`)
+        .or(`appointment_date.lt.${today},status.in.(completed,no_show)`)
+        .order('appointment_date', { ascending: false })
+        .order('appointment_time', { ascending: false });
+    } else if (type === 'cancelled') {
+      query = query
+        .eq('status', 'cancelled')
         .order('appointment_date', { ascending: false })
         .order('appointment_time', { ascending: false });
     }
@@ -1919,7 +2503,7 @@ export const fetchUserBookings = async (type = 'upcoming') => {
     if (data.length > 0) {
       console.log('📋 Bookings summary:');
       data.forEach((booking, index) => {
-        console.log(`   ${index + 1}. Booking ID: ${booking.booking_id}, Shop: ${booking.shop?.name}, Date: ${booking.appointment_date}`);
+        console.log(`   ${index + 1}. Booking ID: ${booking.id}, Shop: ${booking.shop?.name}, Date: ${booking.appointment_date}`);
       });
     }
     
@@ -2009,28 +2593,31 @@ export const cancelBooking = async (bookingId, reason = '') => {
 export const rescheduleBooking = async (bookingId, newDate, newTime) => {
   try {
     console.log('🔄 Rescheduling booking:', bookingId);
-    
+    console.log('   New date:', newDate);
+    console.log('   New time:', newTime);
+
     const { data, error } = await supabase
       .from('bookings')
       .update({
         appointment_date: newDate,
         appointment_time: newTime,
-        status: 'pending', // Back to pending after reschedule, needs re-confirmation
+        status: 'confirmed', // Auto-confirm rescheduled bookings
       })
       .eq('id', bookingId)
-      .select(`
-        *,
-        customer:profiles!bookings_customer_id_fkey(id, name, email),
-        barber:profiles!bookings_barber_id_fkey(id, name, email, profile_image)
-      `)
+      .select()
       .single();
-    
-    if (error) throw error;
-    
+
+    if (error) {
+      console.error('❌ Database error:', error);
+      throw error;
+    }
+
     console.log('✅ Booking rescheduled successfully');
+    console.log('   Updated data:', data);
     return { success: true, data };
   } catch (error) {
     console.error('❌ Error rescheduling booking:', error.message);
+    console.error('   Full error:', error);
     return { success: false, error: error.message };
   }
 };
@@ -2074,22 +2661,18 @@ export const confirmBooking = async (bookingId) => {
 export const completeBooking = async (bookingId) => {
   try {
     console.log('✅ Marking booking as completed:', bookingId);
-    
-    // Get current user for completed_by field
-    const { data: { user } } = await supabase.auth.getUser();
-    
+
     const { data, error } = await supabase
       .from('bookings')
       .update({
-        status: 'completed',
-        completed_by: user?.id || null,
+        status: 'completed'
       })
       .eq('id', bookingId)
       .select()
       .single();
-    
+
     if (error) throw error;
-    
+
     console.log('✅ Booking marked as completed');
     return { success: true, data };
   } catch (error) {
@@ -2108,8 +2691,8 @@ export const markNoShow = async (bookingId) => {
     console.log('❌ Marking booking as no-show:', bookingId);
     
     const { user, profile } = await getCurrentUser();
-    if (!['manager', 'admin', 'super_admin'].includes(profile?.role)) {
-      throw new Error('Only managers/admins can mark no-shows');
+    if (!['admin', 'super_admin'].includes(profile?.role)) {
+      throw new Error('Only admins can mark no-shows');
     }
     
     const { data, error } = await supabase
@@ -2137,43 +2720,130 @@ export const markNoShow = async (bookingId) => {
  */
 export const fetchAllBookingsForManagers = async () => {
   try {
-    console.log('📅 [SIMPLE] Fetching ALL bookings - RLS will filter automatically...');
-    
-    // SIMPLE: Just fetch everything, RLS handles access control
+    console.log('📅 Fetching bookings for manager...');
+
+    // Optimize: Only fetch recent bookings (last 90 days and future)
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const dateFilter = ninetyDaysAgo.toISOString().split('T')[0];
+
     const { data, error } = await supabase
       .from('bookings')
       .select(`
-        *,
-        customer:profiles!bookings_customer_id_fkey(id, name, email, phone),
-        barber:profiles!bookings_barber_id_fkey(id, name, email, phone, profile_image)
+        id,
+        status,
+        appointment_date,
+        appointment_time,
+        services,
+        total_amount,
+        cancellation_reason,
+        customer_notes,
+        customer:profiles!bookings_customer_id_fkey(id, name),
+        barber:profiles!bookings_provider_id_fkey(id, name)
       `)
-      .order('appointment_date', { ascending: true })
-      .order('appointment_time', { ascending: true });
-    
-    console.log('📊 [SIMPLE] Query result:', {
-      hasError: !!error,
-      dataCount: data?.length || 0
-    });
-    
+      .gte('appointment_date', dateFilter)
+      .order('appointment_date', { ascending: false })
+      .order('appointment_time', { ascending: false })
+      .limit(200);
+
     if (error) {
-      console.error('❌ [SIMPLE] Error:', error.message);
+      console.error('❌ Error fetching bookings:', error.message);
       throw error;
     }
-    
-    console.log(`✅ [SIMPLE] Got ${data?.length || 0} bookings from database`);
-    
-    // SIMPLE grouping
+
+    console.log(`✅ Got ${data?.length || 0} bookings from database`);
+
+    // Group bookings by status
     const groupedBookings = {
       pending: data.filter(b => b.status === 'pending'),
       confirmed: data.filter(b => b.status === 'confirmed'),
-      completed: data.filter(b => b.status === 'completed')
+      completed: data.filter(b => b.status === 'completed'),
+      rejected: data.filter(b => b.status === 'cancelled')
     };
-    
-    console.log(`✅ [SIMPLE] Grouped: ${groupedBookings.pending.length} pending, ${groupedBookings.confirmed.length} confirmed, ${groupedBookings.completed.length} completed`);
-    
+
+    console.log(`✅ Grouped: ${groupedBookings.pending.length} pending, ${groupedBookings.confirmed.length} confirmed, ${groupedBookings.completed.length} completed, ${groupedBookings.rejected.length} rejected`);
+
     return { success: true, data: groupedBookings };
   } catch (error) {
-    console.error('❌ [SIMPLE] Error:', error.message);
-    return { success: false, error: error.message, data: { pending: [], confirmed: [], completed: [] } };
+    console.error('❌ Error:', error.message);
+    return {
+      success: false,
+      error: error.message,
+      data: { pending: [], confirmed: [], completed: [], rejected: [] }
+    };
+  }
+};
+
+// =====================================================
+// PASSWORD RESET
+// =====================================================
+
+/**
+ * Send OTP for password reset
+ * @param {string} email - User email address
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export const sendPasswordResetOTP = async (email) => {
+  try {
+    console.log('🔐 Sending password reset OTP to:', email);
+
+    const { data, error } = await supabase.functions.invoke('reset-password', {
+      body: {
+        email: email.toLowerCase().trim(),
+        action: 'send_otp',
+      },
+    });
+
+    if (error) {
+      console.error('❌ Error sending password reset OTP:', error);
+      return { success: false, error: error.message || 'Failed to send verification code' };
+    }
+
+    if (!data.success) {
+      return { success: false, error: data.error || 'Failed to send verification code' };
+    }
+
+    console.log('✅ Password reset OTP sent successfully');
+    return { success: true, _debug_otp: data._debug_otp };
+  } catch (error) {
+    console.error('❌ Unexpected error sending password reset OTP:', error);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+};
+
+/**
+ * Verify OTP and reset password
+ * @param {string} email - User email address
+ * @param {string} otp - 6-digit OTP code
+ * @param {string} newPassword - New password
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export const verifyPasswordResetOTP = async (email, otp, newPassword) => {
+  try {
+    console.log('🔐 Verifying password reset OTP for:', email);
+
+    const { data, error } = await supabase.functions.invoke('reset-password', {
+      body: {
+        email: email.toLowerCase().trim(),
+        otp: otp.trim(),
+        newPassword: newPassword,
+        action: 'verify_otp',
+      },
+    });
+
+    if (error) {
+      console.error('❌ Error verifying password reset OTP:', error);
+      return { success: false, error: error.message || 'Failed to verify code' };
+    }
+
+    if (!data.success) {
+      return { success: false, error: data.error || 'Failed to verify code' };
+    }
+
+    console.log('✅ Password reset successfully');
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Unexpected error verifying password reset OTP:', error);
+    return { success: false, error: 'An unexpected error occurred' };
   }
 };

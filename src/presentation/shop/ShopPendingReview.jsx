@@ -59,7 +59,7 @@ const ShopPendingReview = ({ route, navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#FF6B6B" />
+          <ActivityIndicator size="large" color="#4A90E2" />
         </View>
       </SafeAreaView>
     );
@@ -74,7 +74,7 @@ const ShopPendingReview = ({ route, navigation }) => {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6B6B']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4A90E2']} />
         }
       >
         {/* Icon */}
@@ -165,7 +165,7 @@ const ShopPendingReview = ({ route, navigation }) => {
             {/* Info Cards */}
             <View style={styles.infoCard}>
               <View style={styles.infoIconContainer}>
-                <Ionicons name="time-outline" size={24} color="#FF6B6B" />
+                <Ionicons name="time-outline" size={24} color="#4A90E2" />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoTitle}>Review Time</Text>
@@ -177,7 +177,7 @@ const ShopPendingReview = ({ route, navigation }) => {
 
             <View style={styles.infoCard}>
               <View style={styles.infoIconContainer}>
-                <Ionicons name="notifications-outline" size={24} color="#FF6B6B" />
+                <Ionicons name="notifications-outline" size={24} color="#4A90E2" />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoTitle}>You'll Be Notified</Text>
@@ -189,7 +189,7 @@ const ShopPendingReview = ({ route, navigation }) => {
 
             <View style={styles.infoCard}>
               <View style={styles.infoIconContainer}>
-                <Ionicons name="create-outline" size={24} color="#FF6B6B" />
+                <Ionicons name="create-outline" size={24} color="#4A90E2" />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoTitle}>Continue Editing</Text>
@@ -233,7 +233,7 @@ const ShopPendingReview = ({ route, navigation }) => {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.secondaryButton} onPress={onRefresh}>
-              <Ionicons name="refresh" size={20} color="#FF6B6B" />
+              <Ionicons name="refresh" size={20} color="#4A90E2" />
               <Text style={styles.secondaryButtonText}>Check Status</Text>
             </TouchableOpacity>
           </>
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     borderRadius: 12,
     paddingVertical: 16,
     marginBottom: 12,
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF6B6B',
+    color: '#4A90E2',
   },
 });
 

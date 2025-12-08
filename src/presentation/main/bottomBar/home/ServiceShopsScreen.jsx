@@ -148,7 +148,7 @@ const ServiceShopsScreen = () => {
           </View>
 
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FF6B35" />
+            <ActivityIndicator size="large" color="#4A90E2" />
             <Text style={styles.loadingText}>Finding shops...</Text>
           </View>
         </SafeAreaView>

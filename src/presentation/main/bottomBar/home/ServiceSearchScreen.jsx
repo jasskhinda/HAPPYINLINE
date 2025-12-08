@@ -95,7 +95,7 @@ const ServiceSearchScreen = () => {
         </View>
 
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B6B" />
+          <ActivityIndicator size="large" color="#4A90E2" />
           <Text style={styles.loadingText}>Loading barbers...</Text>
         </View>
       </SafeAreaView>
@@ -168,7 +168,7 @@ export default ServiceSearchScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',

@@ -419,7 +419,7 @@ const ProviderProfileScreen = ({ route }) => {
                     <View style={styles.modalServiceIcon}>
                       {service.icon_url ? 
                         <Image source={{ uri: service.icon_url }} style={{ width: 24, height: 24 }} /> : 
-                        <Ionicons name="cut" size={24} color="#FF6B6B" />
+                        <Ionicons name="cut" size={24} color="#4A90E2" />
                       }
                     </View>
                     <View style={styles.modalServiceText}>
@@ -505,7 +505,7 @@ const ProviderProfileScreen = ({ route }) => {
 
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#FF6B6B" />
+              <ActivityIndicator size="large" color="#4A90E2" />
               <Text style={styles.loadingText}>Loading provider details...</Text>
             </View>
           ) : (
@@ -559,7 +559,7 @@ const ProviderProfileScreen = ({ route }) => {
                       key={service.id}
                       icon={service.icon_url ? 
                         <Image source={{ uri: service.icon_url }} style={{ width: 24, height: 24 }} /> : 
-                        <Ionicons name="cut" size={24} color="#FF6B6B" />
+                        <Ionicons name="cut" size={24} color="#4A90E2" />
                       }
                       title={service.name.toUpperCase()}
                       subtitle={`${service.description || 'Professional service'} - $${service.price}`}
@@ -619,7 +619,7 @@ const ProviderProfileScreen = ({ route }) => {
             style={[
               styles.bookButton,
               { 
-                backgroundColor: selectedServices.length > 0 ? '#FF6B6B' : '#999',
+                backgroundColor: selectedServices.length > 0 ? '#4A90E2' : '#999',
                 opacity: selectedServices.length > 0 ? 1 : 0.7
               }
             ]}
@@ -643,7 +643,7 @@ export default ProviderProfileScreen
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE'
+    backgroundColor: '#F8F9FA'
   },
   scrollContent: {
     flexGrow: 1
@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 25,
     marginRight: 10,
-    backgroundColor: '#EEEEEE'
+    backgroundColor: '#F8F9FA'
   },
   barberInfo: {
     flex: 1,
@@ -884,7 +884,7 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   selectedCalendarDay: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
   },
   todayCalendarDay: {
     backgroundColor: '#E3F2FD',
@@ -927,8 +927,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   selectedTimeCard: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
+    borderColor: '#4A90E2',
   },
   timeText: {
     fontSize: 14,
@@ -957,7 +957,7 @@ const styles = StyleSheet.create({
   modalTotalPrice: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FF6B6B',
+    color: '#4A90E2',
   },
   modalButtons: {
     flexDirection: 'row',
@@ -979,7 +979,7 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     flex: 2,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     paddingVertical: 15,
     borderRadius: 12,
     alignItems: 'center',

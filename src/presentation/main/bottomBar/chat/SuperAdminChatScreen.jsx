@@ -285,7 +285,7 @@ const SuperAdminChatScreen = ({ route, navigation }) => {
 
         {/* Admin Notice */}
         <View style={styles.adminNotice}>
-          <Ionicons name="shield-checkmark" size={16} color="#FF6B35" />
+          <Ionicons name="shield-checkmark" size={16} color="#4A90E2" />
           <Text style={styles.adminNoticeText}>
             Super Admin messaging shop manager
           </Text>
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   },
   adminNoticeText: {
     fontSize: 12,
-    color: '#FF6B35',
+    color: '#4A90E2',
     fontWeight: '600',
     marginLeft: 6,
   },

@@ -25,7 +25,7 @@ import BookingDetailScreen from './presentation/main/bottomBar/bookings/BookingD
 import ServiceManagementScreen from './presentation/main/bottomBar/home/manager/ServiceManagementScreen';
 import BarberManagementScreen from './presentation/main/bottomBar/home/manager/BarberManagementScreen';
 import BookingManagementScreen from './presentation/main/bottomBar/home/manager/BookingManagementScreen';
-import ManagerManagementScreen from './presentation/main/bottomBar/home/manager/ManagerManagementScreen';
+// ManagerManagementScreen removed - manager role no longer used
 import AdminManagementScreen from './presentation/main/bottomBar/home/manager/AdminManagementScreen';
 import BarberReviewsScreen from './presentation/main/bottomBar/home/BarberReviewsScreen';
 import SearchScreen from './presentation/main/bottomBar/home/SearchScreen';
@@ -204,7 +204,7 @@ const Main = () => {
             <RootStack.Screen name="ServiceManagementScreen" component={ServiceManagementScreen} />
             <RootStack.Screen name="BarberManagementScreen" component={BarberManagementScreen} />
             <RootStack.Screen name="BookingManagementScreen" component={BookingManagementScreen} />
-            <RootStack.Screen name="ManagerManagementScreen" component={ManagerManagementScreen} />
+            {/* ManagerManagementScreen removed - manager role no longer used */}
             <RootStack.Screen name="AdminManagementScreen" component={AdminManagementScreen} />
             <RootStack.Screen name="BarberReviewsScreen" component={BarberReviewsScreen} />
             <RootStack.Screen name="SearchScreen" component={SearchScreen} />

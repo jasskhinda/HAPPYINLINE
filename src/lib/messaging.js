@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { sendMessageNotification } from './notifications';
 
 /**
  * Get or create a conversation between two users
@@ -101,6 +102,28 @@ export const sendMessage = async (conversationId, senderId, messageText, attachm
       return { success: false, error: error.message };
     }
 
+    // Get conversation to find recipient
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .select('user1_id, user2_id')
+      .eq('id', conversationId)
+      .single();
+
+    if (!convError && conversation) {
+      // Determine recipient (the other user in the conversation)
+      const recipientId = conversation.user1_id === senderId
+        ? conversation.user2_id
+        : conversation.user1_id;
+
+      // Send push notification to recipient (fire and forget)
+      sendMessageNotification({
+        recipientUserId: recipientId,
+        senderName: data.sender?.name || 'Someone',
+        messagePreview: messageText,
+        conversationId: conversationId,
+      }).catch(err => console.log('Push notification error (non-blocking):', err));
+    }
+
     return { success: true, message: data };
   } catch (err) {
     console.error('Unexpected error in sendMessage:', err);
@@ -131,38 +154,95 @@ export const markConversationAsRead = async (conversationId, userId) => {
 };
 
 /**
- * Subscribe to new messages in a conversation (real-time)
+ * Subscribe to new messages in a conversation using polling
+ * (Polling is used instead of realtime due to Supabase partitioned table limitations)
  */
 export const subscribeToMessages = (conversationId, callback) => {
-  const subscription = supabase
-    .channel(`messages:${conversationId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`,
-      },
-      async (payload) => {
-        // Fetch the full message with sender details
-        const { data, error } = await supabase
-          .from('messages')
-          .select(`
-            *,
-            sender:profiles!messages_sender_id_fkey(id, name, email, profile_image)
-          `)
-          .eq('id', payload.new.id)
-          .single();
+  console.log('🔌 Starting message polling for conversation:', conversationId);
 
-        if (!error && data) {
-          callback(data);
+  let seenMessageIds = new Set();
+  let isPolling = true;
+  let pollingInterval = null;
+
+  // Poll for new messages every 2 seconds
+  const pollForNewMessages = async () => {
+    if (!isPolling) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          sender:profiles!messages_sender_id_fkey(id, name, email, profile_image)
+        `)
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: false })
+        .limit(20); // Get last 20 messages to check for new ones
+
+      if (error) {
+        console.error('❌ Error polling messages:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        // Filter out messages we've already seen
+        const newMessages = data.filter(msg => !seenMessageIds.has(msg.id));
+
+        if (newMessages.length > 0) {
+          console.log(`✅ Polling found ${newMessages.length} new message(s)`);
+
+          // Add new message IDs to seen set
+          newMessages.forEach(msg => seenMessageIds.add(msg.id));
+
+          // Call callback for each new message (in chronological order)
+          newMessages.reverse().forEach((message) => {
+            callback(message);
+          });
         }
       }
-    )
-    .subscribe();
+    } catch (err) {
+      console.error('❌ Unexpected error while polling:', err);
+    }
+  };
 
-  return subscription;
+  // Initial fetch to populate seen message IDs
+  const initializePolling = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: false })
+        .limit(100); // Track last 100 messages as "seen"
+
+      if (data && !error) {
+        data.forEach(msg => seenMessageIds.add(msg.id));
+        console.log(`📍 Initialized polling with ${seenMessageIds.size} existing messages`);
+      }
+    } catch (err) {
+      console.log('ℹ️ No existing messages in conversation');
+    }
+
+    // Start polling interval
+    pollingInterval = setInterval(pollForNewMessages, 2000);
+    console.log('✅ Message polling started (every 2 seconds)');
+  };
+
+  // Start initialization
+  initializePolling();
+
+  // Return subscription-like object with unsubscribe method
+  return {
+    unsubscribe: () => {
+      console.log('🔌 Stopping message polling');
+      isPolling = false;
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+      seenMessageIds.clear();
+    },
+  };
 };
 
 /**

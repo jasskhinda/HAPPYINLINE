@@ -100,7 +100,7 @@ const ServiceSelectorModal = ({ visible, onClose, onSelectExisting, onCreateNew,
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -207,7 +207,7 @@ const ServiceSelectorModal = ({ visible, onClose, onSelectExisting, onCreateNew,
           <Image source={{ uri: item.image_url }} style={styles.serviceIcon} />
         ) : (
           <View style={styles.serviceIconPlaceholder}>
-            <Ionicons name="cut" size={24} color="#FF6B35" />
+            <Ionicons name="cut" size={24} color="#4A90E2" />
           </View>
         )}
         
@@ -228,7 +228,7 @@ const ServiceSelectorModal = ({ visible, onClose, onSelectExisting, onCreateNew,
           </View>
         </View>
 
-        <Ionicons name="add-circle" size={28} color="#FF6B35" />
+        <Ionicons name="add-circle" size={28} color="#4A90E2" />
       </View>
     </TouchableOpacity>
   );
@@ -337,7 +337,7 @@ const ServiceSelectorModal = ({ visible, onClose, onSelectExisting, onCreateNew,
               {/* Services List */}
               {loading ? (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color="#FF6B35" />
+                  <ActivityIndicator size="large" color="#4A90E2" />
                   <Text style={styles.loadingText}>Loading services...</Text>
                 </View>
               ) : filteredServices.length === 0 ? (
@@ -376,7 +376,7 @@ const ServiceSelectorModal = ({ visible, onClose, onSelectExisting, onCreateNew,
                   disabled={uploadingImage}
                 >
                   {uploadingImage ? (
-                    <ActivityIndicator size="large" color="#FF6B35" />
+                    <ActivityIndicator size="large" color="#4A90E2" />
                   ) : formData.image_url ? (
                     <Image source={{ uri: formData.image_url }} style={styles.imagePreview} />
                   ) : (
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   modeButtonActive: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
   },
   modeButtonText: {
     fontSize: 14,
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
@@ -667,14 +667,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
   },
   inputError: {
-    borderColor: '#FF6B35',
+    borderColor: '#4A90E2',
   },
   textArea: {
     height: 80,
     textAlignVertical: 'top',
   },
   errorText: {
-    color: '#FF6B35',
+    color: '#4A90E2',
     fontSize: 12,
     marginTop: 4,
   },
@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
     padding: 16,
     borderRadius: 8,
     marginTop: 10,
@@ -731,7 +731,7 @@ const styles = StyleSheet.create({
   priceModalService: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FF6B35',
+    color: '#4A90E2',
     marginBottom: 5,
   },
   priceModalHint: {
@@ -764,7 +764,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   buttonPrimary: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
   },
   buttonTextSecondary: {
     fontSize: 16,

@@ -359,6 +359,16 @@ const CreateShopScreen = ({ route, navigation }) => {
         // CREATE NEW BUSINESS
         console.log('🆕 Creating new business');
 
+        // Retrieve user metadata for subscription plan and business type
+        const { data: { user } } = await supabase.auth.getUser();
+        const userMetadata = user?.user_metadata || {};
+
+        console.log('📋 User metadata:', {
+          plan: userMetadata.selected_plan,
+          category: userMetadata.category_id,
+          type: userMetadata.business_type_id
+        });
+
         const shopData = {
           ...formData,
           logo_url: null,
@@ -367,7 +377,11 @@ const CreateShopScreen = ({ route, navigation }) => {
           opening_time: formatTimeForDB(openingTime),
           closing_time: formatTimeForDB(closingTime),
           is_manually_closed: false,
-          status: 'draft'
+          status: 'draft',
+          // Add subscription plan from registration
+          subscription_plan: userMetadata.selected_plan || 'solo',
+          category_id: userMetadata.category_id,
+          business_type_id: userMetadata.business_type_id,
         };
 
         const { success, shop: createdShop, error } = await createShop(shopData);
@@ -610,7 +624,7 @@ const CreateShopScreen = ({ route, navigation }) => {
           {/* Shop Images Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderContainer}>
-              <Ionicons name="images-outline" size={24} color="#FF6B35" />
+              <Ionicons name="images-outline" size={24} color="#4A90E2" />
               <Text style={styles.sectionTitle}>Shop Images</Text>
             </View>
             
@@ -678,7 +692,7 @@ const CreateShopScreen = ({ route, navigation }) => {
           {/* Basic Information Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderContainer}>
-              <Ionicons name="information-circle-outline" size={24} color="#FF6B35" />
+              <Ionicons name="information-circle-outline" size={24} color="#4A90E2" />
               <Text style={styles.sectionTitle}>Basic Information</Text>
             </View>
 
@@ -718,7 +732,7 @@ const CreateShopScreen = ({ route, navigation }) => {
           {/* Location Details Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderContainer}>
-              <Ionicons name="location-outline" size={24} color="#FF6B35" />
+              <Ionicons name="location-outline" size={24} color="#4A90E2" />
               <Text style={styles.sectionTitle}>Location Details</Text>
             </View>
 
@@ -796,7 +810,7 @@ const CreateShopScreen = ({ route, navigation }) => {
           {/* Contact Information Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderContainer}>
-              <Ionicons name="call-outline" size={24} color="#FF6B35" />
+              <Ionicons name="call-outline" size={24} color="#4A90E2" />
               <Text style={styles.sectionTitle}>Contact Information</Text>
             </View>
 
@@ -833,7 +847,7 @@ const CreateShopScreen = ({ route, navigation }) => {
           {/* Services Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderContainer}>
-              <Ionicons name="pricetag-outline" size={24} color="#FF6B35" />
+              <Ionicons name="pricetag-outline" size={24} color="#4A90E2" />
               <Text style={styles.sectionTitle}>Services *</Text>
             </View>
             
@@ -886,7 +900,7 @@ const CreateShopScreen = ({ route, navigation }) => {
           {/* Operating Hours Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderContainer}>
-              <Ionicons name="time-outline" size={24} color="#FF6B35" />
+              <Ionicons name="time-outline" size={24} color="#4A90E2" />
               <Text style={styles.sectionTitle}>Operating Hours</Text>
             </View>
             
@@ -906,7 +920,7 @@ const CreateShopScreen = ({ route, navigation }) => {
           <View style={styles.infoCard}>
             <Ionicons name="information-circle-outline" size={24} color="#007AFF" />
             <Text style={styles.infoCardText}>
-              After creating your shop, you can add managers and more staff from Staff Management.
+              After listing your business, you can add service providers (counted toward your plan) and unlimited managers from Staff Management.
             </Text>
           </View>
         </ScrollView>
@@ -1248,7 +1262,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   createButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1345,7 +1359,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#FF6B35',
+    borderColor: '#4A90E2',
     borderStyle: 'dashed',
     borderRadius: 16,
   },
@@ -1428,12 +1442,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#FF6B35',
+    borderColor: '#4A90E2',
   },
   addButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF6B35',
+    color: '#4A90E2',
     marginLeft: 6,
   },
   emptyState: {

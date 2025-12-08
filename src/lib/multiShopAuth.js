@@ -276,7 +276,7 @@ export const getShopBarbers = async (shopId) => {
  * Invite user to shop
  * @param {string} shopId - Shop ID
  * @param {string} email - User email to invite
- * @param {string} role - Role to assign (barber, manager, staff)
+ * @param {string} role - Role to assign (barber, admin, staff)
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 export const inviteUserToShop = async (shopId, email, role) => {
@@ -354,12 +354,12 @@ const getDefaultPermissions = (role) => {
         can_manage_staff: true,
         can_edit_shop: true
       };
-    case 'manager':
+    case 'admin':
       return {
         can_manage_bookings: true,
         can_edit_services: true,
         can_manage_staff: true,
-        can_edit_shop: false
+        can_edit_shop: true
       };
     case 'barber':
       return {
@@ -510,19 +510,4 @@ export const clearShopData = async () => {
 // Export existing auth functions (to be imported from original auth.js)
 export * from './auth';
 
-// Export new multi-shop functions
-export {
-  getUserShops,
-  getCurrentShopId,
-  setCurrentShopId,
-  getUserShopRole,
-  createShop,
-  getShopDetails,
-  getShopServices,
-  getShopBarbers,
-  inviteUserToShop,
-  getShopBookings,
-  createShopBooking,
-  needsShopSelection,
-  clearShopData
-};
+// Note: All multi-shop functions are already exported via 'export const' at their definitions

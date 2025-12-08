@@ -272,7 +272,7 @@ const Onboarding = () => {
 export default Onboarding;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#EEEEEE' },
+  container: { flex: 1, backgroundColor: '#F8F9FA' },
 
   skipButton: {
     position: 'absolute',

@@ -1,30 +1,19 @@
-import { FlatList, Image, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { getCurrentUser } from '../../../../lib/auth';
-import { getAllShops, isShopOpen } from '../../../../lib/shopAuth';
-import ShopStatusBadge from '../../../../components/shop/ShopStatusBadge';
+import { getAllShops } from '../../../../lib/shopAuth';
 
 const SuperAdminHomeScreen = () => {
   const navigation = useNavigation();
-  const [userName, setUserName] = useState('Super Admin');
-  const [shops, setShops] = useState([]);
+  const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'pending', 'active', 'rejected'
+  const [recentListings, setRecentListings] = useState([]);
 
-  // Stats
-  const [stats, setStats] = useState({
-    totalShops: 0,
-    pendingShops: 0,
-    activeShops: 0,
-    rejectedShops: 0,
-    totalUsers: 0,
-  });
-
-  // Fetch data function
+  // Fetch data
   const fetchData = async (isRefreshing = false) => {
     try {
       if (!isRefreshing) {
@@ -34,36 +23,22 @@ const SuperAdminHomeScreen = () => {
       // Fetch user profile
       const { user, profile } = await getCurrentUser();
       if (profile) {
-        setUserName(profile.name || 'Super Admin');
+        setUserName(profile.name || profile.email || 'User');
       }
 
-      // Fetch all shops (super admin sees all)
-      console.log('🏪 SuperAdmin: Fetching all shops...');
+      // Fetch recent listings (last 5 shops)
       const shopsResult = await getAllShops();
       if (shopsResult.success) {
         const allShops = shopsResult.shops || [];
-        console.log('✅ Total shops fetched:', allShops.length);
-        setShops(allShops);
-
-        // Calculate stats
-        const pending = allShops.filter(s => s.status === 'pending_approval').length;
-        const active = allShops.filter(s => s.status === 'active').length;
-        const rejected = allShops.filter(s => s.status === 'rejected').length;
-
-        setStats({
-          totalShops: allShops.length,
-          pendingShops: pending,
-          activeShops: active,
-          rejectedShops: rejected,
-          totalUsers: 0, // TODO: Fetch from profiles table
-        });
-      } else {
-        console.error('❌ Error fetching shops:', shopsResult.error);
-        setShops([]);
+        // Sort by created_at descending and take first 5
+        const recent = allShops
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 5);
+        setRecentListings(recent);
       }
 
     } catch (error) {
-      console.error('❌ Error fetching data:', error);
+      console.error('❌ Error fetching admin data:', error);
     } finally {
       if (!isRefreshing) {
         setLoading(false);
@@ -83,165 +58,72 @@ const SuperAdminHomeScreen = () => {
     fetchData();
   }, []);
 
-  // Handle shop press - navigate to ADMIN shop details view (read-only)
-  const handleShopPress = useCallback((shop) => {
-    // TODO: Create AdminShopDetailsScreen for read-only view with admin actions
-    navigation.navigate('ShopDetailsScreen', {
-      shopId: shop.id,
-      adminView: true // Flag to show admin-only features
-    });
-  }, [navigation]);
-
-  // Filter shops based on selected status
-  const filteredShops = shops.filter(shop => {
-    if (filterStatus === 'all') return true;
-    if (filterStatus === 'pending') return shop.status === 'pending_approval';
-    if (filterStatus === 'active') return shop.status === 'active' || !shop.status; // Show shops without status as active
-    if (filterStatus === 'rejected') return shop.status === 'rejected';
-    return true;
-  });
-
-  // Render stat card
-  const StatCard = ({ icon, title, value, color, onPress }) => (
-    <TouchableOpacity
-      style={[styles.statCard, { borderLeftColor: color }]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
-        <Ionicons name={icon} size={24} color={color} />
-      </View>
-      <View style={styles.statInfo}>
-        <Text style={styles.statValue}>{value}</Text>
-        <Text style={styles.statTitle}>{title}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-
-  // Render filter button
-  const FilterButton = ({ label, status, count }) => (
-    <TouchableOpacity
-      style={[
-        styles.filterButton,
-        filterStatus === status && styles.filterButtonActive
-      ]}
-      onPress={() => setFilterStatus(status)}
-    >
-      <Text style={[
-        styles.filterButtonText,
-        filterStatus === status && styles.filterButtonTextActive
-      ]}>
-        {label}
-      </Text>
-      {count > 0 && (
-        <View style={[
-          styles.filterBadge,
-          filterStatus === status && styles.filterBadgeActive
-        ]}>
-          <Text style={[
-            styles.filterBadgeText,
-            filterStatus === status && styles.filterBadgeTextActive
-          ]}>
-            {count}
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-
-  // Render shop status badge
-  const ShopStatusChip = ({ status }) => {
-    let config = {
-      pending_approval: { icon: 'time-outline', text: 'Pending', color: '#FF9800' },
-      active: { icon: 'checkmark-circle', text: 'Active', color: '#4CAF50' },
-      rejected: { icon: 'close-circle', text: 'Rejected', color: '#F44336' },
-      suspended: { icon: 'ban', text: 'Suspended', color: '#9E9E9E' },
+  // Get status display info
+  const getStatusInfo = (status) => {
+    const statusMap = {
+      'draft': { label: 'Draft', color: '#9E9E9E', icon: 'document-outline' },
+      'pending_review': { label: 'Pending', color: '#FF9800', icon: 'time-outline' },
+      'pending_approval': { label: 'Pending', color: '#FF9800', icon: 'time-outline' },
+      'approved': { label: 'Approved', color: '#4CAF50', icon: 'checkmark-circle' },
+      'active': { label: 'Active', color: '#4CAF50', icon: 'checkmark-circle' },
+      'rejected': { label: 'Rejected', color: '#F44336', icon: 'close-circle' },
+      'suspended': { label: 'Suspended', color: '#9E9E9E', icon: 'ban' },
     };
-
-    const currentStatus = status || 'active'; // Default to active if no status
-    const { icon, text, color } = config[currentStatus] || config.active;
-
-    return (
-      <View style={[styles.statusChip, { backgroundColor: color + '20' }]}>
-        <Ionicons name={icon} size={14} color={color} />
-        <Text style={[styles.statusChipText, { color }]}>{text}</Text>
-      </View>
-    );
+    return statusMap[status] || { label: status || 'Unknown', color: '#9E9E9E', icon: 'help-circle-outline' };
   };
 
-  // Render individual shop card
-  const renderShopItem = useCallback(({ item }) => {
-    const shopIsOpen = isShopOpen(item);
+  // Render listing card
+  const ListingCard = ({ listing }) => {
+    const statusInfo = getStatusInfo(listing.status);
 
     return (
       <TouchableOpacity
-        style={styles.shopCard}
-        onPress={() => handleShopPress(item)}
+        style={styles.listingCard}
+        onPress={() => navigation.navigate('AdminBusinessDetailsScreen', {
+          shopId: listing.id,
+        })}
         activeOpacity={0.7}
       >
-        {/* Shop Logo */}
-        {item.logo_url ? (
-          <Image
-            source={{ uri: item.logo_url }}
-            style={styles.shopLogo}
-            resizeMode="cover"
-          />
+        {/* Business Logo */}
+        {listing.logo_url ? (
+          <Image source={{ uri: listing.logo_url }} style={styles.listingLogo} />
         ) : (
-          <View style={[styles.shopLogo, styles.shopLogoPlaceholder]}>
-            <Ionicons name="storefront" size={40} color="#FF6B35" />
+          <View style={[styles.listingLogo, styles.listingLogoPlaceholder]}>
+            <Ionicons name="storefront" size={32} color="#4A90E2" />
           </View>
         )}
 
-        {/* Shop Info */}
-        <View style={styles.shopInfo}>
-          <View style={styles.shopHeader}>
-            <Text style={styles.shopName} numberOfLines={1}>{item.name}</Text>
-            {item.is_verified && (
-              <Ionicons name="checkmark-circle" size={18} color="#4CAF50" style={{ marginLeft: 5 }} />
-            )}
+        {/* Business Info */}
+        <View style={styles.listingInfo}>
+          <Text style={styles.listingName} numberOfLines={1}>{listing.name}</Text>
+
+          <View style={styles.listingMeta}>
+            <Ionicons name="location-outline" size={14} color="#666" />
+            <Text style={styles.listingMetaText} numberOfLines={1}>
+              {listing.city || 'No location'}
+            </Text>
           </View>
 
-          <ShopStatusChip status={item.status} />
+          <View style={styles.listingMeta}>
+            <Ionicons name="calendar-outline" size={14} color="#666" />
+            <Text style={styles.listingMetaText}>
+              {new Date(listing.created_at).toLocaleDateString()}
+            </Text>
+          </View>
 
-          <Text style={styles.shopAddress} numberOfLines={1}>
-            <Ionicons name="location-outline" size={14} color="#666" /> {item.address || 'No address'}
-          </Text>
-
-          {item.city && (
-            <Text style={styles.shopCity} numberOfLines={1}>{item.city}</Text>
-          )}
-
-          <View style={styles.shopFooter}>
-            <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={16} color="#FFD700" />
-              <Text style={styles.ratingText}>
-                {item.rating ? Number(item.rating).toFixed(1) : '0.0'}
-              </Text>
-              <Text style={styles.reviewsText}>
-                ({item.total_reviews || 0} reviews)
-              </Text>
-            </View>
+          {/* Status Badge */}
+          <View style={[styles.statusBadge, { backgroundColor: statusInfo.color + '20' }]}>
+            <Ionicons name={statusInfo.icon} size={12} color={statusInfo.color} />
+            <Text style={[styles.statusBadgeText, { color: statusInfo.color }]}>
+              {statusInfo.label}
+            </Text>
           </View>
         </View>
 
         <Ionicons name="chevron-forward" size={20} color="#999" />
       </TouchableOpacity>
     );
-  }, [handleShopPress]);
-
-  // Render empty state
-  const renderEmpty = () => (
-    <View style={styles.emptyStateContainer}>
-      <Ionicons name="storefront-outline" size={80} color="#DDD" />
-      <Text style={styles.emptyStateTitle}>No Shops Found</Text>
-      <Text style={styles.emptyStateSubtitle}>
-        {filterStatus === 'pending' && 'No pending shops to review'}
-        {filterStatus === 'active' && 'No active shops yet'}
-        {filterStatus === 'rejected' && 'No rejected shops'}
-        {filterStatus === 'all' && 'No shops registered yet'}
-      </Text>
-    </View>
-  );
+  };
 
   // Loading state
   if (loading) {
@@ -249,20 +131,20 @@ const SuperAdminHomeScreen = () => {
       <View style={styles.outerWrapper}>
         <View style={styles.container}>
           <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1 }}>
-            <View style={styles.appBar}>
+            <View style={styles.header}>
               <Image
-                source={require('../../../../../assets/logo.png')}
-                style={styles.userProfilePic}
+                source={require('../../../../../assets/logowithouttagline.png')}
+                style={styles.headerLogo}
                 resizeMode="contain"
               />
-              <View style={styles.userInfo}>
-                <Text style={{ color: 'rgba(0, 0, 0, 0.4)' }}>Hello 👋</Text>
-                <Text style={styles.userName}>Loading...</Text>
+              <View style={styles.headerInfo}>
+                <Text style={styles.headerGreeting}>Admin Dashboard</Text>
+                <Text style={styles.headerName}>Loading...</Text>
               </View>
             </View>
 
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#FF6B35" />
+              <ActivityIndicator size="large" color="#4A90E2" />
               <Text style={styles.loadingText}>Loading dashboard...</Text>
             </View>
           </SafeAreaView>
@@ -275,101 +157,122 @@ const SuperAdminHomeScreen = () => {
     <View style={styles.outerWrapper}>
       <View style={styles.container}>
         <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1 }}>
-          {/* APP BAR */}
-          <View style={styles.appBar}>
+          {/* HEADER */}
+          <View style={styles.header}>
             <Image
-              source={require('../../../../../assets/logo.png')}
-              style={styles.userProfilePic}
+              source={require('../../../../../assets/logowithouttagline.png')}
+              style={styles.headerLogo}
               resizeMode="contain"
             />
-            <View style={styles.userInfo}>
-              <Text style={{ color: 'rgba(0, 0, 0, 0.4)' }}>Hello 👋</Text>
-              <Text style={styles.userName}>{userName}</Text>
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerGreeting}>Welcome back</Text>
+              <Text style={styles.headerName}>{userName}</Text>
               <View style={styles.adminBadge}>
-                <Ionicons name="shield-checkmark" size={12} color="#FF6B35" />
+                <Ionicons name="shield-checkmark" size={12} color="#4A90E2" />
                 <Text style={styles.adminBadgeText}>Super Admin</Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.iconButton}>
-              <Ionicons name="notifications-outline" size={24} color="black" />
-              {stats.pendingShops > 0 && (
-                <View style={styles.notificationBadge}>
-                  <Text style={styles.notificationBadgeText}>{stats.pendingShops}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={filteredShops}
-            renderItem={renderShopItem}
-            keyExtractor={(item) => item.id}
-            ListHeaderComponent={() => (
-              <View>
-                {/* Platform Stats */}
-                <View style={styles.statsContainer}>
-                  <StatCard
-                    icon="storefront"
-                    title="Total Shops"
-                    value={stats.totalShops}
-                    color="#2196F3"
-                    onPress={() => setFilterStatus('all')}
-                  />
-                  <StatCard
-                    icon="time"
-                    title="Pending"
-                    value={stats.pendingShops}
-                    color="#FF9800"
-                    onPress={() => setFilterStatus('pending')}
-                  />
-                  <StatCard
-                    icon="checkmark-circle"
-                    title="Active"
-                    value={stats.activeShops}
-                    color="#4CAF50"
-                    onPress={() => setFilterStatus('active')}
-                  />
-                  <StatCard
-                    icon="close-circle"
-                    title="Rejected"
-                    value={stats.rejectedShops}
-                    color="#F44336"
-                    onPress={() => setFilterStatus('rejected')}
-                  />
-                </View>
-
-                {/* Filters */}
-                <View style={styles.filtersContainer}>
-                  <FilterButton label="All" status="all" count={stats.totalShops} />
-                  <FilterButton label="Pending" status="pending" count={stats.pendingShops} />
-                  <FilterButton label="Active" status="active" count={stats.activeShops} />
-                  <FilterButton label="Rejected" status="rejected" count={stats.rejectedShops} />
-                </View>
-
-                {/* Shops Header */}
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>
-                    {filterStatus === 'all' && 'All Shops'}
-                    {filterStatus === 'pending' && 'Pending Approvals'}
-                    {filterStatus === 'active' && 'Active Shops'}
-                    {filterStatus === 'rejected' && 'Rejected Shops'}
-                  </Text>
-                  <Text style={styles.sectionCount}>{filteredShops.length}</Text>
-                </View>
-              </View>
-            )}
-            ListEmptyComponent={renderEmpty}
-            contentContainerStyle={filteredShops.length === 0 && styles.emptyList}
+          <ScrollView
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                colors={['#FF6B35']}
-                tintColor="#FF6B35"
+                colors={['#4A90E2']}
+                tintColor="#4A90E2"
               />
             }
-          />
+          >
+            {/* MAIN ACTIONS */}
+            <View style={styles.section}>
+              {/* Manage Listings Button */}
+              <TouchableOpacity
+                style={styles.primaryActionCard}
+                onPress={() => navigation.navigate('ShopBrowserScreen')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.primaryActionIcon}>
+                  <Ionicons name="storefront" size={32} color="#FFFFFF" />
+                </View>
+                <View style={styles.primaryActionContent}>
+                  <Text style={styles.primaryActionTitle}>Manage Listings</Text>
+                  <Text style={styles.primaryActionSubtitle}>
+                    View, approve, and manage all business listings
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              {/* Payment Tracking Button */}
+              <TouchableOpacity
+                style={[styles.primaryActionCard, { backgroundColor: '#34C759' }]}
+                onPress={() => navigation.navigate('PaymentTrackingScreen')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.primaryActionIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                  <Ionicons name="card" size={32} color="#FFFFFF" />
+                </View>
+                <View style={styles.primaryActionContent}>
+                  <Text style={styles.primaryActionTitle}>Payment Tracking</Text>
+                  <Text style={styles.primaryActionSubtitle}>
+                    View subscriptions, payments & revenue
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              {/* Profile Settings Button */}
+              <TouchableOpacity
+                style={[styles.primaryActionCard, styles.profileActionCard]}
+                onPress={() => navigation.navigate('ProfileScreen')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.primaryActionIcon, styles.profileActionIcon]}>
+                  <Ionicons name="person" size={32} color="#FFFFFF" />
+                </View>
+                <View style={styles.primaryActionContent}>
+                  <Text style={styles.primaryActionTitle}>Profile Settings</Text>
+                  <Text style={styles.primaryActionSubtitle}>
+                    Manage your account and preferences
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* RECENTLY ADDED LISTINGS */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Recently Added Listings</Text>
+                {recentListings.length > 0 && (
+                  <TouchableOpacity onPress={() => navigation.navigate('ShopBrowserScreen')}>
+                    <Text style={styles.sectionLink}>View All</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {recentListings.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="storefront-outline" size={60} color="#DDD" />
+                  <Text style={styles.emptyStateTitle}>No Listings Yet</Text>
+                  <Text style={styles.emptyStateSubtitle}>
+                    New business listings will appear here
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.listingsContainer}>
+                  {recentListings.map((listing) => (
+                    <ListingCard key={listing.id} listing={listing} />
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* BOTTOM SPACING */}
+            <View style={{ height: 30 }} />
+          </ScrollView>
         </SafeAreaView>
       </View>
     </View>
@@ -379,7 +282,7 @@ const SuperAdminHomeScreen = () => {
 const styles = StyleSheet.create({
   outerWrapper: {
     flex: 1,
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
   },
   container: {
     flex: 1,
@@ -389,34 +292,40 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 10,
   },
-  appBar: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#EEE',
   },
-  userProfilePic: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  headerLogo: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
   },
-  userInfo: {
+  headerInfo: {
     flex: 1,
     marginLeft: 12,
   },
-  userName: {
+  headerGreeting: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  headerName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'black',
+    color: '#000',
+    marginTop: 2,
   },
   adminBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF3E0',
+    backgroundColor: '#FFE5E5',
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 12,
     marginTop: 4,
     alignSelf: 'flex-start',
@@ -424,240 +333,142 @@ const styles = StyleSheet.create({
   adminBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#FF6B35',
+    color: '#4A90E2',
     marginLeft: 4,
   },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#F44336',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  notificationBadgeText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 16,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    borderLeftWidth: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  statIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  statInfo: {
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  statTitle: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
-  },
-  filtersContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    gap: 8,
-  },
-  filterButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'white',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  filterButtonActive: {
-    backgroundColor: '#FF6B35',
-    borderColor: '#FF6B35',
-  },
-  filterButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
-  },
-  filterButtonTextActive: {
-    color: 'white',
-  },
-  filterBadge: {
-    backgroundColor: '#E0E0E0',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 6,
-    paddingHorizontal: 6,
-  },
-  filterBadgeActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  filterBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#666',
-  },
-  filterBadgeTextActive: {
-    color: 'white',
+  section: {
+    marginTop: 20,
+    paddingHorizontal: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#EEE',
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#000',
   },
-  sectionCount: {
+  sectionLink: {
     fontSize: 14,
-    color: '#666',
+    color: '#4A90E2',
     fontWeight: '600',
   },
-  shopCard: {
+  primaryActionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 12,
-    elevation: 2,
+    backgroundColor: '#4A90E2',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 8,
   },
-  shopLogo: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+  profileActionCard: {
+    backgroundColor: '#000000',
   },
-  shopLogoPlaceholder: {
-    backgroundColor: '#FFF3E0',
+  primaryActionIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  profileActionIcon: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  primaryActionContent: {
+    flex: 1,
+  },
+  primaryActionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  primaryActionSubtitle: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  listingsContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+  },
+  listingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  listingLogo: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+  },
+  listingLogoPlaceholder: {
+    backgroundColor: '#FFE5E5',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  shopInfo: {
+  listingInfo: {
     flex: 1,
-    marginLeft: 16,
+    marginLeft: 12,
   },
-  shopHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  listingName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
     marginBottom: 4,
   },
-  shopName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+  listingMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 3,
+  },
+  listingMetaText: {
+    fontSize: 13,
+    color: '#666',
+    marginLeft: 6,
     flex: 1,
   },
-  statusChip: {
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     alignSelf: 'flex-start',
-    marginBottom: 6,
+    marginTop: 6,
   },
-  statusChipText: {
+  statusBadgeText: {
     fontSize: 11,
     fontWeight: '600',
     marginLeft: 4,
   },
-  shopAddress: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 2,
-  },
-  shopCity: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 4,
-  },
-  shopFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginLeft: 4,
-    color: '#333',
-  },
-  reviewsText: {
-    fontSize: 12,
-    color: '#999',
-    marginLeft: 4,
-  },
-  emptyStateContainer: {
-    flex: 1,
+  emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
+    backgroundColor: 'white',
+    borderRadius: 16,
   },
   emptyStateTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
     marginTop: 16,
@@ -667,9 +478,6 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 8,
     textAlign: 'center',
-  },
-  emptyList: {
-    flexGrow: 1,
   },
   loadingContainer: {
     flex: 1,

@@ -85,9 +85,9 @@ const ShopDetailsScreen = ({ route, navigation }) => {
       const { success: staffSuccess, staff: staffData } = await getShopStaff(shopId);
       if (staffSuccess && staffData) {
         setStaff(staffData);
-        // Separate managers and barbers
-        // Managers are those with 'admin' role in shop_staff (includes both owners and managers)
-        const managersData = staffData.filter(s => s.role === 'admin' || s.role === 'manager');
+        // Separate admins and barbers
+        // Admins are those with 'admin' role in shop_staff
+        const managersData = staffData.filter(s => s.role === 'admin');
         const barbersData = staffData.filter(s => s.role === 'barber');
         setManagers(managersData);
         setBarbers(barbersData);
@@ -149,8 +149,8 @@ const ShopDetailsScreen = ({ route, navigation }) => {
   };
 
   const handleBookNow = (service = null, barber = null) => {
-    // Check if user is shop staff (admin, manager, or barber)
-    if (userRole && (userRole === 'admin' || userRole === 'manager' || userRole === 'barber')) {
+    // Check if user is shop staff (admin or barber)
+    if (userRole && (userRole === 'admin' || userRole === 'barber')) {
       Alert.alert(
         'Staff Member',
         'You are a shop staff member and cannot book appointments at your own shop.',
@@ -159,12 +159,24 @@ const ShopDetailsScreen = ({ route, navigation }) => {
       return;
     }
 
-    navigation.navigate('BookingConfirmationScreen', {
-      shopId,
-      shopName: shop?.name,
-      selectedServices: selectedServices.length > 0 ? selectedServices : (service ? [service] : []),
-      selectedBarber: barber
-    });
+    const servicesToBook = selectedServices.length > 0 ? selectedServices : (service ? [service] : []);
+
+    // If barber is already selected (e.g., from staff list), go directly to booking
+    if (barber) {
+      navigation.navigate('BookingConfirmationScreen', {
+        shopId,
+        shopName: shop?.name,
+        selectedServices: servicesToBook,
+        selectedBarber: barber
+      });
+    } else {
+      // Navigate to provider selection screen first
+      navigation.navigate('ProviderSelectionScreen', {
+        shopId,
+        shopName: shop?.name,
+        selectedServices: servicesToBook,
+      });
+    }
   };
 
   const handleManageShop = () => {
@@ -182,18 +194,18 @@ const ShopDetailsScreen = ({ route, navigation }) => {
         return;
       }
 
-      console.log('🔍 Looking for shop admin/manager for shopId:', shopId);
+      console.log('🔍 Looking for shop owner/admin/manager for shopId:', shopId);
 
-      // Get shop owner/manager ID from shop staff (try admin first, then manager)
+      // Get shop owner/admin/manager ID from shop staff (include 'owner' role)
       const { data: ownerData, error: queryError } = await supabase
         .from('shop_staff')
         .select('user_id, role')
         .eq('shop_id', shopId)
-        .in('role', ['admin', 'manager'])
+        .in('role', ['owner', 'admin'])
         .eq('is_active', true)
-        .order('role', { ascending: true }) // admin first, then manager
+        .order('role', { ascending: true })
         .limit(1)
-        .maybeSingle(); // Use maybeSingle instead of single to avoid error if not found
+        .maybeSingle();
 
       console.log('📊 Query result:', { ownerData, queryError });
 
@@ -203,25 +215,36 @@ const ShopDetailsScreen = ({ route, navigation }) => {
         return;
       }
 
-      if (!ownerData) {
-        console.error('❌ No admin/manager found for shop:', shopId);
+      // If no staff found, fall back to shop.created_by
+      let recipientId = ownerData?.user_id;
+
+      if (!recipientId && shop?.created_by) {
+        console.log('📌 No staff found, using shop.created_by:', shop.created_by);
+        recipientId = shop.created_by;
+      }
+
+      if (!recipientId) {
+        console.error('❌ No owner/admin/manager found for shop:', shopId);
         Alert.alert('Error', 'Could not find shop owner or manager');
         return;
       }
 
-      console.log('✅ Found admin/manager:', ownerData);
+      console.log('✅ Found recipient:', recipientId, ownerData?.role || 'created_by');
 
       // Create or get existing conversation
-      const conversation = await getOrCreateConversation(currentUser.id, ownerData.user_id, shopId);
+      const result = await getOrCreateConversation(currentUser.id, recipientId, shopId);
 
-      if (conversation) {
-        console.log('✅ Conversation created/found:', conversation.id);
+      if (result.success && result.conversationId) {
+        console.log('✅ Conversation created/found:', result.conversationId);
         // Navigate to chat conversation screen
         navigation.navigate('ChatConversationScreen', {
-          conversationId: conversation.id,
+          conversationId: result.conversationId,
           recipientName: shop.name,
-          recipientId: ownerData.user_id,
+          recipientId: recipientId,
         });
+      } else {
+        console.error('❌ Failed to create conversation:', result.error);
+        Alert.alert('Error', result.error || 'Could not create conversation');
       }
     } catch (error) {
       console.error('❌ Error starting conversation:', error);
@@ -347,8 +370,8 @@ const ShopDetailsScreen = ({ route, navigation }) => {
   };
 
   const handleMessageManager = () => {
-    // Find the shop manager
-    const manager = managers.find(m => m.role === 'manager' || m.role === 'admin');
+    // Find the shop admin
+    const manager = managers.find(m => m.role === 'admin');
 
     if (!manager) {
       Alert.alert('No Manager Found', 'This shop does not have a manager assigned yet.');
@@ -425,7 +448,7 @@ const ShopDetailsScreen = ({ route, navigation }) => {
           <View style={styles.emptyState}>
             <Ionicons name="cut-outline" size={60} color="#DDD" />
             <Text style={styles.emptyText}>No services available</Text>
-            {userRole && ['admin', 'manager'].includes(userRole) && !isSuperAdmin && (
+            {userRole && userRole === 'admin' && !isSuperAdmin && (
               <TouchableOpacity
                 style={styles.addServiceButton}
                 onPress={() => navigation.navigate('ServiceManagementScreen', { shopId })}
@@ -441,7 +464,7 @@ const ShopDetailsScreen = ({ route, navigation }) => {
               <Text style={styles.sectionTitle}>
                 {isSuperAdmin ? 'Services Offered:' : 'Select services for your appointment:'}
               </Text>
-              {userRole && ['admin', 'manager'].includes(userRole) && !isSuperAdmin && (
+              {userRole && userRole === 'admin' && !isSuperAdmin && (
                 <TouchableOpacity
                   style={styles.manageServicesButton}
                   onPress={() => navigation.navigate('ServiceManagementScreen', { shopId })}
@@ -490,11 +513,11 @@ const ShopDetailsScreen = ({ route, navigation }) => {
       style={styles.tabContent}
       contentContainerStyle={{ paddingBottom: selectedServices.length > 0 ? 180 : 20 }}
     >
-      {/* Managers Section */}
-      {userRole && ['admin', 'manager', 'barber'].includes(userRole) && (
+      {/* Admins Section */}
+      {userRole && ['admin', 'barber'].includes(userRole) && (
         <View style={styles.staffSection}>
         <View style={styles.staffSectionHeader}>
-          <Text style={styles.staffSectionTitle}>Managers</Text>
+          <Text style={styles.staffSectionTitle}>Admins</Text>
           {userRole && userRole === 'admin' && (
             <TouchableOpacity 
               style={styles.manageIconButton}
@@ -507,7 +530,7 @@ const ShopDetailsScreen = ({ route, navigation }) => {
         {managers.length === 0 ? (
           <View style={styles.emptyStaffState}>
             <Ionicons name="people-outline" size={40} color="#DDD" />
-            <Text style={styles.emptyStaffText}>No managers yet</Text>
+            <Text style={styles.emptyStaffText}>No admins yet</Text>
           </View>
         ) : (
           managers.map((manager) => (
@@ -543,7 +566,7 @@ const ShopDetailsScreen = ({ route, navigation }) => {
       <View style={styles.staffSection}>
         <View style={styles.staffSectionHeader}>
           <Text style={styles.staffSectionTitle}>Team</Text>
-          {userRole && ['admin', 'manager'].includes(userRole) && !isSuperAdmin && (
+          {userRole && userRole === 'admin' && !isSuperAdmin && (
             <TouchableOpacity
               style={styles.manageIconButton}
               onPress={() => navigation.navigate('StaffManagementScreen', { shopId, section: 'barbers' })}
@@ -583,7 +606,7 @@ const ShopDetailsScreen = ({ route, navigation }) => {
                 />
               ) : (
                 <View style={styles.defaultAvatarContainer}>
-                  <Ionicons name="person" size={30} color="#FF6B35" />
+                  <Ionicons name="person" size={30} color="#4A90E2" />
                 </View>
               )}
               <View style={styles.staffInfo}>
@@ -804,9 +827,9 @@ const ShopDetailsScreen = ({ route, navigation }) => {
             )}
 
             {isSuperAdmin ? (
-              <View style={[styles.roleBadge, { backgroundColor: '#FFF3E0', borderColor: '#FF6B35' }]}>
-                <Ionicons name="shield-checkmark" size={16} color="#FF6B35" />
-                <Text style={[styles.roleBadgeText, { color: '#FF6B35', marginLeft: 6 }]}>
+              <View style={[styles.roleBadge, { backgroundColor: '#FFF3E0', borderColor: '#4A90E2' }]}>
+                <Ionicons name="shield-checkmark" size={16} color="#4A90E2" />
+                <Text style={[styles.roleBadgeText, { color: '#4A90E2', marginLeft: 6 }]}>
                   SUPER ADMIN (View Only)
                 </Text>
               </View>
@@ -822,7 +845,7 @@ const ShopDetailsScreen = ({ route, navigation }) => {
             {shop && shop.operating_days && shop.opening_time && shop.closing_time && (
               <View style={styles.operatingHoursCard}>
                 <View style={styles.hoursHeader}>
-                  <Ionicons name="time-outline" size={20} color="#FF6B35" />
+                  <Ionicons name="time-outline" size={20} color="#4A90E2" />
                   <Text style={styles.hoursTitle}>Operating Hours</Text>
                 </View>
                 <View style={styles.hoursDetails}>
@@ -848,8 +871,8 @@ const ShopDetailsScreen = ({ route, navigation }) => {
               </View>
             )}
 
-            {/* Admin/Manager Toggle - Manual Open/Close - HIDE FOR SUPER ADMIN */}
-            {userRole && ['admin', 'manager'].includes(userRole) && !isSuperAdmin && shop && (
+            {/* Admin Toggle - Manual Open/Close - HIDE FOR SUPER ADMIN */}
+            {userRole && userRole === 'admin' && !isSuperAdmin && shop && (
               <View style={styles.shopStatusControlCard}>
                 <View style={styles.statusHeader}>
                   <View style={styles.statusIconContainer}>
@@ -888,7 +911,7 @@ const ShopDetailsScreen = ({ route, navigation }) => {
             )}
 
             {/* Shop Status and Message Button for Customers */}
-            {(!userRole || !['admin', 'manager'].includes(userRole)) && !isSuperAdmin && shop && (
+            {(!userRole || userRole !== 'admin') && !isSuperAdmin && shop && (
               <View style={styles.customerActionsContainer}>
                 <View style={[
                   styles.customerStatusBadge,
@@ -923,7 +946,7 @@ const ShopDetailsScreen = ({ route, navigation }) => {
             {isSuperAdmin && shop && (
               <View style={styles.superAdminActionsCard}>
                 <View style={styles.adminActionsHeader}>
-                  <Ionicons name="shield-checkmark" size={20} color="#FF6B35" />
+                  <Ionicons name="shield-checkmark" size={20} color="#4A90E2" />
                   <Text style={styles.adminActionsTitle}>Admin Actions</Text>
                 </View>
 
@@ -1365,7 +1388,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 25,
@@ -1444,7 +1467,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     paddingVertical: 14,
     borderRadius: 18,
   },
@@ -1601,7 +1624,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   barberRoleChip: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
   },
   roleChipText: {
     fontSize: 10,
@@ -1806,7 +1829,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -1897,7 +1920,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     borderWidth: 2,
-    borderColor: '#FF6B35',
+    borderColor: '#4A90E2',
   },
   adminActionsHeader: {
     flexDirection: 'row',
@@ -1907,7 +1930,7 @@ const styles = StyleSheet.create({
   adminActionsTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#FF6B35',
+    color: '#4A90E2',
     marginLeft: 8,
   },
   adminActionsButtons: {

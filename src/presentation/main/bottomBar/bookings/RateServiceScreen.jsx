@@ -186,7 +186,7 @@ export default RateServiceScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   scrollContent: {
     flexGrow: 1,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   barberName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FF6B6B',
+    color: '#4A90E2',
     marginTop: 5,
     textAlign: 'center',
   },
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   submitSection: {
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   submitButton: {
     paddingVertical: 15,
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   submitButtonActive: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
   },
   submitButtonInactive: {
     backgroundColor: '#DDD',

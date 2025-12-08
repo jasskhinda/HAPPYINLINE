@@ -9,21 +9,26 @@ import { supabase } from '../../../../lib/supabase';
 import ShopStatusBadge from '../../../../components/shop/ShopStatusBadge';
 import SuperAdminHomeScreen from './SuperAdminHomeScreen';
 import ManagerDashboard from './ManagerDashboard';
+import ProviderDashboard from './ProviderDashboard';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
   const [isManagerMode, setIsManagerMode] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
+  const [isProvider, setIsProvider] = useState(false); // Service provider (barber)
   const [userName, setUserName] = useState('Guest');
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  
+
   // Shops and current shop context
   const [shops, setShops] = useState([]);
   const [userShops, setUserShops] = useState([]); // Shops where user is staff
   const [currentShop, setCurrentShop] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Home Shop Lock - customer locked to specific shop
+  const [isLockedCustomer, setIsLockedCustomer] = useState(false);
 
   // Business categories for browsing
   const [categories, setCategories] = useState([]);
@@ -55,9 +60,9 @@ const HomeScreen = () => {
       
       if (profile) {
         const name = profile.name || 'Guest';
-        const isSuperAdminUser = profile.is_super_admin || false;
-        const isManagerUser = profile.role === 'manager' || profile.role === 'admin';
-        console.log('✅ Setting state - Name:', name, ', Super Admin:', isSuperAdminUser, ', Manager:', isManagerUser);
+        const isSuperAdminUser = profile.role === 'super_admin';
+        const isAdminUser = profile.role === 'admin';
+        console.log('✅ Setting state - Name:', name, ', Super Admin:', isSuperAdminUser, ', Admin:', isAdminUser);
 
         setUserName(name);
         setIsPlatformAdmin(profile.is_platform_admin || false);
@@ -70,31 +75,66 @@ const HomeScreen = () => {
           return;
         }
 
-        // Check if user is owner or manager (NOT customer)
-        const isOwnerOrManager = profile.role === 'owner' || profile.role === 'manager' || profile.role === 'admin';
+        // Check if user is owner or admin (NOT customer)
+        const isOwnerOrAdmin = profile.role === 'owner' || profile.role === 'admin';
 
-        // Only set manager mode if they are NOT a customer
-        if (isOwnerOrManager && profile.role !== 'customer') {
-          console.log('👔 Owner/Manager role detected in profile:', profile.role);
+        // Check if user is a service provider (barber)
+        if (profile.role === 'barber') {
+          console.log('💈 Provider/Barber role detected in profile');
+          setIsProvider(true);
+          setIsManagerMode(false);
+          setIsAdminMode(false);
+        }
+        // Only set admin mode if they are NOT a customer
+        else if (isOwnerOrAdmin && profile.role !== 'customer') {
+          console.log('👔 Owner/Admin role detected in profile:', profile.role);
           setIsManagerMode(true);
           setIsAdminMode(true);
+          setIsProvider(false);
         } else if (profile.role === 'customer') {
           console.log('👤 Customer role detected - showing browsing interface');
           setIsManagerMode(false);
           setIsAdminMode(false);
+          setIsProvider(false);
         }
       }
       
-      // Fetch all shops for browsing
-      console.log('🏪 HomeScreen: Fetching all shops...');
-      const shopsResult = await getAllShops();
-      if (shopsResult.success) {
-        console.log('✅ Shops fetched:', shopsResult.shops.length);
-        setShops(shopsResult.shops || []);
+      // Check if customer is locked to a home shop (Home Shop Lock)
+      let shopsToDisplay = [];
+      const customerIsLocked = !!(profile && profile.home_shop_id && profile.role === 'customer');
+      setIsLockedCustomer(customerIsLocked);
+
+      if (customerIsLocked) {
+        console.log('🔒 Customer locked to home shop:', profile.home_shop_id);
+        // Fetch only their home shop
+        const { data: homeShop, error: homeShopError } = await supabase
+          .from('shops')
+          .select('*')
+          .eq('id', profile.home_shop_id)
+          .eq('status', 'approved')
+          .single();
+
+        if (homeShopError) {
+          console.error('❌ Error fetching home shop:', homeShopError);
+          shopsToDisplay = [];
+        } else {
+          console.log('✅ Home shop fetched:', homeShop.name);
+          shopsToDisplay = homeShop ? [homeShop] : [];
+        }
       } else {
-        console.error('❌ Error fetching shops:', shopsResult.error);
-        setShops([]);
+        // Fetch all shops for browsing
+        console.log('🏪 HomeScreen: Fetching all shops...');
+        const shopsResult = await getAllShops();
+        if (shopsResult.success) {
+          console.log('✅ Shops fetched:', shopsResult.shops.length);
+          shopsToDisplay = shopsResult.shops || [];
+        } else {
+          console.error('❌ Error fetching shops:', shopsResult.error);
+          shopsToDisplay = [];
+        }
       }
+
+      setShops(shopsToDisplay);
       
       // Fetch user's shops (where they are staff)
       console.log('👥 HomeScreen: Fetching user shops...');
@@ -103,18 +143,18 @@ const HomeScreen = () => {
         console.log('✅ User shops fetched:', myShopsResult.shops?.length || 0);
         setUserShops(myShopsResult.shops || []);
 
-        // Check if user is manager/admin of any shop (via shop_staff)
-        const hasManagerRoleInShops = myShopsResult.shops?.some(
-          s => s.role === 'manager' || s.role === 'admin'
+        // Check if user is admin of any shop (via shop_staff)
+        const hasAdminRoleInShops = myShopsResult.shops?.some(
+          s => s.role === 'admin'
         );
 
-        // Only update manager mode if they have shops
-        // Don't override the profile-based manager detection
-        if (hasManagerRoleInShops) {
+        // Only update admin mode if they have shops
+        // Don't override the profile-based admin detection
+        if (hasAdminRoleInShops) {
           setIsManagerMode(true);
           setIsAdminMode(true);
         }
-        console.log('👔 Manager mode from shops:', hasManagerRoleInShops);
+        console.log('👔 Admin mode from shops:', hasAdminRoleInShops);
 
         // Get current shop context
         const currentShopId = await getCurrentShopId();
@@ -208,7 +248,7 @@ const HomeScreen = () => {
           />
         ) : (
           <View style={[styles.shopLogo, styles.shopLogoPlaceholder]}>
-            <Ionicons name="storefront" size={40} color="#FF6B35" />
+            <Ionicons name="storefront" size={40} color="#4A90E2" />
           </View>
         )}
         
@@ -280,6 +320,62 @@ const HomeScreen = () => {
     return <ManagerDashboard />;
   }
 
+  // If Provider (barber), show Provider Dashboard
+  if (isProvider && !loading) {
+    console.log('💈 Rendering Provider Dashboard');
+    return <ProviderDashboard />;
+  }
+
+  // If customer WITHOUT home shop, show QR scan prompt (Exclusive customers only)
+  if (!loading && !isManagerMode && !isSuperAdmin && !isProvider && !isLockedCustomer) {
+    console.log('🔒 Customer without home shop - showing QR prompt');
+    return (
+      <View style={styles.outerWrapper}>
+        <View style={styles.container}>
+          <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1 }}>
+            {/* APP BAR */}
+            <View style={styles.appBar}>
+              <Image
+                source={require('../../../../../assets/logowithouttagline.png')}
+                style={styles.userProfilePic}
+                resizeMode="contain"
+              />
+              <View style={styles.userInfo}>
+                <Text style={{ color: 'rgba(0, 0, 0, 0.4)' }}>Hello 👋</Text>
+                <Text style={styles.userName}>{userName}</Text>
+              </View>
+            </View>
+
+            {/* QR SCAN PROMPT */}
+            <View style={styles.qrPromptContainer}>
+              <Ionicons name="qr-code-outline" size={120} color="#4A90E2" />
+              <Text style={styles.qrPromptTitle}>Welcome to Happy Inline!</Text>
+              <Text style={styles.qrPromptMessage}>
+                Please scan the QR code provided by your business to create your account and start booking services.
+              </Text>
+              <Text style={styles.qrPromptSubtext}>
+                Ask your service provider for their unique QR code
+              </Text>
+
+              {/* Logout option */}
+              <TouchableOpacity
+                style={styles.qrLogoutButton}
+                onPress={async () => {
+                  const { signOut } = await import('../../../../lib/auth');
+                  await signOut();
+                  navigation.replace('WelcomeScreen');
+                }}
+              >
+                <Ionicons name="log-out-outline" size={20} color="#666" />
+                <Text style={styles.qrLogoutText}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </View>
+      </View>
+    );
+  }
+
   // Render loading indicator
   if (loading) {
     return (
@@ -289,7 +385,7 @@ const HomeScreen = () => {
             {/* APP BAR - Show even while loading */}
             <View style={styles.appBar}>
               <Image
-                source={require('../../../../../assets/logo.png')}
+                source={require('../../../../../assets/logowithouttagline.png')}
                 style={styles.userProfilePic}
                 resizeMode="contain"
               />
@@ -301,7 +397,7 @@ const HomeScreen = () => {
 
             {/* Loading Content */}
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#FF6B6B" />
+              <ActivityIndicator size="large" color="#4A90E2" />
               <Text style={styles.loadingText}>Loading your dashboard...</Text>
               <Text style={styles.loadingSubtext}>Discovering businesses near you</Text>
             </View>
@@ -332,7 +428,7 @@ const HomeScreen = () => {
         {/* Current Shop Badge - Show if user has a shop */}
         {currentShop && (
           <View style={styles.currentShopBadge}>
-            <Ionicons name="briefcase" size={16} color="#FF6B35" />
+            <Ionicons name="briefcase" size={16} color="#4A90E2" />
             <Text style={styles.currentShopText}>
               Managing: <Text style={styles.currentShopName}>{currentShop.shop_name}</Text>
             </Text>
@@ -346,7 +442,8 @@ const HomeScreen = () => {
         )}
 
         {/* Business Categories */}
-        {categories.length > 0 && (
+        {/* Hide categories for locked customers - they can only see their home shop */}
+        {!isLockedCustomer && categories.length > 0 && (
           <View style={styles.categoriesSection}>
             <Text style={styles.categoriesTitle}>Browse by Category</Text>
             <FlatList
@@ -355,7 +452,7 @@ const HomeScreen = () => {
               keyExtractor={(item) => item.id.toString()}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[styles.categoryCard, { backgroundColor: item.color || '#FF6B35' }]}
+                  style={[styles.categoryCard, { backgroundColor: item.color || '#4A90E2' }]}
                   onPress={() => navigation.navigate('CategoryShopsScreen', {
                     categoryId: item.id,
                     categoryName: item.name,
@@ -392,7 +489,7 @@ const HomeScreen = () => {
           {/* APP BAR */}
           <View style={styles.appBar}>
             <Image 
-              source={require('../../../../../assets/logo.png')} 
+              source={require('../../../../../assets/logowithouttagline.png')} 
               style={styles.userProfilePic}
               resizeMode="contain"
             />
@@ -407,7 +504,7 @@ const HomeScreen = () => {
                 style={styles.invitationButton}
                 onPress={() => navigation.navigate('InvitationsScreen')}
               >
-                <Ionicons name="mail" size={24} color="#FF6B35" />
+                <Ionicons name="mail" size={24} color="#4A90E2" />
                 <View style={styles.invitationBadge}>
                   <Text style={styles.invitationBadgeText}>
                     {invitationCount}
@@ -446,8 +543,8 @@ const HomeScreen = () => {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                colors={['#FF6B35']} // Android
-                tintColor="#FF6B35" // iOS
+                colors={['#4A90E2']} // Android
+                tintColor="#4A90E2" // iOS
                 title="Pull to refresh" // iOS
                 titleColor="#666" // iOS
               />
@@ -466,11 +563,11 @@ export default HomeScreen;
 const styles = StyleSheet.create({
   outerWrapper: {
     flex: 1,
-    backgroundColor: '#9F9F87',
+    backgroundColor: '#FFFFFF',
   },
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
     borderBottomLeftRadius: 60,
     borderBottomRightRadius: 60,
     overflow: 'hidden', // 🔒 clips children inside the border radius
@@ -519,7 +616,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 25,
     marginRight: 10,
-    backgroundColor: '#EEEEEE'
+    backgroundColor: '#F8F9FA'
   },
   barberCard: {
     borderRadius: 30, 
@@ -628,7 +725,7 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     borderRadius: 15,
     borderWidth: 2,
-    borderColor: '#FF6B35',
+    borderColor: '#4A90E2',
     borderStyle: 'dashed',
   },
   createShopBannerContent: {
@@ -643,7 +740,7 @@ const styles = StyleSheet.create({
   createShopTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FF6B35',
+    color: '#4A90E2',
     marginBottom: 3,
   },
   createShopSubtitle: {
@@ -663,7 +760,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderLeftWidth: 4,
-    borderLeftColor: '#FF6B35',
+    borderLeftColor: '#4A90E2',
   },
   currentShopText: {
     flex: 1,
@@ -673,10 +770,10 @@ const styles = StyleSheet.create({
   },
   currentShopName: {
     fontWeight: 'bold',
-    color: '#FF6B35',
+    color: '#4A90E2',
   },
   switchShopButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 15,
@@ -718,7 +815,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 5,
     right: 5,
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
     borderRadius: 10,
     minWidth: 18,
     height: 18,
@@ -735,7 +832,7 @@ const styles = StyleSheet.create({
   createShopButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#4A90E2',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 25,
@@ -925,5 +1022,52 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '700',
     lineHeight: 16,
+  },
+  // QR Prompt Styles
+  qrPromptContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingVertical: 60,
+  },
+  qrPromptTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 30,
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  qrPromptMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  qrPromptSubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: 40,
+  },
+  qrLogoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#F8F9FA',
+    gap: 8,
+  },
+  qrLogoutText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
   },
 });

@@ -20,7 +20,7 @@ const ShopReviewSubmission = ({ route, navigation }) => {
   const [shopStats, setShopStats] = useState({
     servicesCount: 0,
     staffCount: 0,
-    managersCount: 0,
+    adminsCount: 0,
   });
 
   useEffect(() => {
@@ -52,12 +52,12 @@ const ShopReviewSubmission = ({ route, navigation }) => {
       ]);
 
       const staffCount = staffRes.data?.filter(s => s.role === 'barber').length || 0;
-      const managersCount = staffRes.data?.filter(s => s.role === 'manager' || s.role === 'admin').length || 0;
+      const adminsCount = staffRes.data?.filter(s => s.role === 'admin').length || 0;
 
       setShopStats({
         servicesCount: servicesRes.data?.length || 0,
         staffCount,
-        managersCount,
+        adminsCount,
       });
 
     } catch (error) {
@@ -111,7 +111,7 @@ const ShopReviewSubmission = ({ route, navigation }) => {
   if (!shop) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+        <ActivityIndicator size="large" color="#4A90E2" />
       </SafeAreaView>
     );
   }
@@ -191,8 +191,8 @@ const ShopReviewSubmission = ({ route, navigation }) => {
             <View style={[styles.statIcon, { backgroundColor: '#FFF3E0' }]}>
               <Ionicons name="shield-checkmark" size={24} color="#FF9800" />
             </View>
-            <Text style={styles.statNumber}>{shopStats.managersCount}</Text>
-            <Text style={styles.statLabel}>Managers</Text>
+            <Text style={styles.statNumber}>{shopStats.adminsCount}</Text>
+            <Text style={styles.statLabel}>Admins</Text>
           </View>
         </View>
 
@@ -254,7 +254,7 @@ const ShopReviewSubmission = ({ route, navigation }) => {
           style={styles.editButton}
           onPress={() => navigation.replace('CreateShopScreen', { shopId: shop.id })}
         >
-          <Ionicons name="create-outline" size={20} color="#FF6B6B" />
+          <Ionicons name="create-outline" size={20} color="#4A90E2" />
           <Text style={styles.editButtonText}>Edit Business</Text>
         </TouchableOpacity>
 
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -463,13 +463,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#FFF',
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: '#4A90E2',
     gap: 8,
   },
   editButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF6B6B',
+    color: '#4A90E2',
   },
   submitButton: {
     flex: 2,
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     gap: 8,
   },
   submitButtonText: {

@@ -139,7 +139,7 @@ const ServiceSelectorModal = ({ visible, onClose, onServiceSelected, shopId }) =
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -624,14 +624,14 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
   },
   inputError: {
-    borderColor: '#FF6B6B',
+    borderColor: '#4A90E2',
   },
   textArea: {
     height: 80,
     textAlignVertical: 'top',
   },
   errorText: {
-    color: '#FF6B6B',
+    color: '#4A90E2',
     fontSize: 12,
     marginTop: 5,
   },

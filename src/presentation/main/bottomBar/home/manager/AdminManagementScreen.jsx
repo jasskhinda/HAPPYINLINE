@@ -218,7 +218,7 @@ const AdminManagementScreen = () => {
       <View style={styles.adminCard}>
         {isDeleting && (
           <View style={styles.cardOverlay}>
-            <ActivityIndicator size="large" color="#FF6B6B" />
+            <ActivityIndicator size="large" color="#4A90E2" />
             <Text style={styles.overlayText}>Removing...</Text>
           </View>
         )}
@@ -267,7 +267,7 @@ const AdminManagementScreen = () => {
                 onPress={() => handleDeleteAdmin(item.id, item.name, item.is_super_admin)}
                 disabled={isDeleting}
               >
-                <Ionicons name="trash" size={20} color="#FF6B6B" />
+                <Ionicons name="trash" size={20} color="#4A90E2" />
               </TouchableOpacity>
             </View>
           )}
@@ -296,7 +296,7 @@ const AdminManagementScreen = () => {
       {deleting && (
         <View style={styles.globalOverlay}>
           <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color="#FF6B6B" />
+            <ActivityIndicator size="large" color="#4A90E2" />
             <Text style={styles.loadingCardText}>Removing admin...</Text>
           </View>
         </View>
@@ -455,7 +455,7 @@ const AdminManagementScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   content: {
     flex: 1,
@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FF6B6B20',
+    backgroundColor: '#4A90E220',
     alignItems: 'center',
     justifyContent: 'center',
   },

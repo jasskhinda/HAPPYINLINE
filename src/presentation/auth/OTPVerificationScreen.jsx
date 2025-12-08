@@ -103,7 +103,6 @@ const OTPVerificationScreen = () => {
 
           const roleLabel = result.profile.role === 'admin' || result.profile.role === 'super_admin' ? 'Admin' :
                            result.profile.role === 'owner' ? 'Owner' :
-                           result.profile.role === 'manager' ? 'Manager' :
                            result.profile.role === 'barber' ? 'Barber' : '';
 
           Toast.show({
@@ -196,7 +195,7 @@ const OTPVerificationScreen = () => {
   };
 
   return (
-    <View style={{flex: 1, backgroundColor: '#9F9F87'}}>
+    <View style={{flex: 1, backgroundColor: '#FFFFFF'}}>
       <View style={styles.container}>
         {loading && <CircularProgressBar loaderText={"Verifying..."} />}
 
@@ -214,7 +213,7 @@ const OTPVerificationScreen = () => {
 
           <View style={styles.content}>
             <View style={styles.iconContainer}>
-              <Ionicons name="mail-outline" size={80} color="#FF6B6B" />
+              <Ionicons name="mail-outline" size={80} color="#4A90E2" />
             </View>
 
             <Text style={styles.heading}>Check Your Email</Text>
@@ -280,7 +279,7 @@ export default OTPVerificationScreen;
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
     borderBottomLeftRadius: 60,
     borderBottomRightRadius: 60
   },
@@ -310,7 +309,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   heading: {
-    color: '#FF6B6B',
+    color: '#4A90E2',
     fontWeight: 'bold',
     fontSize: 28,
     textAlign: 'center',
@@ -348,11 +347,11 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   otpInputFilled: {
-    borderColor: '#FF6B6B',
+    borderColor: '#4A90E2',
     backgroundColor: '#FFF5F5',
   },
   verifyButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     borderRadius: 20,
     padding: 18,
     marginHorizontal: 10,
@@ -376,7 +375,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   resendLink: {
-    color: '#FF6B6B',
+    color: '#4A90E2',
     fontSize: 14,
     fontWeight: 'bold',
   },

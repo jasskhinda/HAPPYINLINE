@@ -14,9 +14,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../../lib/supabase';
 import { getShopDetails, getShopStaff } from '../../lib/shopAuth';
+import { sendNewBookingNotification, scheduleBookingReminder, sendBookingConfirmationEmail } from '../../lib/notifications';
 
 const BookingConfirmationScreen = ({ route, navigation }) => {
   const { shopId, shopName, selectedServices = [], selectedBarber = null } = route.params;
@@ -45,24 +47,76 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
   const loadShopData = async () => {
     try {
       setLoading(true);
-      
+
       // Load shop details
       const { success: shopSuccess, shop: shopData } = await getShopDetails(shopId);
       if (shopSuccess && shopData) {
         setShop(shopData);
       }
 
-      // Load barbers
-      const { success: staffSuccess, staff: staffData } = await getShopStaff(shopId);
-      if (staffSuccess && staffData) {
-        const barbersData = staffData.filter(s => s.role === 'barber');
-        setBarbers(barbersData);
-        
-        // Set initial barber name if pre-selected
-        if (selectedBarber?.id) {
-          const barber = barbersData.find(b => b.id === selectedBarber.id);
-          if (barber) {
-            setSelectedBarberName(barber.user?.name || 'Barber');
+      // Set the selected provider name if one was passed
+      if (selectedBarber?.id) {
+        setSelectedBarberName(selectedBarber.user?.name || 'Provider');
+      }
+
+      // Load providers assigned to the selected services
+      if (selectedServices.length > 0) {
+        const serviceIds = selectedServices.map(s => s.id);
+
+        // Step 1: Get provider IDs from service_providers junction table
+        const { data: serviceProviders, error: spError } = await supabase
+          .from('service_providers')
+          .select('provider_id')
+          .in('shop_service_id', serviceIds);
+
+        if (spError) {
+          console.error('Error loading service providers:', spError);
+        } else {
+          // Extract unique provider IDs
+          const providerIds = [...new Set(serviceProviders?.map(sp => sp.provider_id).filter(Boolean) || [])];
+
+          if (providerIds.length > 0) {
+            // Step 2: Fetch profiles for these provider IDs
+            const { data: profiles, error: profileError } = await supabase
+              .from('profiles')
+              .select('id, name, email')
+              .in('id', providerIds);
+
+            if (!profileError && profiles) {
+              // Map profiles to provider format
+              const uniqueProviders = profiles.map(profile => ({
+                id: profile.id,
+                user: {
+                  name: profile.name || profile.email,
+                  email: profile.email
+                }
+              }));
+
+              setBarbers(uniqueProviders);
+
+              // Update selected provider name if needed
+              if (selectedBarber?.id && !selectedBarberName) {
+                const provider = uniqueProviders.find(p => p.id === selectedBarber.id);
+                if (provider) {
+                  setSelectedBarberName(provider.user?.name || 'Provider');
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // Fallback: Load all barbers if no services selected
+        const { success: staffSuccess, staff: staffData } = await getShopStaff(shopId);
+        if (staffSuccess && staffData) {
+          const barbersData = staffData.filter(s => s.role === 'barber');
+          setBarbers(barbersData);
+
+          // Set initial barber name if pre-selected
+          if (selectedBarber?.id) {
+            const barber = barbersData.find(b => b.id === selectedBarber.id);
+            if (barber) {
+              setSelectedBarberName(barber.user?.name || 'Barber');
+            }
           }
         }
       }
@@ -86,7 +140,7 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
   };
 
   const calculateDuration = () => {
-    return selectedServices.reduce((sum, service) => sum + Number(service.duration_minutes || 0), 0);
+    return selectedServices.reduce((sum, service) => sum + Number(service.duration_minutes || service.duration || 30), 0);
   };
 
   const handleBarberSelect = (barber) => {
@@ -215,16 +269,16 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
       // Prepare booking data
       const appointmentDate = selectedDate.toISOString().split('T')[0];
       const appointmentTime = `${selectedTime.getHours().toString().padStart(2, '0')}:${selectedTime.getMinutes().toString().padStart(2, '0')}:00`;
-      
+
       const bookingData = {
         shop_id: shopId,
         customer_id: user.id,
-        barber_id: selectedBarberId,
-        services: JSON.stringify(selectedServices),
+        provider_id: selectedBarberId || null, // Using provider_id instead of barber_id
+        services: selectedServices, // Pass as array, not stringified
         appointment_date: appointmentDate,
         appointment_time: appointmentTime,
         total_amount: calculateTotal(),
-        status: 'pending', // Will be 'confirmed' after manager confirmation
+        status: 'confirmed', // Auto-approve bookings
       };
 
       console.log('📝 Creating booking:', bookingData);
@@ -246,10 +300,53 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
       // Generate a readable booking reference from the UUID
       const bookingReference = `BK-${data.id.substring(0, 8).toUpperCase()}`;
 
+      // Get customer name for notification
+      const { data: customerProfile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', user.id)
+        .single();
+
+      const customerName = customerProfile?.name || 'A customer';
+      const serviceNames = selectedServices.map(s => s.name).join(', ');
+
+      // Send push notification to shop owner (fire and forget)
+      if (shop?.created_by) {
+        sendNewBookingNotification({
+          recipientUserId: shop.created_by,
+          customerName: customerName,
+          serviceName: serviceNames,
+          date: appointmentDate,
+          time: appointmentTime,
+          bookingId: data.id,
+        }).catch(err => console.log('Push notification error (non-blocking):', err));
+      }
+
+      // Schedule a reminder notification for the customer (1 hour before)
+      scheduleBookingReminder({
+        shopName: shopName,
+        serviceName: serviceNames,
+        appointmentDate: appointmentDate,
+        appointmentTime: appointmentTime,
+        bookingId: data.id,
+      }).catch(err => console.log('Reminder scheduling error (non-blocking):', err));
+
+      // Send booking confirmation email to customer (fire and forget)
+      sendBookingConfirmationEmail({
+        customerEmail: user.email,
+        customerName: customerName,
+        shopName: shopName,
+        serviceName: serviceNames,
+        date: appointmentDate,
+        time: appointmentTime,
+        bookingReference: bookingReference,
+        totalAmount: calculateTotal().toFixed(2),
+      }).catch(err => console.log('Email error (non-blocking):', err));
+
       // Show success message
       Alert.alert(
-        '🎉 Booking Created!',
-        `Your booking has been created successfully!\n\nBooking Reference: ${bookingReference}\n\nYour appointment is pending confirmation from the shop manager. You will be notified once confirmed.\n\nYou can track your booking status in the "My Bookings" tab at the bottom of the screen.`,
+        '🎉 Booking Confirmed!',
+        `Your booking has been confirmed successfully!\n\nBooking Reference: ${bookingReference}\n\nAmount Due: $${calculateTotal().toFixed(2)} (Pay in person at the shop)\n\nYour appointment is confirmed and ready!\n\nYou can view your booking in the "My Bookings" tab at the bottom of the screen.`,
         [
           {
             text: 'OK',
@@ -270,7 +367,7 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B35" />
+          <ActivityIndicator size="large" color="#0393d5" />
           <Text style={styles.loadingText}>Loading booking details...</Text>
         </View>
       </SafeAreaView>
@@ -295,7 +392,7 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
         {/* Booking ID Preview Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="qr-code-outline" size={24} color="#FF6B35" />
+            <Ionicons name="qr-code-outline" size={24} color="#0393d5" />
             <Text style={styles.cardTitle}>Your Booking ID (Preview)</Text>
           </View>
           <View style={styles.bookingIdContainer}>
@@ -309,7 +406,7 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
         {/* Shop Info Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="storefront-outline" size={24} color="#FF6B35" />
+            <Ionicons name="storefront-outline" size={24} color="#0393d5" />
             <Text style={styles.cardTitle}>Shop Details</Text>
           </View>
           <Text style={styles.shopName}>{shopName}</Text>
@@ -330,7 +427,7 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
         {/* Selected Services Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="cut-outline" size={24} color="#FF6B35" />
+            <Ionicons name="cut-outline" size={24} color="#0393d5" />
             <Text style={styles.cardTitle}>Selected Services</Text>
           </View>
           {selectedServices.map((service, index) => (
@@ -338,10 +435,10 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
               <View style={styles.serviceInfo}>
                 <Text style={styles.serviceName}>{service.name}</Text>
                 <Text style={styles.serviceDuration}>
-                  {service.duration_minutes} min
+                  {service.duration_minutes || service.duration || 30} min
                 </Text>
               </View>
-              <Text style={styles.servicePrice}>${service.price}</Text>
+              <Text style={styles.servicePrice}>${service.price || '0.00'}</Text>
             </View>
           ))}
           <View style={styles.totalRow}>
@@ -351,13 +448,34 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
               <Text style={styles.totalPrice}>${totalPrice.toFixed(2)}</Text>
             </View>
           </View>
+
+          {/* Payment Notice */}
+          <View style={styles.paymentNotice}>
+            <Ionicons name="cash-outline" size={18} color="#007AFF" />
+            <Text style={styles.paymentNoticeText}>Payment due at store</Text>
+          </View>
         </View>
 
+        {/* Selected Provider Card */}
+        {selectedBarberName && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="person-outline" size={24} color="#0393d5" />
+              <Text style={styles.cardTitle}>Selected Provider</Text>
+            </View>
+            <View style={styles.providerRow}>
+              <View style={styles.providerAvatar}>
+                <Ionicons name="person" size={24} color="#0393d5" />
+              </View>
+              <Text style={styles.providerName}>{selectedBarberName}</Text>
+            </View>
+          </View>
+        )}
 
         {/* Date & Time Selection Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="calendar-outline" size={24} color="#FF6B35" />
+            <Ionicons name="calendar-outline" size={24} color="#0393d5" />
             <Text style={styles.cardTitle}>Select Date & Time</Text>
           </View>
 
@@ -367,7 +485,7 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
             onPress={handleDatePickerOpen}
           >
             <View style={styles.dateTimeInfo}>
-              <Ionicons name="calendar" size={20} color="#FF6B35" />
+              <Ionicons name="calendar" size={20} color="#0393d5" />
               <Text style={styles.dateTimeLabel}>Date</Text>
             </View>
             <Text style={styles.dateTimeValue}>{formatDate(selectedDate)}</Text>
@@ -379,7 +497,7 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
             onPress={handleTimePickerOpen}
           >
             <View style={styles.dateTimeInfo}>
-              <Ionicons name="time" size={20} color="#FF6B35" />
+              <Ionicons name="time" size={20} color="#0393d5" />
               <Text style={styles.dateTimeLabel}>Time</Text>
             </View>
             <Text style={styles.dateTimeValue}>{formatTime(selectedTime)}</Text>
@@ -514,18 +632,25 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
       {/* Confirm Button */}
       <SafeAreaView edges={['bottom']} style={styles.footer}>
         <TouchableOpacity
-          style={[styles.confirmButton, creating && styles.confirmButtonDisabled]}
           onPress={handleConfirmBooking}
           disabled={creating}
+          activeOpacity={0.8}
         >
-          {creating ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <>
-              <Ionicons name="checkmark-circle" size={24} color="#FFF" />
-              <Text style={styles.confirmButtonText}>Confirm Booking</Text>
-            </>
-          )}
+          <LinearGradient
+            colors={['#0393d5', '#3A7BC8', '#2A6BA8']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.confirmButton, creating && styles.confirmButtonDisabled]}
+          >
+            {creating ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle" size={24} color="#FFF" />
+                <Text style={styles.confirmButtonText}>Confirm Booking</Text>
+              </>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
       </SafeAreaView>
     </SafeAreaView>
@@ -535,7 +660,7 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F8F9FA',
   },
   loadingContainer: {
     flex: 1,
@@ -603,13 +728,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF5F0',
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#FF6B35',
+    borderColor: '#0393d5',
     borderStyle: 'dashed',
   },
   bookingId: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FF6B35',
+    color: '#0393d5',
     letterSpacing: 2,
     marginBottom: 8,
   },
@@ -659,7 +784,7 @@ const styles = StyleSheet.create({
   servicePrice: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF6B35',
+    color: '#0393d5',
   },
   totalRow: {
     flexDirection: 'row',
@@ -686,7 +811,42 @@ const styles = StyleSheet.create({
   totalPrice: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FF6B35',
+    color: '#0393d5',
+  },
+  paymentNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#F0F8FF',
+    borderRadius: 8,
+    gap: 8,
+  },
+  paymentNoticeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  providerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  providerAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E8F4FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  providerName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
   },
   sectionHint: {
     fontSize: 14,
@@ -704,17 +864,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#FF6B35',
+    borderColor: '#0393d5',
     gap: 8,
   },
   barberButtonSelected: {
-    backgroundColor: '#FF6B35',
-    borderColor: '#FF6B35',
+    backgroundColor: '#0393d5',
+    borderColor: '#0393d5',
   },
   barberButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF6B35',
+    color: '#0393d5',
     flex: 1,
     textAlign: 'center',
   },
@@ -808,13 +968,13 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: '#FFF5F0',
     borderWidth: 2,
-    borderColor: '#FF6B35',
+    borderColor: '#0393d5',
     alignItems: 'center',
     justifyContent: 'center',
   },
   barberAvatarSelected: {
-    backgroundColor: '#FF6B35',
-    borderColor: '#FF6B35',
+    backgroundColor: '#0393d5',
+    borderColor: '#0393d5',
   },
   barberListItemName: {
     fontSize: 16,
@@ -823,7 +983,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   barberListItemNameSelected: {
-    color: '#FF6B35',
+    color: '#0393d5',
   },
   barberListItemDescription: {
     fontSize: 14,
@@ -872,7 +1032,7 @@ const styles = StyleSheet.create({
     }),
   },
   dateTimeModalHeader: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#0393d5',
     paddingVertical: 16,
     paddingHorizontal: 20,
     alignItems: 'center',
@@ -900,7 +1060,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dateTimeModalButtonPrimary: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#0393d5',
   },
   dateTimeModalButtonText: {
     fontSize: 16,
@@ -932,7 +1092,7 @@ const styles = StyleSheet.create({
   dateTimeValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF6B35',
+    color: '#0393d5',
   },
   operatingHoursInfo: {
     flexDirection: 'row',
@@ -986,7 +1146,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4CAF50',
     paddingVertical: 16,
     borderRadius: 12,
   },

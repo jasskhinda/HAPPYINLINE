@@ -11,12 +11,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ============================================
 
 /**
- * Get all active shops (for browsing/discovery)
- * @param {Object} filters - Optional filters {city, search, minRating}
+ * Get all shops (for browsing/discovery)
+ * @param {Object} filters - Optional filters {city, search, minRating, status, includeAll}
  * @returns {Promise<{success: boolean, shops?: Array, error?: string}>}
  */
 export const getAllShops = async (filters = {}) => {
   try {
+    console.log('🔍 getAllShops called with filters:', JSON.stringify(filters));
+
     let query = supabase
       .from('shops')
       .select(`
@@ -34,10 +36,20 @@ export const getAllShops = async (filters = {}) => {
         operating_days,
         opening_time,
         closing_time,
-        is_manually_closed
+        is_manually_closed,
+        status,
+        is_active,
+        created_at
       `)
-      .eq('is_active', true)
-      .order('rating', { ascending: false });
+      .order('created_at', { ascending: false });
+
+    // Only filter by is_active if not requesting all shops (for admin use)
+    if (!filters.includeAll) {
+      console.log('📋 Filtering by is_active = true');
+      query = query.eq('is_active', true);
+    } else {
+      console.log('📋 Including ALL shops (no is_active filter)');
+    }
 
     // Apply filters
     if (filters.city) {
@@ -49,12 +61,21 @@ export const getAllShops = async (filters = {}) => {
     if (filters.minRating) {
       query = query.gte('rating', filters.minRating);
     }
+    if (filters.status) {
+      console.log('📋 Filtering by status:', filters.status);
+      query = query.eq('status', filters.status);
+    }
 
     const { data: shops, error } = await query;
 
     if (error) {
       console.error('❌ Error fetching shops:', error);
       return { success: false, error: error.message };
+    }
+
+    console.log(`✅ getAllShops returned ${shops?.length || 0} shops`);
+    if (shops && shops.length > 0) {
+      shops.forEach(s => console.log(`  - ${s.name} | status: ${s.status} | is_active: ${s.is_active}`));
     }
 
     return { success: true, shops: shops || [] };
@@ -66,20 +87,36 @@ export const getAllShops = async (filters = {}) => {
 
 /**
  * Get single shop details
- * @param {string} shopId 
+ * @param {string} shopId
  * @returns {Promise<{success: boolean, shop?: Object, error?: string}>}
  */
 export const getShopDetails = async (shopId) => {
   try {
-    const { data, error } = await supabase
-      .rpc('get_shop_details', { p_shop_id: shopId });
+    // First get the shop data
+    const { data: shop, error: shopError } = await supabase
+      .from('shops')
+      .select('*')
+      .eq('id', shopId)
+      .single();
 
-    if (error) {
-      console.error('❌ Error fetching shop details:', error);
-      return { success: false, error: error.message };
+    if (shopError) {
+      console.error('❌ Error fetching shop details:', shopError);
+      return { success: false, error: shopError.message };
     }
 
-    const shop = data && data.length > 0 ? data[0] : null;
+    // Then get owner data separately if created_by exists
+    if (shop && shop.created_by) {
+      const { data: owner, error: ownerError } = await supabase
+        .from('profiles')
+        .select('id, name, email, phone, profile_image')
+        .eq('id', shop.created_by)
+        .single();
+
+      if (!ownerError && owner) {
+        shop.owner = owner;
+      }
+    }
+
     return { success: true, shop };
   } catch (error) {
     console.error('❌ Unexpected error:', error);
@@ -125,6 +162,29 @@ export const createShop = async (shopData) => {
       return { success: false, error: 'User not authenticated' };
     }
 
+    // Check if user already owns a business (1 account = 1 business rule)
+    const { data: existingShops, error: checkError } = await supabase
+      .from('shops')
+      .select('id, name')
+      .eq('created_by', user.id)
+      .limit(1);
+
+    if (checkError) {
+      console.error('❌ Error checking existing shops:', checkError);
+      return { success: false, error: 'Failed to verify business ownership' };
+    }
+
+    if (existingShops && existingShops.length > 0) {
+      console.log('⚠️ User already owns a business:', existingShops[0].name);
+      return {
+        success: false,
+        error: 'You already own a business. Each account can own one business only. If you need another business, please create a new account with a different email.'
+      };
+    }
+
+    // NOTE: Subscription fields are now on the profiles table, not shops
+    // The owner's profile already has subscription data from payment flow
+
     const { data: shop, error } = await supabase
       .from('shops')
       .insert({
@@ -138,7 +198,10 @@ export const createShop = async (shopData) => {
         email: shopData.email,
         website: shopData.website,
         created_by: user.id,
-        business_hours: shopData.business_hours
+        business_hours: shopData.business_hours,
+        status: 'draft', // New shops start as draft, will be 'pending_review' after submission
+        category_id: shopData.category_id,
+        business_type_id: shopData.business_type_id,
       })
       .select()
       .single();
@@ -304,10 +367,10 @@ export const getUserRoleInShop = async (shopId) => {
 };
 
 /**
- * Add staff to shop (admins/managers only)
- * @param {string} shopId 
- * @param {string} userId 
- * @param {string} role - 'admin', 'manager', or 'barber'
+ * Add staff to shop (admins only)
+ * @param {string} shopId
+ * @param {string} userId
+ * @param {string} role - 'admin' or 'barber'
  * @param {Object} additionalData - bio, specialties, etc.
  * @returns {Promise<{success: boolean, error?: string}>}
  */
@@ -1054,16 +1117,16 @@ export const deleteShop = async (shopId) => {
 };
 
 /**
- * Toggle shop manual open/closed status (Admin/Manager only)
- * @param {string} shopId 
+ * Toggle shop manual open/closed status (Admin only)
+ * @param {string} shopId
  * @param {boolean} isClosed - true to close shop, false to open
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 export const toggleShopStatus = async (shopId, isClosed) => {
   try {
     console.log('🔄 Toggling shop status:', shopId, 'Closed:', isClosed);
-    
-    // Verify user is admin or manager
+
+    // Verify user is admin
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       return { success: false, error: 'User not authenticated' };
@@ -1076,8 +1139,8 @@ export const toggleShopStatus = async (shopId, isClosed) => {
       .eq('user_id', user.id)
       .single();
 
-    if (staffError || !staffData || !['admin', 'manager'].includes(staffData.role)) {
-      return { success: false, error: 'Only admin or manager can toggle shop status' };
+    if (staffError || !staffData || staffData.role !== 'admin') {
+      return { success: false, error: 'Only admin can toggle shop status' };
     }
 
     // Update shop status
@@ -1109,7 +1172,7 @@ export const isShopOpen = (shop) => {
   if (!shop) return false;
   
   // ONLY check manual override - ignore schedule completely
-  // Admin/Manager controls shop status with toggle
+  // Admin controls shop status with toggle
   return !shop.is_manually_closed;
 };
 
@@ -1481,6 +1544,208 @@ export const declineInvitation = async (invitationId) => {
     console.log('✅ Invitation declined');
     return { success: true };
 
+  } catch (error) {
+    console.error('❌ Unexpected error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ============================================
+// STAFF ASSIGNMENT TO SHOPS
+// ============================================
+
+/**
+ * Get all shops that current user can manage (owner or manager role)
+ * @returns {Promise<{success: boolean, shops?: Array, error?: string}>}
+ */
+export const getAvailableShopsForAssignment = async () => {
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    // Get shops where user is owner or manager
+    const { data: shopStaff, error } = await supabase
+      .from('shop_staff')
+      .select(`
+        shop_id,
+        role,
+        shops (
+          id,
+          name,
+          description,
+          address,
+          city,
+          logo_url
+        )
+      `)
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('❌ Error fetching manageable shops:', error);
+      return { success: false, error: error.message };
+    }
+
+    // Extract shop data
+    const shops = shopStaff
+      .filter(s => s.shops)
+      .map(s => ({
+        ...s.shops,
+        user_role: s.role
+      }));
+
+    return { success: true, shops };
+  } catch (error) {
+    console.error('❌ Unexpected error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Assign a staff member to a shop
+ * @param {string} staffUserId - The user ID of the staff member to assign
+ * @param {string} shopId - The shop ID to assign them to
+ * @param {string} role - The role (barber, manager, admin)
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export const assignStaffToShop = async (staffUserId, shopId, role = 'barber') => {
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    console.log(`📌 Assigning staff ${staffUserId} to shop ${shopId} with role ${role}`);
+
+    // Check if staff is already assigned to this shop
+    const { data: existing, error: checkError } = await supabase
+      .from('shop_staff')
+      .select('id, role')
+      .eq('shop_id', shopId)
+      .eq('user_id', staffUserId)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('❌ Error checking existing assignment:', checkError);
+      return { success: false, error: checkError.message };
+    }
+
+    if (existing) {
+      console.log('ℹ️ Staff already assigned to this shop, updating role...');
+
+      // Update existing assignment
+      const { error: updateError } = await supabase
+        .from('shop_staff')
+        .update({
+          role,
+          is_active: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existing.id);
+
+      if (updateError) {
+        console.error('❌ Error updating assignment:', updateError);
+        return { success: false, error: updateError.message };
+      }
+
+      console.log('✅ Staff assignment updated');
+      return { success: true, message: 'Staff assignment updated successfully' };
+    }
+
+    // Create new assignment
+    const { error: insertError } = await supabase
+      .from('shop_staff')
+      .insert({
+        shop_id: shopId,
+        user_id: staffUserId,
+        role,
+        invited_by: user.id,
+        is_available: true,
+        is_active: true
+      });
+
+    if (insertError) {
+      console.error('❌ Error assigning staff to shop:', insertError);
+      return { success: false, error: insertError.message };
+    }
+
+    console.log('✅ Staff assigned to shop successfully');
+    return { success: true, message: 'Staff assigned to shop successfully' };
+  } catch (error) {
+    console.error('❌ Unexpected error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Get all shops a staff member is assigned to
+ * @param {string} staffUserId - The user ID of the staff member
+ * @returns {Promise<{success: boolean, shops?: Array, error?: string}>}
+ */
+export const getStaffAssignments = async (staffUserId) => {
+  try {
+    const { data, error } = await supabase
+      .from('shop_staff')
+      .select(`
+        id,
+        role,
+        is_active,
+        shops (
+          id,
+          name,
+          description,
+          address,
+          city,
+          logo_url
+        )
+      `)
+      .eq('user_id', staffUserId)
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('❌ Error fetching staff assignments:', error);
+      return { success: false, error: error.message };
+    }
+
+    const shops = data
+      .filter(s => s.shops)
+      .map(s => ({
+        ...s.shops,
+        user_role: s.role,
+        assignment_id: s.id
+      }));
+
+    return { success: true, shops };
+  } catch (error) {
+    console.error('❌ Unexpected error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Remove a staff member from a shop
+ * @param {string} staffUserId - The user ID of the staff member
+ * @param {string} shopId - The shop ID to remove them from
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export const removeStaffFromShop = async (staffUserId, shopId) => {
+  try {
+    const { error } = await supabase
+      .from('shop_staff')
+      .delete()
+      .eq('shop_id', shopId)
+      .eq('user_id', staffUserId);
+
+    if (error) {
+      console.error('❌ Error removing staff from shop:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('✅ Staff removed from shop');
+    return { success: true };
   } catch (error) {
     console.error('❌ Unexpected error:', error);
     return { success: false, error: error.message };

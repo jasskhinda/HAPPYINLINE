@@ -126,7 +126,7 @@ const ServiceManagementScreen = () => {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: [ImagePicker.MediaType.Images],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -139,7 +139,7 @@ const ServiceManagementScreen = () => {
 
   const openGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: [ImagePicker.MediaType.Images],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -270,7 +270,7 @@ const ServiceManagementScreen = () => {
                 resizeMode="cover"
               />
             ) : (
-              <Ionicons name="image-outline" size={30} color="#FF6B6B" />
+              <Ionicons name="image-outline" size={30} color="#0393d5" />
             )}
           </View>
           <View style={styles.serviceInfo}>
@@ -303,16 +303,16 @@ const ServiceManagementScreen = () => {
               disabled={isDeleting}
             >
               {isDeleting ? (
-                <ActivityIndicator size="small" color="#FF6B6B" />
+                <ActivityIndicator size="small" color="#0393d5" />
               ) : (
-                <Ionicons name="trash" size={20} color="#FF6B6B" />
+                <Ionicons name="trash" size={20} color="#0393d5" />
               )}
             </TouchableOpacity>
           </View>
         </View>
         {isDeleting && (
           <View style={styles.deletingOverlay}>
-            <ActivityIndicator size="large" color="#FF6B6B" />
+            <ActivityIndicator size="large" color="#0393d5" />
             <Text style={styles.deletingText}>Deleting...</Text>
           </View>
         )}
@@ -346,7 +346,7 @@ const ServiceManagementScreen = () => {
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FF6B6B" />
+            <ActivityIndicator size="large" color="#0393d5" />
             <Text style={styles.loadingText}>Loading services...</Text>
           </View>
         ) : (
@@ -443,19 +443,19 @@ const ServiceManagementScreen = () => {
                     </View>
                   ) : (
                     <View style={styles.placeholderImageContainer}>
-                      <Ionicons name="camera" size={40} color="#FF6B6B" />
+                      <Ionicons name="camera" size={40} color="#0393d5" />
                       <Text style={styles.placeholderText}>Tap to select image</Text>
                       <Text style={styles.placeholderSubtext}>Camera or Gallery</Text>
                     </View>
                   )}
                 </TouchableOpacity>
-                
+
                 {selectedImageUri && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.removeImageButton}
                     onPress={() => setSelectedImageUri(null)}
                   >
-                    <Ionicons name="trash-outline" size={20} color="#FF6B6B" />
+                    <Ionicons name="trash-outline" size={20} color="#0393d5" />
                     <Text style={styles.removeImageText}>Remove Image</Text>
                   </TouchableOpacity>
                 )}
@@ -492,7 +492,7 @@ const ServiceManagementScreen = () => {
       {deleting && (
         <View style={styles.globalLoadingOverlay}>
           <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color="#FF6B6B" />
+            <ActivityIndicator size="large" color="#0393d5" />
             <Text style={styles.loadingOverlayText}>Deleting service...</Text>
             <Text style={styles.loadingOverlaySubtext}>Please wait</Text>
           </View>
@@ -506,7 +506,7 @@ const ServiceManagementScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   content: {
     flex: 1,
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#0393d5',
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 25,
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#FF6B6B20',
+    backgroundColor: '#0393d520',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 15,
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FF6B6B20',
+    backgroundColor: '#0393d520',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
   },
   imagePickerButton: {
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: '#0393d5',
     borderStyle: 'dashed',
     borderRadius: 15,
     overflow: 'hidden',
@@ -688,7 +688,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#FF6B6B',
+    color: '#0393d5',
     marginTop: 10,
   },
   placeholderSubtext: {
@@ -703,11 +703,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingVertical: 8,
     paddingHorizontal: 15,
-    backgroundColor: '#FF6B6B10',
+    backgroundColor: '#0393d510',
     borderRadius: 8,
   },
   removeImageText: {
-    color: '#FF6B6B',
+    color: '#0393d5',
     fontSize: 14,
     fontWeight: '500',
     marginLeft: 5,
@@ -730,7 +730,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   saveButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#0393d5',
   },
   cancelButtonText: {
     color: '#666',
@@ -776,7 +776,7 @@ const styles = StyleSheet.create({
   servicePrice: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF6B6B',
+    color: '#0393d5',
     marginRight: 15,
   },
   serviceDuration: {
@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF6B6B',
+    color: '#0393d5',
   },
   globalLoadingOverlay: {
     position: 'absolute',

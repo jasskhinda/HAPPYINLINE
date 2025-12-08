@@ -1,0 +1,414 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
+  Image,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../../lib/supabase';
+import { getShopDetails } from '../../lib/shopAuth';
+
+const QRShopSignup = ({ route, navigation }) => {
+  const { shopId } = route.params || {};
+
+  const [shop, setShop] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (shopId) {
+      loadShopAndSaveReference();
+    } else {
+      Alert.alert('Error', 'No shop ID provided');
+      navigation.goBack();
+    }
+  }, [shopId]);
+
+  const loadShopAndSaveReference = async () => {
+    try {
+      setLoading(true);
+
+      // Save shop ID as business_reference in AsyncStorage
+      // This persists across Register AND Login flows
+      await AsyncStorage.setItem('business_reference', shopId);
+      console.log('✅ Business reference saved:', shopId);
+
+      // Load shop details
+      const { success, shop: shopData, error } = await getShopDetails(shopId);
+
+      if (success && shopData) {
+        setShop(shopData);
+      } else {
+        Alert.alert('Error', 'Could not load shop details');
+        await AsyncStorage.removeItem('business_reference');
+        navigation.goBack();
+      }
+    } catch (error) {
+      console.error('Error loading shop:', error);
+      Alert.alert('Error', 'Failed to load shop details');
+      await AsyncStorage.removeItem('business_reference');
+      navigation.goBack();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateAccount = () => {
+    // Navigate to exclusive customer registration
+    // The registration screen will check AsyncStorage for business_reference
+    navigation.navigate('ExclusiveCustomerRegistration', { shopId });
+  };
+
+  const handleSignIn = () => {
+    // Navigate to exclusive customer login
+    // The login screen will check AsyncStorage for business_reference
+    navigation.navigate('ExclusiveCustomerLogin', { shopId });
+  };
+
+  const handleBack = async () => {
+    // Clear business reference if user goes back
+    await AsyncStorage.removeItem('business_reference');
+    console.log('🗑️ Business reference cleared');
+    navigation.goBack();
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FF0000" />
+          <Text style={styles.loadingText}>Loading shop details...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!shop) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="storefront-outline" size={100} color="#CCCCCC" />
+          <Text style={styles.emptyTitle}>Shop Not Found</Text>
+          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Shop Header */}
+          <View style={styles.shopHeader}>
+            <View style={styles.shopIconCircle}>
+              <Ionicons name="storefront" size={40} color="#FF0000" />
+            </View>
+            <Text style={styles.shopName}>{shopData.name}</Text>
+            <Text style={styles.shopAddress}>
+              {shopData.city}, {shopData.state}
+            </Text>
+          </View>
+
+          {/* Title */}
+          <Text style={styles.title}>Create Your Account</Text>
+          <Text style={styles.subtitle}>
+            Sign up to book appointments at {shopData.name}
+          </Text>
+
+          {/* Form */}
+          <View style={styles.formContainer}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Full Name</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="person" size={20} color="#666" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="John Doe"
+                  placeholderTextColor="#999"
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Email</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="mail" size={20} color="#666" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="john@example.com"
+                  placeholderTextColor="#999"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Phone Number</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="call" size={20} color="#666" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="(555) 123-4567"
+                  placeholderTextColor="#999"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Password</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed" size={20} color="#666" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="At least 6 characters"
+                  placeholderTextColor="#999"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons
+                    name={showPassword ? "eye-off" : "eye"}
+                    size={20}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Confirm Password</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed" size={20} color="#666" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Re-enter your password"
+                  placeholderTextColor="#999"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                  <Ionicons
+                    name={showConfirmPassword ? "eye-off" : "eye"}
+                    size={20}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          {/* Info Box */}
+          <View style={styles.infoBox}>
+            <Ionicons name="information-circle" size={20} color="#FF0000" />
+            <Text style={styles.infoText}>
+              Your account will be linked to {shopData.name}. You'll be able to book appointments and manage your bookings.
+            </Text>
+          </View>
+
+          {/* Submit Button */}
+          <TouchableOpacity
+            style={[styles.signupButton, submitting && styles.disabledButton]}
+            onPress={handleSignup}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <>
+                <Text style={styles.signupButtonText}>Create Account</Text>
+                <Ionicons name="arrow-forward" size={20} color="#FFF" />
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* Sign In Link */}
+          <View style={styles.signInContainer}>
+            <Text style={styles.signInText}>
+              Already have an account?{' '}
+              <Text
+                style={styles.signInLink}
+                onPress={() => navigation.replace('CustomerLoginScreen')}
+              >
+                Sign In
+              </Text>
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+  shopHeader: {
+    alignItems: 'center',
+    marginBottom: 32,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 24,
+  },
+  shopIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFE5E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  shopName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  shopAddress: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  formContainer: {
+    marginBottom: 24,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 8,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    paddingHorizontal: 16,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 16,
+    fontSize: 16,
+    color: '#000',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF5F5',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#FFE0E0',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 12,
+    lineHeight: 20,
+  },
+  signupButton: {
+    backgroundColor: '#FF0000',
+    borderRadius: 20,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  signupButtonText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  disabledButton: {
+    backgroundColor: '#CCC',
+    opacity: 0.6,
+  },
+  signInContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  signInText: {
+    fontSize: 15,
+    color: '#666',
+  },
+  signInLink: {
+    color: '#FF0000',
+    fontWeight: '600',
+  },
+});
+
+export default QRShopSignup;

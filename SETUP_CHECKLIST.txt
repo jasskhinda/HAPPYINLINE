@@ -1,0 +1,58 @@
+═══════════════════════════════════════════════════════════
+    STRIPE PAYMENT SETUP - QUICK CHECKLIST
+═══════════════════════════════════════════════════════════
+
+[ ] 1. GET STRIPE KEYS (5 min)
+    Go to: https://dashboard.stripe.com/test/apikeys
+    Copy: pk_test_... and sk_test_...
+
+[ ] 2. UPDATE APP.JSON (1 min)
+    File: app.json line 35
+    Paste your pk_test_... key
+
+[ ] 3. CREATE STRIPE PRODUCTS (10 min)
+    Stripe Dashboard → Products → Create 3 products:
+    - Starter: $24.99/month → Copy price_xxxxx
+    - Professional: $74.99/month → Copy price_yyyyy
+    - Enterprise: $149.99/month → Copy price_zzzzz
+
+[ ] 4. UPDATE PRICE IDS (3 min)
+    Replace in 3 files:
+    - src/lib/stripe.js (lines 13-32)
+    - supabase/functions/stripe-create-subscription/index.ts (lines 37-41)
+    - supabase/functions/stripe-update-subscription/index.ts (lines 28-32)
+
+[ ] 5. DEPLOY EDGE FUNCTIONS (15 min)
+    Supabase Dashboard → Edge Functions → Create 4 functions:
+    - stripe-create-subscription
+    - stripe-cancel-subscription
+    - stripe-update-subscription
+    - stripe-webhook (copy URL!)
+
+[ ] 6. ADD SECRET KEY (2 min)
+    Supabase → Edge Functions → Manage secrets
+    Name: STRIPE_SECRET_KEY
+    Value: sk_test_...
+
+[ ] 7. SETUP WEBHOOK (5 min)
+    Stripe → Webhooks → Add endpoint
+    URL: https://YOUR_PROJECT.supabase.co/functions/v1/stripe-webhook
+    Events: subscription.*, invoice.*
+    Copy whsec_... → Add to Supabase secrets as STRIPE_WEBHOOK_SECRET
+
+[ ] 8. RUN DATABASE MIGRATIONS (5 min)
+    Supabase → SQL Editor → Run:
+    - database/ADD_SUBSCRIPTION_FIELDS.sql
+    - database/UPDATE_SUBSCRIPTION_PRICING.sql
+
+[ ] 9. TEST COMPLETE FLOW (10 min)
+    npx expo start
+    Register → Add card 4242 4242 4242 4242 → Verify trial starts
+
+═══════════════════════════════════════════════════════════
+                    TOTAL TIME: ~1 HOUR
+═══════════════════════════════════════════════════════════
+
+Once complete, your app is LIVE and ready to accept payments!
+
+For detailed instructions, see: READY_FOR_LAUNCH.md

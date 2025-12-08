@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     borderLeftWidth: 3,
-    borderLeftColor: '#FF6B35',
+    borderLeftColor: '#4A90E2',
   },
   hoursRow: {
     flexDirection: 'row',

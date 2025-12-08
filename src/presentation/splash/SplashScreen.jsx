@@ -30,6 +30,8 @@ const SplashScreen = () => {
       console.log('   - User Email:', authState.user?.email);
       console.log('   - Profile Name:', authState.profile?.name);
       console.log('   - Profile Role:', authState.profile?.role);
+      console.log('   - Exclusive Shop ID:', authState.profile?.exclusive_shop_id);
+      console.log('   - Full Profile:', JSON.stringify(authState.profile, null, 2));
 
       // Decision logic
       if (!authState.isAuthenticated) {
@@ -61,10 +63,20 @@ const SplashScreen = () => {
 
       // User is authenticated and onboarding complete
       console.log('\n✅✅✅ FULLY AUTHENTICATED & ONBOARDING COMPLETE');
-      console.log('→ Decision: Navigate to MainScreen');
-      console.log('━'.repeat(60));
-      console.log('\n\n');
-      navigation.replace('MainScreen');
+
+      // Check if user is an exclusive customer
+      if (authState.profile?.exclusive_shop_id) {
+        console.log('→ Decision: Exclusive customer -> Navigate to ExclusiveCustomerMainScreen');
+        console.log('   Exclusive Shop ID:', authState.profile.exclusive_shop_id);
+        console.log('━'.repeat(60));
+        console.log('\n\n');
+        navigation.replace('ExclusiveCustomerMainScreen');
+      } else {
+        console.log('→ Decision: Regular user -> Navigate to MainScreen');
+        console.log('━'.repeat(60));
+        console.log('\n\n');
+        navigation.replace('MainScreen');
+      }
 
     } catch (error) {
       console.error('\n❌ CRITICAL ERROR in splash screen:');
@@ -89,18 +101,16 @@ const SplashScreen = () => {
     <View style={styles.container}>
       {/* App Logo */}
       <View style={styles.logoContainer}>
-        <Image 
-          source={require('../../../assets/logo.png')} 
+        <Image
+          source={require('../../../assets/logowithouttagline.png')}
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.appName}>Happy Inline</Text>
-        <Text style={styles.tagline}>Your Service, Your Style</Text>
       </View>
 
       {/* Loading Indicator */}
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+        <ActivityIndicator size="large" color="#4A90E2" />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
 
@@ -117,7 +127,7 @@ export default SplashScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#9F9F87',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 60,
@@ -128,20 +138,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    width: 150,
-    height: 150,
-    marginBottom: 20,
+    width: 200,
+    height: 200,
+    marginBottom: 30,
   },
   appName: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#000000',
     marginBottom: 10,
+    letterSpacing: 1,
   },
   tagline: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontStyle: 'italic',
+    color: '#666666',
+    fontWeight: '500',
   },
   loadingContainer: {
     alignItems: 'center',
@@ -150,7 +161,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 15,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: '#000000',
     fontWeight: '500',
   },
   footer: {
@@ -158,6 +169,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: '#999999',
   },
 });

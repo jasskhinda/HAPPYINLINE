@@ -37,7 +37,7 @@ const PassTabScreen = ({ isBarberMode = false, userRole = 'customer' }) => {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color="#6366F1" />
-        <Text style={styles.loadingText}>Loading past bookings...</Text>
+        <Text style={styles.loadingText}>Loading completed bookings...</Text>
       </View>
     );
   }
@@ -45,9 +45,9 @@ const PassTabScreen = ({ isBarberMode = false, userRole = 'customer' }) => {
   if (bookings.length === 0) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <Text style={styles.emptyText}>No past bookings</Text>
+        <Text style={styles.emptyText}>No completed bookings</Text>
         <Text style={styles.emptySubText}>
-          {isBarberMode ? 'No past appointments yet' : 'Your booking history will appear here'}
+          {isBarberMode ? 'No completed appointments yet' : 'Your completed bookings will appear here'}
         </Text>
       </View>
     );

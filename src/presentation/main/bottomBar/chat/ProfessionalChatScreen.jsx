@@ -120,7 +120,7 @@ const ProfessionalChatScreen = () => {
   };
 
   const renderConversation = ({ item }) => {
-    const isOwnerOrManager = userRole === 'owner' || userRole === 'manager';
+    const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
 
     return (
       <TouchableOpacity
@@ -151,10 +151,10 @@ const ProfessionalChatScreen = () => {
             <Text style={styles.timestamp}>{formatTime(item.lastMessageTime)}</Text>
           </View>
 
-          {/* Business Badge - Show for owners/managers */}
-          {isOwnerOrManager && item.shopName && (
+          {/* Business Badge - Show for owners/admins */}
+          {isOwnerOrAdmin && item.shopName && (
             <View style={styles.businessBadge}>
-              <Ionicons name="storefront" size={12} color="#FF6B6B" />
+              <Ionicons name="storefront" size={12} color="#4A90E2" />
               <Text style={styles.businessBadgeText} numberOfLines={1}>
                 {item.shopName}
               </Text>
@@ -182,7 +182,7 @@ const ProfessionalChatScreen = () => {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B6B" />
+          <ActivityIndicator size="large" color="#4A90E2" />
           <Text style={styles.loadingText}>Loading conversations...</Text>
         </View>
       </SafeAreaView>
@@ -195,7 +195,7 @@ const ProfessionalChatScreen = () => {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Image
-            source={require('../../../../../assets/logo.png')}
+            source={require('../../../../../assets/logowithouttagline.png')}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -232,8 +232,8 @@ const ProfessionalChatScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#FF6B6B']}
-            tintColor="#FF6B6B"
+            colors={['#4A90E2']}
+            tintColor="#4A90E2"
           />
         }
         ListEmptyComponent={
@@ -308,6 +308,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#000',
+    letterSpacing: 0,
   },
   listContainer: {
     padding: 16,
@@ -334,7 +335,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   avatarPlaceholder: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -372,7 +373,7 @@ const styles = StyleSheet.create({
   businessBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#FF6B6B',
+    color: '#4A90E2',
     maxWidth: 200,
   },
   lastMessage: {

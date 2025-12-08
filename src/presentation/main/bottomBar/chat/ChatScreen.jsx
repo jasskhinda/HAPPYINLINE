@@ -28,7 +28,7 @@ const ChatScreen = () => {
       <SafeAreaView style={styles.appBarWrapper} edges={['top', 'left', 'right']}>
         <View style={styles.appBar}>
           <Image
-            source={require('../../../../../assets/logo.png')}
+            source={require('../../../../../assets/logowithouttagline.png')}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -60,7 +60,7 @@ const ChatScreen = () => {
               key={chat.id}
               name={chat.name}
               unreadCount={chat.unreadCount}
-              image={require('../../../../../assets/logo.png')}
+              image={require('../../../../../assets/logowithouttagline.png')}
             />
           ))}
         </ScrollView>
@@ -74,10 +74,10 @@ export default ChatScreen;
 const styles = StyleSheet.create({
   outerWrapper: {
     flex: 1,
-    backgroundColor: '#9F9F87',
+    backgroundColor: '#FFFFFF',
   },
   appBarWrapper: {
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   appBar: {
     flexDirection: 'row',
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
     borderBottomLeftRadius: 60,
     borderBottomRightRadius: 60,
     overflow: 'hidden',

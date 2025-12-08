@@ -15,13 +15,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
+import { useFocusEffect } from '@react-navigation/native';
 import SettingAppBar from '../../../../../components/appBar/SettingAppBar';
-import { 
-  fetchAllBookingsForManagers, 
-  confirmBooking, 
-  cancelBooking, 
-  completeBooking 
+import {
+  fetchAllBookingsForManagers,
+  confirmBooking,
+  cancelBooking,
+  completeBooking
 } from '../../../../../lib/auth';
+import {
+  sendBookingConfirmedNotification,
+  sendBookingCancelledNotification,
+} from '../../../../../lib/notifications';
 
 const initialLayout = { width: Dimensions.get('window').width };
 
@@ -31,14 +36,14 @@ const BookingManagementScreen = () => {
     { key: 'pending', title: 'Pending' },
     { key: 'approved', title: 'Approved' },
     { key: 'completed', title: 'Done' },
-    { key: 'rejected', title: 'Rejected' },
+    { key: 'cancelled', title: 'Cancelled' },
   ]);
 
   const [bookings, setBookings] = useState({
     pending: [],
     approved: [],
     completed: [],
-    rejected: [],
+    cancelled: [],
   });
   
   const [loading, setLoading] = useState(true);
@@ -57,6 +62,13 @@ const BookingManagementScreen = () => {
   useEffect(() => {
     loadBookings();
   }, []);
+
+  // Reload bookings when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadBookings();
+    }, [])
+  );
 
   // Load bookings from database
   const loadBookings = async (isRefreshing = false) => {
@@ -80,11 +92,20 @@ const BookingManagementScreen = () => {
       });
       
       if (result.success) {
-        setBookings(result.data);
+        // Map API response to screen state (confirmed → approved, rejected → cancelled)
+        const mappedBookings = {
+          pending: result.data.pending || [],
+          approved: result.data.confirmed || [], // Map 'confirmed' to 'approved'
+          completed: result.data.completed || [],
+          cancelled: result.data.rejected || [] // Map 'rejected' to 'cancelled' (contains cancelled bookings)
+        };
+
+        setBookings(mappedBookings);
         console.log('✅ [BookingManagementScreen] Bookings set to state:', {
-          pending: result.data.pending?.length || 0,
-          confirmed: result.data.confirmed?.length || 0,
-          completed: result.data.completed?.length || 0
+          pending: mappedBookings.pending.length,
+          approved: mappedBookings.approved.length,
+          completed: mappedBookings.completed.length,
+          cancelled: mappedBookings.cancelled.length
         });
       } else {
         console.error('❌ [BookingManagementScreen] Failed to load bookings:', result.error);
@@ -121,6 +142,22 @@ const BookingManagementScreen = () => {
       const result = await confirmBooking(selectedBooking.id);
 
       if (result.success) {
+        // Send push notification to customer (fire and forget)
+        if (selectedBooking.customer_id || selectedBooking.customer?.id) {
+          const serviceNames = Array.isArray(selectedBooking.services)
+            ? selectedBooking.services.map(s => s.name).join(', ')
+            : 'your service';
+
+          sendBookingConfirmedNotification({
+            recipientUserId: selectedBooking.customer_id || selectedBooking.customer?.id,
+            shopName: selectedBooking.shop?.name || 'the shop',
+            serviceName: serviceNames,
+            date: selectedBooking.appointment_date,
+            time: selectedBooking.appointment_time,
+            bookingId: selectedBooking.id,
+          }).catch(err => console.log('Push notification error (non-blocking):', err));
+        }
+
         setShowApproveModal(false);
         setBookingIdInput('');
         setSelectedBooking(null);
@@ -155,6 +192,22 @@ const BookingManagementScreen = () => {
       const result = await cancelBooking(selectedBooking.id, `[REJECTED] ${rejectionReason.trim()}`);
 
       if (result.success) {
+        // Send push notification to customer (fire and forget)
+        if (selectedBooking.customer_id || selectedBooking.customer?.id) {
+          const serviceNames = Array.isArray(selectedBooking.services)
+            ? selectedBooking.services.map(s => s.name).join(', ')
+            : 'your service';
+
+          sendBookingCancelledNotification({
+            recipientUserId: selectedBooking.customer_id || selectedBooking.customer?.id,
+            shopName: selectedBooking.shop?.name || 'the shop',
+            serviceName: serviceNames,
+            date: selectedBooking.appointment_date,
+            bookingId: selectedBooking.id,
+            reason: `Booking rejected: ${rejectionReason.trim()}`,
+          }).catch(err => console.log('Push notification error (non-blocking):', err));
+        }
+
         setShowRejectModal(false);
         setRejectionReason('');
         setSelectedBooking(null);
@@ -187,8 +240,24 @@ const BookingManagementScreen = () => {
     try {
       console.log('❌ Cancelling booking:', selectedBooking.id);
       const result = await cancelBooking(selectedBooking.id, cancellationReason.trim());
-      
+
       if (result.success) {
+        // Send push notification to customer (fire and forget)
+        if (selectedBooking.customer_id || selectedBooking.customer?.id) {
+          const serviceNames = Array.isArray(selectedBooking.services)
+            ? selectedBooking.services.map(s => s.name).join(', ')
+            : 'your service';
+
+          sendBookingCancelledNotification({
+            recipientUserId: selectedBooking.customer_id || selectedBooking.customer?.id,
+            shopName: selectedBooking.shop?.name || 'the shop',
+            serviceName: serviceNames,
+            date: selectedBooking.appointment_date,
+            bookingId: selectedBooking.id,
+            reason: cancellationReason.trim(),
+          }).catch(err => console.log('Push notification error (non-blocking):', err));
+        }
+
         setShowCancelModal(false);
         setCancellationReason('');
         setSelectedBooking(null);
@@ -239,21 +308,36 @@ const BookingManagementScreen = () => {
   const renderBookingItem = ({ item, tabKey }) => {
     // Extract data from Supabase structure
     const customerName = item.customer?.name || 'Unknown Customer';
-    const barberName = item.barber?.name || 'Unknown Barber';
-    
+    const providerName = item.barber?.name || 'Any available staff';
+
     // Format services (JSONB array) to string
-    const serviceNames = item.services && Array.isArray(item.services)
-      ? item.services.map(s => s.name).join(', ')
-      : 'No services';
+    // Handle both JSONB array and stringified JSON
+    let serviceNames = 'Service details not available';
+    try {
+      if (item.services) {
+        const services = typeof item.services === 'string'
+          ? JSON.parse(item.services)
+          : item.services;
+
+        if (Array.isArray(services) && services.length > 0) {
+          serviceNames = services.map(s => s.name).join(', ');
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing services:', e);
+    }
     
-    // Format date
-    const formattedDate = item.appointment_date
-      ? new Date(item.appointment_date).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        })
-      : 'N/A';
+    // Format date - parse in local timezone to avoid timezone shift
+    let formattedDate = 'N/A';
+    if (item.appointment_date) {
+      const [year, month, day] = item.appointment_date.split('-').map(Number);
+      const date = new Date(year, month - 1, day); // month is 0-indexed
+      formattedDate = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
     
     // Format time (HH:MM:SS to HH:MM AM/PM)
     const formattedTime = item.appointment_time
@@ -270,8 +354,10 @@ const BookingManagementScreen = () => {
       <View style={styles.bookingCard}>
         {/* Booking ID Badge */}
         <View style={styles.bookingIdBadge}>
-          <Ionicons name="qr-code-outline" size={16} color="#FF6B35" />
-          <Text style={styles.bookingIdText}>{item.booking_id || 'N/A'}</Text>
+          <Ionicons name="qr-code-outline" size={18} color="#4A90E2" />
+          <Text style={styles.bookingIdText}>
+            {item.booking_id || `#${item.id.slice(0, 8).toUpperCase()}`}
+          </Text>
         </View>
 
         <View style={styles.bookingHeader}>
@@ -287,25 +373,25 @@ const BookingManagementScreen = () => {
 
         <View style={styles.bookingDetails}>
           <View style={styles.detailRow}>
-            <Ionicons name="person" size={16} color="#666" />
-            <Text style={styles.detailText}>Barber: {barberName}</Text>
+            <Ionicons name="briefcase-outline" size={18} color="#4A90E2" />
+            <Text style={styles.detailText}>{serviceNames}</Text>
           </View>
           <View style={styles.detailRow}>
-            <Ionicons name="cut" size={16} color="#666" />
-            <Text style={styles.detailText}>Service: {serviceNames}</Text>
+            <Ionicons name="person-outline" size={18} color="#4A90E2" />
+            <Text style={styles.detailText}>{providerName}</Text>
           </View>
           <View style={styles.detailRow}>
-            <Ionicons name="calendar" size={16} color="#666" />
-            <Text style={styles.detailText}>Date: {formattedDate}</Text>
+            <Ionicons name="calendar" size={18} color="#4A90E2" />
+            <Text style={styles.detailText}>{formattedDate}</Text>
           </View>
           <View style={styles.detailRow}>
-            <Ionicons name="time" size={16} color="#666" />
-            <Text style={styles.detailText}>Time: {formattedTime}</Text>
+            <Ionicons name="time" size={18} color="#4A90E2" />
+            <Text style={styles.detailText}>{formattedTime}</Text>
           </View>
           {item.total_amount && (
             <View style={styles.detailRow}>
-              <Ionicons name="cash-outline" size={16} color="#666" />
-              <Text style={styles.detailText}>Total: ${Number(item.total_amount).toFixed(2)}</Text>
+              <Ionicons name="cash-outline" size={18} color="#4A90E2" />
+              <Text style={styles.detailText}>${Number(item.total_amount).toFixed(2)}</Text>
             </View>
           )}
         </View>
@@ -317,14 +403,14 @@ const BookingManagementScreen = () => {
               style={[styles.actionButton, styles.approveButton]}
               onPress={() => handleApproveBooking(item)}
             >
-              <Ionicons name="checkmark-circle" size={16} color="white" />
+              <Ionicons name="checkmark-circle" size={16} color="#4A90E2" />
               <Text style={styles.approveButtonText}>Approve</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, styles.rejectButton]}
               onPress={() => handleRejectBooking(item)}
             >
-              <Ionicons name="close-circle" size={16} color="white" />
+              <Ionicons name="close-circle" size={16} color="#FFF" />
               <Text style={styles.rejectButtonText}>Reject</Text>
             </TouchableOpacity>
           </>
@@ -356,10 +442,28 @@ const BookingManagementScreen = () => {
           </View>
         )}
 
-        {item.status === 'cancelled' && item.cancellation_reason && (
-          <View style={styles.rejectedInfo}>
-            <Ionicons name="close-circle" size={20} color="#FF3B30" />
-            <Text style={styles.rejectedText}>{item.cancellation_reason}</Text>
+        {item.status === 'cancelled' && (
+          <View style={styles.cancelledInfo}>
+            {/* Cancelled By Label */}
+            <View style={styles.cancelledByRow}>
+              <Ionicons
+                name={item.customer_notes?.includes('[REJECTED]') ? 'business-outline' : 'person-outline'}
+                size={20}
+                color="#4A90E2"
+              />
+              <Text style={styles.cancelledByText}>
+                {item.customer_notes?.includes('[REJECTED]') ? 'Cancelled by Manager' : 'Cancelled by Customer'}
+              </Text>
+            </View>
+            {/* Cancellation Reason */}
+            {item.customer_notes && (
+              <View style={styles.cancelReasonContainer}>
+                <Text style={styles.cancelReasonLabel}>Reason:</Text>
+                <Text style={styles.cancelReasonText}>
+                  {item.customer_notes.replace('[REJECTED] ', '')}
+                </Text>
+              </View>
+            )}
           </View>
         )}
         </View>
@@ -379,13 +483,13 @@ const BookingManagementScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#FF6B6B']}
-            tintColor="#FF6B6B"
+            colors={['#4A90E2']}
+            tintColor="#4A90E2"
           />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="calendar-outline" size={50} color="#CCC" />
+            <Ionicons name="calendar-outline" size={64} color="#FFB3B3" />
             <Text style={styles.emptyText}>No pending bookings</Text>
           </View>
         }
@@ -405,13 +509,13 @@ const BookingManagementScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#FF6B6B']}
-            tintColor="#FF6B6B"
+            colors={['#4A90E2']}
+            tintColor="#4A90E2"
           />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="checkmark-circle-outline" size={50} color="#CCC" />
+            <Ionicons name="checkmark-circle-outline" size={64} color="#FFB3B3" />
             <Text style={styles.emptyText}>No approved bookings</Text>
           </View>
         }
@@ -419,11 +523,11 @@ const BookingManagementScreen = () => {
     </View>
   );
 
-  const RejectedTab = () => (
+  const CancelledTab = () => (
     <View style={styles.tabContent}>
       <FlatList
-        data={bookings.rejected}
-        renderItem={({ item }) => renderBookingItem({ item, tabKey: 'rejected' })}
+        data={bookings.cancelled}
+        renderItem={({ item }) => renderBookingItem({ item, tabKey: 'cancelled' })}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 15 }}
@@ -431,14 +535,14 @@ const BookingManagementScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#FF6B6B']}
-            tintColor="#FF6B6B"
+            colors={['#4A90E2']}
+            tintColor="#4A90E2"
           />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="close-circle-outline" size={50} color="#CCC" />
-            <Text style={styles.emptyText}>No rejected bookings</Text>
+            <Ionicons name="close-circle-outline" size={64} color="#FFB3B3" />
+            <Text style={styles.emptyText}>No cancelled bookings</Text>
           </View>
         }
       />
@@ -457,13 +561,13 @@ const BookingManagementScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#FF6B6B']}
-            tintColor="#FF6B6B"
+            colors={['#4A90E2']}
+            tintColor="#4A90E2"
           />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="checkmark-done-outline" size={50} color="#CCC" />
+            <Ionicons name="checkmark-done-outline" size={64} color="#FFB3B3" />
             <Text style={styles.emptyText}>No completed bookings</Text>
           </View>
         }
@@ -475,16 +579,16 @@ const BookingManagementScreen = () => {
     pending: PendingTab,
     approved: ApprovedTab,
     completed: CompletedTab,
-    rejected: RejectedTab,
+    cancelled: CancelledTab,
   });
 
   const renderTabBar = props => (
     <TabBar
       {...props}
-      indicatorStyle={{ backgroundColor: '#FF6B6B', height: 3 }}
+      indicatorStyle={{ backgroundColor: '#4A90E2', height: 3 }}
       style={styles.tabBar}
       labelStyle={styles.tabLabel}
-      activeColor="#FF6B6B"
+      activeColor="#4A90E2"
       inactiveColor="#999"
       pressColor="rgba(255, 107, 107, 0.1)"
       scrollEnabled={false}
@@ -498,7 +602,7 @@ const BookingManagementScreen = () => {
       <SafeAreaView style={styles.container}>
         <SettingAppBar title="Booking Management" />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B6B" />
+          <ActivityIndicator size="large" color="#4A90E2" />
           <Text style={styles.loadingText}>Loading bookings...</Text>
         </View>
       </SafeAreaView>
@@ -506,23 +610,18 @@ const BookingManagementScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>Booking Management</Text>
-              <Text style={styles.headerSubtitle}>Review and manage customer bookings</Text>
-            </View>
+    <View style={styles.container}>
+        {/* Header with back button */}
+        <SettingAppBar title="Booking Management" />
 
-            <View style={styles.content}>
-                <TabView
-                navigationState={{ index, routes }}
-                renderScene={renderScene}
-                onIndexChange={setIndex}
-                initialLayout={initialLayout}
-                renderTabBar={renderTabBar}
-                />
-            </View>
+        <View style={styles.content}>
+            <TabView
+            navigationState={{ index, routes }}
+            renderScene={renderScene}
+            onIndexChange={setIndex}
+            initialLayout={initialLayout}
+            renderTabBar={renderTabBar}
+            />
         </View>
 
         {/* Approve Booking Modal */}
@@ -595,7 +694,7 @@ const BookingManagementScreen = () => {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Ionicons name="close-circle-outline" size={48} color="#FF9800" />
+                <Ionicons name="close-circle-outline" size={48} color="#4A90E2" />
                 <Text style={styles.modalTitle}>Reject Booking</Text>
               </View>
 
@@ -604,13 +703,18 @@ const BookingManagementScreen = () => {
                   <Text style={styles.modalText}>
                     Customer: <Text style={styles.bold}>{selectedBooking.customer?.name || 'N/A'}</Text>
                   </Text>
-                  <Text style={styles.modalText}>
-                    Booking ID: <Text style={styles.boldOrange}>{selectedBooking.booking_id}</Text>
-                  </Text>
+
+                  {/* Booking ID Display */}
+                  <View style={styles.bookingIdDisplay}>
+                    <Ionicons name="qr-code-outline" size={20} color="#4A90E2" />
+                    <Text style={styles.bookingIdDisplayText}>
+                      {selectedBooking.booking_id || `#${selectedBooking.id?.slice(0, 8).toUpperCase()}`}
+                    </Text>
+                  </View>
 
                   <View style={styles.verificationBox}>
                     <Text style={styles.verificationLabel}>
-                      Rejection Reason: *
+                      Reason: *
                     </Text>
                     <TextInput
                       style={[styles.verificationInput, styles.textArea]}
@@ -712,14 +816,14 @@ const BookingManagementScreen = () => {
             </View>
           </View>
         </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F8F9FA',
   },
   loadingContainer: {
     flex: 1,
@@ -771,20 +875,20 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F8F9FA',
   },
   bookingCard: {
     backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 14,
+    shadowColor: '#4A90E2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 5,
+    borderLeftWidth: 5,
+    borderLeftColor: '#4A90E2',
   },
   bookingHeader: {
     flexDirection: 'row',
@@ -796,9 +900,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   customerName: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#000',
+    letterSpacing: 0.3,
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -847,6 +952,9 @@ const styles = StyleSheet.create({
   },
   bookingDetails: {
     marginBottom: 15,
+    backgroundColor: '#F8F9FA',
+    padding: 12,
+    borderRadius: 12,
   },
   detailRow: {
     flexDirection: 'row',
@@ -855,8 +963,9 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
-    color: '#666',
+    color: '#333',
     marginLeft: 10,
+    fontWeight: '500',
   },
   bookingActions: {
     flexDirection: 'row',
@@ -872,24 +981,24 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   approveButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#000',
   },
   rejectButton: {
-    backgroundColor: '#FF9800',
+    backgroundColor: '#4A90E2',
   },
   cancelButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
   },
   completeButton: {
     backgroundColor: '#2196F3',
   },
   approveButtonText: {
-    color: 'white',
+    color: '#4A90E2',
     fontWeight: 'bold',
     fontSize: 14,
   },
   rejectButtonText: {
-    color: 'white',
+    color: '#FFF',
     fontWeight: 'bold',
     fontSize: 14,
   },
@@ -933,32 +1042,35 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 50,
+    paddingTop: 80,
+    paddingHorizontal: 40,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999',
-    marginTop: 15,
+    fontSize: 17,
+    color: '#666',
+    marginTop: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   // Booking ID Badge Styles
   bookingIdBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F0',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#FF6B35',
+    backgroundColor: '#FFF0F0',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginBottom: 14,
+    borderWidth: 2,
+    borderColor: '#4A90E2',
     borderStyle: 'dashed',
   },
   bookingIdText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#FF6B35',
-    marginLeft: 6,
-    letterSpacing: 1,
+    color: '#4A90E2',
+    marginLeft: 8,
+    letterSpacing: 1.2,
   },
   // Modal Styles
   modalOverlay: {
@@ -999,7 +1111,7 @@ const styles = StyleSheet.create({
   },
   boldOrange: {
     fontWeight: '700',
-    color: '#FF6B35',
+    color: '#4A90E2',
     letterSpacing: 1,
   },
   verificationBox: {
@@ -1062,12 +1174,33 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   rejectModalButton: {
-    backgroundColor: '#FF9800',
+    backgroundColor: '#4A90E2',
   },
   rejectModalButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFF',
+  },
+  bookingIdDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#4A90E2',
+    borderStyle: 'dashed',
+    gap: 8,
+  },
+  bookingIdDisplayText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#4A90E2',
+    letterSpacing: 1.5,
+    flex: 1,
   },
   destructiveButton: {
     backgroundColor: '#FF3B30',
@@ -1092,6 +1225,42 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#2E7D32',
     lineHeight: 18,
+  },
+  // Cancelled Booking Styles
+  cancelledInfo: {
+    flexDirection: 'column',
+    gap: 10,
+    backgroundColor: '#FFF0F0',
+    padding: 14,
+    borderRadius: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4A90E2',
+  },
+  cancelledByRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cancelledByText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#4A90E2',
+  },
+  cancelReasonContainer: {
+    flexDirection: 'column',
+    gap: 4,
+  },
+  cancelReasonLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  cancelReasonText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
   },
 });
 

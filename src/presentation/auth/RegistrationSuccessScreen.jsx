@@ -41,7 +41,7 @@ const RegistrationSuccessScreen = ({ route, navigation }) => {
         {/* Info Card */}
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
-            <Ionicons name="business" size={20} color="#FF6B6B" />
+            <Ionicons name="business" size={20} color="#4A90E2" />
             <Text style={styles.infoLabel}>Business Name</Text>
           </View>
           <Text style={styles.infoValue}>{businessName}</Text>
@@ -49,7 +49,7 @@ const RegistrationSuccessScreen = ({ route, navigation }) => {
 
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
-            <Ionicons name="mail" size={20} color="#FF6B6B" />
+            <Ionicons name="mail" size={20} color="#4A90E2" />
             <Text style={styles.infoLabel}>Login Email</Text>
           </View>
           <Text style={styles.infoValue}>{email}</Text>
@@ -104,7 +104,7 @@ const RegistrationSuccessScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F8F9FA',
   },
   scrollView: {
     flex: 1,
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: 32,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
     borderRadius: 20,
     paddingVertical: 16,
     flexDirection: 'row',

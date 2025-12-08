@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const AddManagerModal = ({ visible, onClose, onAdd }) => {
+const AddAdminModal = ({ visible, onClose, onAdd }) => {
   const [email, setEmail] = useState('');
   const [confirmEmail, setConfirmEmail] = useState('');
   const [name, setName] = useState('');
@@ -57,12 +57,12 @@ const AddManagerModal = ({ visible, onClose, onAdd }) => {
     return true;
   };
 
-  const handleCreateManager = async () => {
+  const handleCreateAdmin = async () => {
     if (!validateForm()) return;
 
     setLoading(true);
     try {
-      console.log('📝 Creating new manager account...');
+      console.log('📝 Creating new admin account...');
 
       // 1. Create Supabase auth account
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -72,7 +72,7 @@ const AddManagerModal = ({ visible, onClose, onAdd }) => {
           data: {
             name: name.trim(),
             phone: phone.trim(),
-            role: 'manager', // Profile-level role
+            role: 'admin', // Profile-level role
           }
         }
       });
@@ -84,10 +84,10 @@ const AddManagerModal = ({ visible, onClose, onAdd }) => {
         return;
       }
 
-      console.log('✅ Manager account created:', authData.user?.id);
+      console.log('✅ Admin account created:', authData.user?.id);
 
       // 2. Return the new user data to parent
-      const newManager = {
+      const newAdmin = {
         id: authData.user?.id,
         email: email.toLowerCase().trim(),
         name: name.trim(),
@@ -97,12 +97,12 @@ const AddManagerModal = ({ visible, onClose, onAdd }) => {
 
       Alert.alert(
         'Success!',
-        `Manager account created for ${name}. They can now login with their email and password.`,
+        `Admin account created for ${name}. They can now login with their email and password.`,
         [
           {
             text: 'OK',
             onPress: () => {
-              onAdd(newManager);
+              onAdd(newAdmin);
               handleClose();
             }
           }
@@ -111,7 +111,7 @@ const AddManagerModal = ({ visible, onClose, onAdd }) => {
 
     } catch (error) {
       console.error('❌ Creation error:', error);
-      Alert.alert('Error', 'Failed to create manager account');
+      Alert.alert('Error', 'Failed to create admin account');
     } finally {
       setLoading(false);
     }
@@ -142,7 +142,7 @@ const AddManagerModal = ({ visible, onClose, onAdd }) => {
           <View style={styles.modalContent}>
             {/* Header */}
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create Manager Account</Text>
+              <Text style={styles.modalTitle}>Create Admin Account</Text>
               <TouchableOpacity onPress={handleClose}>
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
@@ -154,7 +154,7 @@ const AddManagerModal = ({ visible, onClose, onAdd }) => {
             >
               <View style={styles.formSection}>
                 <Text style={styles.sectionDescription}>
-                  Create a new manager account. They'll be able to login and manage your shop.
+                  Create a new admin account. They'll be able to login and manage your shop.
                 </Text>
 
                 {/* Email */}
@@ -162,7 +162,7 @@ const AddManagerModal = ({ visible, onClose, onAdd }) => {
                   <Text style={styles.label}>Email Address *</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="manager@example.com"
+                    placeholder="admin@example.com"
                     placeholderTextColor="#999"
                     value={email}
                     onChangeText={setEmail}
@@ -176,7 +176,7 @@ const AddManagerModal = ({ visible, onClose, onAdd }) => {
                   <Text style={styles.label}>Confirm Email Address *</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="manager@example.com"
+                    placeholder="admin@example.com"
                     placeholderTextColor="#999"
                     value={confirmEmail}
                     onChangeText={setConfirmEmail}
@@ -248,9 +248,9 @@ const AddManagerModal = ({ visible, onClose, onAdd }) => {
                 </View>
 
                 <View style={styles.noteBox}>
-                  <Ionicons name="information-circle" size={20} color="#FF6B6B" />
+                  <Ionicons name="information-circle" size={20} color="#4A90E2" />
                   <Text style={styles.noteText}>
-                    The manager will be able to login with this email and password. They'll have full control of this shop.
+                    The admin will be able to login with this email and password. They'll have full control of this shop.
                   </Text>
                 </View>
               </View>
@@ -268,7 +268,7 @@ const AddManagerModal = ({ visible, onClose, onAdd }) => {
 
                 <TouchableOpacity
                   style={[styles.button, styles.addButton]}
-                  onPress={handleCreateManager}
+                  onPress={handleCreateAdmin}
                   disabled={loading}
                 >
                   {loading ? (
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   addButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#4A90E2',
   },
   addButtonText: {
     fontSize: 16,
@@ -412,4 +412,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AddManagerModal;
+// Export as AddAdminModal (renamed from AddManagerModal)
+export default AddAdminModal;
+// Backwards compatible export
+export { AddAdminModal as AddManagerModal };

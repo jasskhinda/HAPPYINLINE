@@ -6,7 +6,7 @@ import MyBookingScreen from './MyBookingScreen';
 
 /**
  * Smart wrapper that shows different booking screens based on user role:
- * - Owner/Manager → BookingManagementScreen (Pending/Approved/Completed/Rejected)
+ * - Owner/Admin → BookingManagementScreen (Pending/Approved/Completed/Rejected)
  * - Customer/Staff → MyBookingScreen (Upcoming/Pass)
  */
 const BookingsTabScreen = () => {
@@ -34,20 +34,20 @@ const BookingsTabScreen = () => {
         .eq('id', user.id)
         .single();
 
-      // Check if user is owner or has manager/admin role in any shop
+      // Check if user is owner or has admin role in any shop
       if (profile?.role === 'owner') {
         setUserRole('owner');
       } else {
-        // Check if user is manager/admin of any shop
+        // Check if user is admin of any shop
         const { data: staffData } = await supabase
           .from('shop_staff')
           .select('role')
           .eq('user_id', user.id)
-          .in('role', ['manager', 'admin'])
+          .eq('role', 'admin')
           .limit(1);
 
         if (staffData && staffData.length > 0) {
-          setUserRole('manager');
+          setUserRole('admin');
         } else {
           setUserRole('customer');
         }
@@ -63,13 +63,13 @@ const BookingsTabScreen = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+        <ActivityIndicator size="large" color="#4A90E2" />
       </View>
     );
   }
 
-  // Show Booking Management for owners and managers
-  if (userRole === 'owner' || userRole === 'manager') {
+  // Show Booking Management for owners and admins
+  if (userRole === 'owner' || userRole === 'admin') {
     return <BookingManagementScreen />;
   }
 
