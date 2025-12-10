@@ -36,3 +36,5 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+android/app/happyinline-release.keystore
+supabase/.temp/

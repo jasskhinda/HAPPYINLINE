@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy InLine - The Only Place You'll Be HAPPY In Line</title>
+    <meta name="description" content="Book appointments with local service providers. Skip the wait, book online with Happy InLine.">
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0071E3;
+            --primary-dark: #0077ED;
+            --text-primary: #1D1D1F;
+            --text-secondary: #86868B;
+            --background: #000000;
+            --background-light: #FBFBFD;
+            --card-bg: #161617;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--background);
+            color: #F5F5F7;
+            overflow-x: hidden;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 50px;
+            height: 60px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .nav-logo img {
+            height: 40px;
+            width: auto;
+        }
+
+        .nav-logo span {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #F5F5F7;
+            letter-spacing: -0.02em;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 35px;
+        }
+
+        .nav-links a {
+            color: #F5F5F7;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 400;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+
+        .nav-links a:hover {
+            opacity: 1;
+        }
+
+        /* Hero Section - Apple Style */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 120px 20px 80px;
+            background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 113, 227, 0.3), transparent),
+                        radial-gradient(ellipse 60% 40% at 50% 120%, rgba(0, 113, 227, 0.15), transparent),
+                        var(--background);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 1000 1000' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3CradialGradient id='a' cx='50%25' cy='50%25' r='50%25' fx='50%25' fy='50%25'%3E%3Cstop offset='0%25' stop-color='%230071E3' stop-opacity='0.1'/%3E%3Cstop offset='100%25' stop-color='%23000' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='500' cy='500' r='400' fill='url(%23a)'/%3E%3C/svg%3E") no-repeat center;
+            background-size: 150% 150%;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+        }
+
+        .hero-phone {
+            width: 320px;
+            height: auto;
+            margin: 0 auto 50px;
+            filter: drop-shadow(0 30px 60px rgba(0, 113, 227, 0.4))
+                    drop-shadow(0 15px 30px rgba(0, 0, 0, 0.6));
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .hero-phone img {
+            width: 100%;
+            height: auto;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+
+        .hero-eyebrow {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--primary);
+            letter-spacing: 0.02em;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        .hero h1 {
+            font-size: clamp(3rem, 8vw, 5.5rem);
+            font-weight: 700;
+            letter-spacing: -0.04em;
+            line-height: 1.05;
+            margin-bottom: 20px;
+            background: linear-gradient(180deg, #FFFFFF 0%, #A1A1A6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero .tagline {
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            font-weight: 400;
+            color: #86868B;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: #86868B;
+            max-width: 650px;
+            margin: 0 auto 50px;
+            line-height: 1.5;
+            font-weight: 400;
+        }
+
+        /* Download Buttons */
+        .download-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .download-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #F5F5F7;
+            color: #1D1D1F;
+            padding: 16px 32px;
+            border-radius: 980px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1rem;
+            transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+            border: none;
+            cursor: pointer;
+        }
+
+        .download-btn:hover {
+            transform: scale(1.04);
+            box-shadow: 0 10px 40px rgba(255, 255, 255, 0.15);
+        }
+
+        .download-btn svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .download-btn.secondary {
+            background: transparent;
+            color: #F5F5F7;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .download-btn.secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .download-btn.coming-soon {
+            background: rgba(255, 255, 255, 0.1);
+            color: #86868B;
+            cursor: default;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .download-btn.coming-soon:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 150px 20px;
+            background: var(--background);
+        }
+
+        .section-header {
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto 80px;
+        }
+
+        .section-header h2 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 20px;
+            background: linear-gradient(180deg, #FFFFFF 0%, #A1A1A6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-header p {
+            font-size: 1.3rem;
+            color: #86868B;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            background: linear-gradient(180deg, #1D1D1F 0%, #161617 100%);
+            border-radius: 30px;
+            padding: 50px 40px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .feature-card:hover {
+            transform: scale(1.02);
+        }
+
+        .feature-card.large {
+            grid-column: span 2;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: center;
+            padding: 60px;
+        }
+
+        .feature-icon {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, var(--primary) 0%, #00D4FF 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0, 113, 227, 0.3);
+        }
+
+        .feature-icon svg {
+            width: 35px;
+            height: 35px;
+            color: #FFFFFF;
+        }
+
+        .feature-card h3 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            letter-spacing: -0.02em;
+            color: #F5F5F7;
+        }
+
+        .feature-card p {
+            color: #86868B;
+            line-height: 1.6;
+            font-size: 1.1rem;
+        }
+
+        /* Industries Section */
+        .industries {
+            padding: 150px 20px;
+            background: linear-gradient(180deg, var(--background) 0%, #0D0D0D 100%);
+        }
+
+        .industries-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .industry-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 100px;
+            padding: 14px 28px;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #F5F5F7;
+            transition: all 0.3s;
+        }
+
+        .industry-item:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            transform: scale(1.05);
+        }
+
+        /* Story Section */
+        .story-section {
+            padding: 120px 20px;
+            background: linear-gradient(180deg, #0D0D0D 0%, var(--background) 100%);
+        }
+
+        .story-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .story-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .story-header h2 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 20px;
+            background: linear-gradient(180deg, #FFFFFF 0%, #A1A1A6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .story-header p {
+            font-size: 1.3rem;
+            color: #86868B;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .story-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .story-card {
+            background: linear-gradient(180deg, #1D1D1F 0%, #161617 100%);
+            border-radius: 30px;
+            padding: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), #00D4FF);
+        }
+
+        .story-card.business::before {
+            background: linear-gradient(90deg, #34C759, #30D158);
+        }
+
+        .story-label {
+            display: inline-block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--primary);
+            margin-bottom: 20px;
+        }
+
+        .story-card.business .story-label {
+            color: #34C759;
+        }
+
+        .story-card h3 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #F5F5F7;
+            letter-spacing: -0.02em;
+        }
+
+        .story-card > p {
+            font-size: 1.1rem;
+            color: #86868B;
+            line-height: 1.7;
+            margin-bottom: 30px;
+        }
+
+        .story-features {
+            list-style: none;
+            padding: 0;
+        }
+
+        .story-features li {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 20px;
+            color: #D1D1D6;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        .story-features li svg {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+            color: var(--primary);
+            margin-top: 2px;
+        }
+
+        .story-card.business .story-features li svg {
+            color: #34C759;
+        }
+
+        .story-quote {
+            margin-top: 30px;
+            padding: 25px;
+            background: rgba(0, 113, 227, 0.1);
+            border-radius: 16px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .story-card.business .story-quote {
+            background: rgba(52, 199, 89, 0.1);
+            border-left-color: #34C759;
+        }
+
+        .story-quote p {
+            font-style: italic;
+            color: #A1A1A6;
+            font-size: 1rem;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        /* Responsive Story */
+        @media (max-width: 900px) {
+            .story-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .story-card {
+                padding: 35px;
+            }
+        }
+
+        /* CTA Section */
+        .cta {
+            padding: 150px 20px;
+            text-align: center;
+            background: radial-gradient(ellipse 80% 50% at 50% 100%, rgba(0, 113, 227, 0.2), transparent),
+                        var(--background);
+        }
+
+        .cta h2 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 25px;
+            background: linear-gradient(180deg, #FFFFFF 0%, #A1A1A6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .cta p {
+            font-size: 1.3rem;
+            color: #86868B;
+            margin-bottom: 40px;
+        }
+
+        /* Footer */
+        footer {
+            background: #000;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 50px 20px;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 40px;
+        }
+
+        .footer-links a {
+            color: #86868B;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: #F5F5F7;
+        }
+
+        .footer-content .copyright {
+            color: #48484A;
+            font-size: 0.85rem;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .nav-container {
+                padding: 0 20px;
+            }
+
+            .nav-links {
+                gap: 20px;
+            }
+
+            .hero {
+                padding: 100px 20px 60px;
+            }
+
+            .hero-phone {
+                width: 260px;
+            }
+
+            .download-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .download-btn {
+                width: 100%;
+                max-width: 280px;
+                justify-content: center;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .feature-card.large {
+                grid-column: span 1;
+                grid-template-columns: 1fr;
+            }
+
+            .feature-card {
+                padding: 35px 25px;
+            }
+
+            .footer-content {
+                flex-direction: column;
+                gap: 25px;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .nav-logo span {
+                display: none;
+            }
+
+            .nav-links {
+                gap: 15px;
+            }
+
+            .nav-links a {
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="nav-logo">
+                <img src="logo.png" alt="Happy InLine">
+                <span>Happy InLine</span>
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="privacy.html">Privacy</a>
+                <a href="mailto:info@happyinline.com">Contact</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <p class="hero-eyebrow">Introducing</p>
+            <div class="hero-phone">
+                <img src="phone-mockup.png" alt="Happy InLine App">
+            </div>
+            <h1>Happy InLine</h1>
+            <p class="tagline">"The Only Place You'll Be HAPPY In Line"</p>
+            <p>Book appointments instantly with local service providers. No more waiting. No more lines. Just show up at your time.</p>
+
+            <div class="download-buttons">
+                <a href="#" class="download-btn coming-soon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                    </svg>
+                    App Store - Coming Soon
+                </a>
+                <a href="#" class="download-btn coming-soon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.198l2.807 1.626a1 1 0 010 1.73l-2.808 1.626L15.206 12l2.492-2.491zM5.864 2.658L16.802 8.99l-2.303 2.303-8.635-8.635z"/>
+                    </svg>
+                    Google Play - Coming Soon
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="section-header">
+            <h2>Built for modern life.</h2>
+            <p>Everything you need to book services, all in one place.</p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card large">
+                <div>
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </div>
+                    <h3>Book in seconds</h3>
+                    <p>Find available slots, pick your time, and confirm your appointment. It's that simple. No phone calls. No waiting on hold.</p>
+                </div>
+                <div style="text-align: center;">
+                    <svg viewBox="0 0 200 200" fill="none" style="width: 200px; height: 200px;">
+                        <circle cx="100" cy="100" r="80" stroke="url(#grad1)" stroke-width="2" fill="none"/>
+                        <circle cx="100" cy="100" r="60" stroke="url(#grad1)" stroke-width="2" fill="none" opacity="0.5"/>
+                        <circle cx="100" cy="100" r="40" stroke="url(#grad1)" stroke-width="2" fill="none" opacity="0.3"/>
+                        <circle cx="100" cy="100" r="8" fill="#0071E3"/>
+                        <line x1="100" y1="100" x2="100" y2="50" stroke="#F5F5F7" stroke-width="3" stroke-linecap="round"/>
+                        <line x1="100" y1="100" x2="140" y2="100" stroke="#0071E3" stroke-width="2" stroke-linecap="round"/>
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#0071E3"/>
+                                <stop offset="100%" stop-color="#00D4FF"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                </div>
+                <h3>Discover nearby</h3>
+                <p>Find the best-rated service providers in your area. Read reviews from real customers.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <h3>Skip the wait</h3>
+                <p>Arrive at your scheduled time and get served immediately. Your time is valuable.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                </div>
+                <h3>Secure & private</h3>
+                <p>Your data is encrypted and protected. We never share your information without consent.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
+                    </svg>
+                </div>
+                <h3>Direct messaging</h3>
+                <p>Chat directly with service providers. Ask questions, share preferences, get updates.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Industries Section -->
+    <section class="industries">
+        <div class="section-header">
+            <h2>One app. Every service.</h2>
+            <p>From haircuts to home repairs, we've got you covered.</p>
+        </div>
+
+        <div class="industries-grid">
+            <span class="industry-item">Barbershops</span>
+            <span class="industry-item">Hair Salons</span>
+            <span class="industry-item">Nail Salons</span>
+            <span class="industry-item">Spas & Wellness</span>
+            <span class="industry-item">Beauty Services</span>
+            <span class="industry-item">Massage Therapy</span>
+            <span class="industry-item">Fitness Studios</span>
+            <span class="industry-item">Personal Training</span>
+            <span class="industry-item">Pet Grooming</span>
+            <span class="industry-item">Auto Detailing</span>
+            <span class="industry-item">Home Services</span>
+            <span class="industry-item">Professional Services</span>
+            <span class="industry-item">Healthcare</span>
+            <span class="industry-item">Tutoring</span>
+            <span class="industry-item">And More</span>
+        </div>
+    </section>
+
+    <!-- Story Section - Built from Real Feedback -->
+    <section class="story-section">
+        <div class="story-container">
+            <div class="story-header">
+                <h2>Built from real feedback.</h2>
+                <p>We listened to hundreds of local barbershops, salons, and service businesses. They told us exactly what was missing from other booking apps. We built it.</p>
+            </div>
+
+            <div class="story-grid">
+                <!-- For Business -->
+                <div class="story-card business">
+                    <span class="story-label">For Business Owners</span>
+                    <h3>Your business. Your app. Zero distractions.</h3>
+                    <p>Other platforms bury your business among competitors. Happy InLine gives you a dedicated space where your customers see only you.</p>
+
+                    <ul class="story-features">
+                        <li>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            <span><strong>Register in seconds</strong> - Get your business up and running instantly with a simple setup process</span>
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            <span><strong>Your own QR code</strong> - Share it with customers, and they're instantly connected to your business</span>
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            <span><strong>No competitor distractions</strong> - When customers open the app, they see YOUR shop, not a marketplace</span>
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            <span><strong>Auto-confirmed bookings</strong> - Save hours every week. No more back-and-forth confirmations</span>
+                        </li>
+                    </ul>
+
+                    <div class="story-quote">
+                        <p>"Other apps felt like I was competing for my own customers. Happy InLine gives me my own space where my clients come directly to me."</p>
+                    </div>
+                </div>
+
+                <!-- For Customers -->
+                <div class="story-card">
+                    <span class="story-label">For Customers</span>
+                    <h3>Your favorite shop. Always one tap away.</h3>
+                    <p>We asked customers what they really wanted: a simple way to book with their favorite barber or stylist. No searching. No scrolling through competitors.</p>
+
+                    <ul class="story-features">
+                        <li>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            <span><strong>Scan once, book forever</strong> - Scan your shop's QR code and it becomes your home screen</span>
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            <span><strong>Book your favorite provider</strong> - Choose your preferred barber, stylist, or technician every time</span>
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            <span><strong>Instant confirmation</strong> - Book in a few taps and you're done. No waiting for approval</span>
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            <span><strong>No distractions</strong> - Your shop is your home. No ads or suggestions for other businesses</span>
+                        </li>
+                    </ul>
+
+                    <div class="story-quote">
+                        <p>"I just want to book with my barber without seeing 50 other shops. Happy InLine gets it."</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta">
+        <h2>Ready to skip the line?</h2>
+        <p>Download Happy InLine and start booking today.</p>
+        <div class="download-buttons">
+            <a href="#" class="download-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                </svg>
+                Coming Soon
+            </a>
+            <a href="#" class="download-btn secondary">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.198l2.807 1.626a1 1 0 010 1.73l-2.808 1.626L15.206 12l2.492-2.491zM5.864 2.658L16.802 8.99l-2.303 2.303-8.635-8.635z"/>
+                </svg>
+                Coming Soon
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="/">Home</a>
+                <a href="privacy.html">Privacy Policy</a>
+                <a href="mailto:info@happyinline.com">Contact</a>
+            </div>
+            <p class="copyright">Copyright &copy; 2024 Happy InLine. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
