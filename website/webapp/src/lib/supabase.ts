@@ -16,3 +16,4 @@ export function getSupabaseClient() {
   }
   return supabaseClient;
 }
+// Vercel deploy trigger
