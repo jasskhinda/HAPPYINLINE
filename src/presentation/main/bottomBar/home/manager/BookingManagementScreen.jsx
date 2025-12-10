@@ -23,6 +23,7 @@ import {
   cancelBooking,
   completeBooking
 } from '../../../../../lib/auth';
+import { supabase } from '../../../../../lib/supabase';
 import {
   sendBookingConfirmedNotification,
   sendBookingCancelledNotification,
@@ -45,9 +46,10 @@ const BookingManagementScreen = () => {
     completed: [],
     cancelled: [],
   });
-  
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [accountRestricted, setAccountRestricted] = useState(false);
   
   // Modal states
   const [showApproveModal, setShowApproveModal] = useState(false);
@@ -58,15 +60,48 @@ const BookingManagementScreen = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [cancellationReason, setCancellationReason] = useState('');
 
-  // Fetch bookings on component mount
+  // Check account status and fetch bookings on component mount
   useEffect(() => {
-    loadBookings();
+    checkAccountStatus();
   }, []);
+
+  // Check if account is restricted (subscription inactive)
+  const checkAccountStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      // Check user's profile for subscription status
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, subscription_status')
+        .eq('id', user.id)
+        .single();
+
+      // Only check subscription for business owners
+      if (profile?.role === 'owner' && profile?.subscription_status !== 'active') {
+        console.log('⚠️ Account restricted - subscription not active');
+        setAccountRestricted(true);
+        setLoading(false);
+        return;
+      }
+
+      // Account is active, load bookings
+      setAccountRestricted(false);
+      loadBookings();
+    } catch (error) {
+      console.error('Error checking account status:', error);
+      loadBookings(); // Fall back to loading bookings
+    }
+  };
 
   // Reload bookings when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      loadBookings();
+      checkAccountStatus();
     }, [])
   );
 
@@ -604,6 +639,31 @@ const BookingManagementScreen = () => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4A90E2" />
           <Text style={styles.loadingText}>Loading bookings...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show contact support message when account is restricted
+  if (accountRestricted) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <SettingAppBar title="Booking Management" />
+        <View style={styles.restrictedContainer}>
+          <View style={styles.restrictedIconContainer}>
+            <Ionicons name="lock-closed" size={64} color="#4A90E2" />
+          </View>
+          <Text style={styles.restrictedTitle}>Feature Unavailable</Text>
+          <Text style={styles.restrictedMessage}>
+            To access your booking management, please contact our support team.
+          </Text>
+          <View style={styles.supportCard}>
+            <Ionicons name="mail-outline" size={24} color="#4A90E2" />
+            <Text style={styles.supportEmail}>support@happyinline.com</Text>
+          </View>
+          <Text style={styles.supportNote}>
+            Our team is available to assist you with any questions.
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -1261,6 +1321,64 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     lineHeight: 20,
+  },
+  // Restricted Account Styles
+  restrictedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+    backgroundColor: '#F8F9FA',
+  },
+  restrictedIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#F0F4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  restrictedTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  restrictedMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+    paddingHorizontal: 20,
+  },
+  supportCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    marginBottom: 16,
+  },
+  supportEmail: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4A90E2',
+  },
+  supportNote: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });
 

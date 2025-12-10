@@ -2172,6 +2172,159 @@ export const changeEmail = async (newEmail) => {
 };
 
 // =====================================================
+// ACCOUNT DELETION
+// =====================================================
+
+/**
+ * Delete user account permanently
+ * This function:
+ * 1. Cancels any active subscriptions
+ * 2. Removes user from shop_staff
+ * 3. Deletes user's profile
+ * 4. Signs out the user
+ * Note: The auth.users record will be deleted via Edge Function with service role
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export const deleteAccount = async () => {
+  try {
+    console.log('🗑️ Starting account deletion process...');
+
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { success: false, error: 'No user logged in' };
+    }
+
+    const userId = user.id;
+    console.log('👤 Deleting account for user:', userId);
+
+    // Check if user is a super admin (cannot be deleted)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_platform_admin, role')
+      .eq('id', userId)
+      .single();
+
+    if (profile?.is_platform_admin) {
+      return {
+        success: false,
+        error: 'Super Admin account cannot be deleted for security reasons.'
+      };
+    }
+
+    // Step 1: Cancel any active Stripe subscriptions
+    if (profile?.role === 'owner') {
+      console.log('📦 Checking for active subscriptions...');
+      try {
+        const { cancelSubscription } = await import('./stripe');
+        await cancelSubscription(userId, 'Account deletion');
+      } catch (subError) {
+        console.warn('⚠️ Error cancelling subscription:', subError.message);
+        // Continue with deletion even if subscription cancellation fails
+      }
+    }
+
+    // Step 2: Remove user from all shop_staff records
+    console.log('🏪 Removing from shop staff...');
+    const { error: staffError } = await supabase
+      .from('shop_staff')
+      .delete()
+      .eq('user_id', userId);
+
+    if (staffError) {
+      console.warn('⚠️ Error removing from shop_staff:', staffError.message);
+    }
+
+    // Step 3: Remove service provider assignments
+    console.log('🔧 Removing service assignments...');
+    const { error: serviceError } = await supabase
+      .from('service_providers')
+      .delete()
+      .eq('provider_id', userId);
+
+    if (serviceError) {
+      console.warn('⚠️ Error removing service assignments:', serviceError.message);
+    }
+
+    // Step 4: Delete customer registrations
+    console.log('📝 Removing customer registrations...');
+    const { error: regError } = await supabase
+      .from('customer_registrations')
+      .delete()
+      .eq('customer_id', userId);
+
+    if (regError) {
+      console.warn('⚠️ Error removing customer registrations:', regError.message);
+    }
+
+    // Step 5: Call Edge Function to delete auth user (requires service role)
+    console.log('🔐 Calling Edge Function to delete auth user...');
+    const { data: deleteData, error: deleteError } = await supabase.functions.invoke(
+      'delete-user-account',
+      {
+        body: { userId: userId }
+      }
+    );
+
+    console.log('📦 Edge Function response:', JSON.stringify(deleteData));
+    console.log('📦 Edge Function error:', deleteError ? JSON.stringify(deleteError) : 'none');
+
+    // Check for network/invocation errors
+    if (deleteError) {
+      console.error('❌ Edge Function invocation error:', deleteError.message);
+      return {
+        success: false,
+        error: 'Failed to delete account. Please try again or contact support.'
+      };
+    }
+
+    // Check for errors returned in the response body
+    if (deleteData?.error) {
+      console.error('❌ Edge Function returned error:', deleteData.error);
+      return {
+        success: false,
+        error: deleteData.error
+      };
+    }
+
+    // Verify success was explicitly returned
+    if (!deleteData?.success) {
+      console.error('❌ Edge Function did not confirm success');
+      return {
+        success: false,
+        error: 'Account deletion could not be confirmed. Please try again.'
+      };
+    }
+
+    console.log('✅ Edge Function confirmed deletion');
+
+    // Edge function succeeded - auth user is deleted
+    // Now clean up local state
+
+    // Step 6: Clear local storage
+    console.log('🧹 Clearing local storage...');
+    await AsyncStorage.clear();
+
+    // Step 7: Sign out (this may fail since user is deleted, but that's ok)
+    console.log('🚪 Signing out...');
+    try {
+      await supabase.auth.signOut();
+    } catch (signOutError) {
+      console.log('⚠️ Sign out after deletion (expected):', signOutError.message);
+    }
+
+    console.log('✅ Account deletion complete');
+    return {
+      success: true,
+      message: 'Your account has been permanently deleted.'
+    };
+  } catch (error) {
+    console.error('❌ Error deleting account:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// =====================================================
 // REVIEWS FUNCTIONS
 // =====================================================
 

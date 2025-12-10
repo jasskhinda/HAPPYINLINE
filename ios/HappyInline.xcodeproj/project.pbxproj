@@ -8,35 +8,35 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		18E0FDBADDEAF8BF771A9268 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 3EB59E3ED513FA3E8586CB37 /* PrivacyInfo.xcprivacy */; };
-		3875A855237C4DFBA7F914E7 /* libPods-HappyInline.a in Frameworks */ = {isa = PBXBuildFile; fileRef = ADCBAAA1BA1FABBF490198B7 /* libPods-HappyInline.a */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		3E7AE8CB9DCA4538AA8B242A /* NotificationService.m in Sources */ = {isa = PBXBuildFile; fileRef = A2BCCBF93A014909BA4CE470 /* NotificationService.m */; };
-		582604AAB9C5452E9D5F7392 /* OneSignalNotificationServiceExtension.appex in Copy Files */ = {isa = PBXBuildFile; fileRef = 580FE267A7A8476BA87DA87C /* OneSignalNotificationServiceExtension.appex */; };
-		94A3C1F1CDB8E0C3167B2C77 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1DB43A6849A83E3ECB31F6 /* ExpoModulesProvider.swift */; };
+		4FDDCE7DAEAAC381CC5D75B9 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 46A2AB8DD88D9D763E9E264A /* PrivacyInfo.xcprivacy */; };
+		567B25332E60413D660EC071 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0EB91FD62551DC04A1AB87 /* ExpoModulesProvider.swift */; };
+		610E380A903C44BF8A98C0A3 /* NotificationService.m in Sources */ = {isa = PBXBuildFile; fileRef = A1453F62737D4C82A078D9A0 /* NotificationService.m */; };
+		7A5068B49E8C931444F03B0D /* libPods-HappyInline.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C1A3A5EEF9AF9B06CB59A0BC /* libPods-HappyInline.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		E4525A3F7D033545633DBF61 /* libPods-OneSignalNotificationServiceExtension.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 99DF57B70BFA7EC2AF03C3AF /* libPods-OneSignalNotificationServiceExtension.a */; };
+		DE480220E0F7DA07D662A6CA /* libPods-OneSignalNotificationServiceExtension.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2E872D089232386002BAEA9D /* libPods-OneSignalNotificationServiceExtension.a */; };
+		ECA2037C3A8A48DC9E894ADC /* OneSignalNotificationServiceExtension.appex in Copy Files */ = {isa = PBXBuildFile; fileRef = 87C7080A99DB4435B282BF5F /* OneSignalNotificationServiceExtension.appex */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		77CF367DC38244B1B9D63CB9 /* PBXContainerItemProxy */ = {
+		84F1E7E25AAD4D918A9A17CE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 77D6F78EEDAA463595C44DA1;
+			remoteGlobalIDString = 9E2D7D15D4ED4D35A72F10F9;
 			remoteInfo = OneSignalNotificationServiceExtension;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		CC63E55992CF42C597DC7EC8 /* Copy Files */ = {
+		26FB60586CF04DD3AD74EF47 /* Copy Files */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				582604AAB9C5452E9D5F7392 /* OneSignalNotificationServiceExtension.appex in Copy Files */,
+				ECA2037C3A8A48DC9E894ADC /* OneSignalNotificationServiceExtension.appex in Copy Files */,
 			);
 			name = "Copy Files";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -47,21 +47,21 @@
 		13B07F961A680F5B00A75B9A /* HappyInline.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HappyInline.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = HappyInline/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = HappyInline/Info.plist; sourceTree = "<group>"; };
-		1C6F409E5281381AC6DC5034 /* Pods-OneSignalNotificationServiceExtension.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-OneSignalNotificationServiceExtension.release.xcconfig"; path = "Target Support Files/Pods-OneSignalNotificationServiceExtension/Pods-OneSignalNotificationServiceExtension.release.xcconfig"; sourceTree = "<group>"; };
-		3EB59E3ED513FA3E8586CB37 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = HappyInline/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		580FE267A7A8476BA87DA87C /* OneSignalNotificationServiceExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; fileEncoding = 9; includeInIndex = 0; path = OneSignalNotificationServiceExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		75E6F848273C49C2B6B6ACCD /* OneSignalNotificationServiceExtension-Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; path = "OneSignalNotificationServiceExtension-Info.plist"; sourceTree = "<group>"; };
-		8CAB02BEB31889E9C627EA2D /* Pods-OneSignalNotificationServiceExtension.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-OneSignalNotificationServiceExtension.debug.xcconfig"; path = "Target Support Files/Pods-OneSignalNotificationServiceExtension/Pods-OneSignalNotificationServiceExtension.debug.xcconfig"; sourceTree = "<group>"; };
-		99DF57B70BFA7EC2AF03C3AF /* libPods-OneSignalNotificationServiceExtension.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-OneSignalNotificationServiceExtension.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		A2BCCBF93A014909BA4CE470 /* NotificationService.m */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.c.objc; path = NotificationService.m; sourceTree = "<group>"; };
-		A31A74944B774836B1ABDC79 /* OneSignalNotificationServiceExtension.entitlements */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; path = OneSignalNotificationServiceExtension.entitlements; sourceTree = "<group>"; };
+		2E872D089232386002BAEA9D /* libPods-OneSignalNotificationServiceExtension.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-OneSignalNotificationServiceExtension.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		46A2AB8DD88D9D763E9E264A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = HappyInline/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		49C91A372B7943FD8F3C727E /* NotificationService.h */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.c.h; path = NotificationService.h; sourceTree = "<group>"; };
+		58DE75E7FFB1E2D694899DE3 /* Pods-OneSignalNotificationServiceExtension.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-OneSignalNotificationServiceExtension.debug.xcconfig"; path = "Target Support Files/Pods-OneSignalNotificationServiceExtension/Pods-OneSignalNotificationServiceExtension.debug.xcconfig"; sourceTree = "<group>"; };
+		5F475F659CC1E612AD66AF2D /* Pods-HappyInline.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HappyInline.debug.xcconfig"; path = "Target Support Files/Pods-HappyInline/Pods-HappyInline.debug.xcconfig"; sourceTree = "<group>"; };
+		7F64A441BED54EAA90EACC34 /* OneSignalNotificationServiceExtension-Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; path = "OneSignalNotificationServiceExtension-Info.plist"; sourceTree = "<group>"; };
+		87C7080A99DB4435B282BF5F /* OneSignalNotificationServiceExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; fileEncoding = 9; includeInIndex = 0; path = OneSignalNotificationServiceExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		8A0EB91FD62551DC04A1AB87 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-HappyInline/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		93E954B179860686A8343D34 /* Pods-HappyInline.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HappyInline.release.xcconfig"; path = "Target Support Files/Pods-HappyInline/Pods-HappyInline.release.xcconfig"; sourceTree = "<group>"; };
+		982FE844F7E536F1AAEE2808 /* Pods-OneSignalNotificationServiceExtension.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-OneSignalNotificationServiceExtension.release.xcconfig"; path = "Target Support Files/Pods-OneSignalNotificationServiceExtension/Pods-OneSignalNotificationServiceExtension.release.xcconfig"; sourceTree = "<group>"; };
+		A1453F62737D4C82A078D9A0 /* NotificationService.m */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.c.objc; path = NotificationService.m; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = HappyInline/SplashScreen.storyboard; sourceTree = "<group>"; };
-		AA325AFAACEAE37597932358 /* Pods-HappyInline.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HappyInline.debug.xcconfig"; path = "Target Support Files/Pods-HappyInline/Pods-HappyInline.debug.xcconfig"; sourceTree = "<group>"; };
-		ADCBAAA1BA1FABBF490198B7 /* libPods-HappyInline.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-HappyInline.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		B710DBDE55B24FA889426BCF /* NotificationService.h */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.c.h; path = NotificationService.h; sourceTree = "<group>"; };
+		AAE03A6ED6534AA1A2D5E3F4 /* OneSignalNotificationServiceExtension.entitlements */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; path = OneSignalNotificationServiceExtension.entitlements; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		BE48C7C300E51672129AE2E4 /* Pods-HappyInline.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HappyInline.release.xcconfig"; path = "Target Support Files/Pods-HappyInline/Pods-HappyInline.release.xcconfig"; sourceTree = "<group>"; };
-		CF1DB43A6849A83E3ECB31F6 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-HappyInline/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		C1A3A5EEF9AF9B06CB59A0BC /* libPods-HappyInline.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-HappyInline.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = HappyInline/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* HappyInline-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "HappyInline-Bridging-Header.h"; path = "HappyInline/HappyInline-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -72,15 +72,15 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3875A855237C4DFBA7F914E7 /* libPods-HappyInline.a in Frameworks */,
+				7A5068B49E8C931444F03B0D /* libPods-HappyInline.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E19D21D005E244F3A979646B /* Frameworks */ = {
+		211A3D05FD954C6DB4FF351B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E4525A3F7D033545633DBF61 /* libPods-OneSignalNotificationServiceExtension.a in Frameworks */,
+				DE480220E0F7DA07D662A6CA /* libPods-OneSignalNotificationServiceExtension.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -96,7 +96,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				3EB59E3ED513FA3E8586CB37 /* PrivacyInfo.xcprivacy */,
+				46A2AB8DD88D9D763E9E264A /* PrivacyInfo.xcprivacy */,
 			);
 			name = HappyInline;
 			sourceTree = "<group>";
@@ -105,18 +105,40 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				ADCBAAA1BA1FABBF490198B7 /* libPods-HappyInline.a */,
-				99DF57B70BFA7EC2AF03C3AF /* libPods-OneSignalNotificationServiceExtension.a */,
+				C1A3A5EEF9AF9B06CB59A0BC /* libPods-HappyInline.a */,
+				2E872D089232386002BAEA9D /* libPods-OneSignalNotificationServiceExtension.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		2D66E2BB121EFDED6AB64BB8 /* HappyInline */ = {
+		42A4EE02D8E84880B4AEBBE0 /* OneSignalNotificationServiceExtension */ = {
 			isa = PBXGroup;
 			children = (
-				CF1DB43A6849A83E3ECB31F6 /* ExpoModulesProvider.swift */,
+				49C91A372B7943FD8F3C727E /* NotificationService.h */,
+				AAE03A6ED6534AA1A2D5E3F4 /* OneSignalNotificationServiceExtension.entitlements */,
+				7F64A441BED54EAA90EACC34 /* OneSignalNotificationServiceExtension-Info.plist */,
+				A1453F62737D4C82A078D9A0 /* NotificationService.m */,
 			);
-			name = HappyInline;
+			path = OneSignalNotificationServiceExtension;
+			sourceTree = "<group>";
+		};
+		5BE029F6439C03D2AF40EB59 /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				913798B0A98EA8CFF94293F8 /* HappyInline */,
+			);
+			name = ExpoModulesProviders;
+			sourceTree = "<group>";
+		};
+		7B10A51F6C90A1A3E8B58047 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				5F475F659CC1E612AD66AF2D /* Pods-HappyInline.debug.xcconfig */,
+				93E954B179860686A8343D34 /* Pods-HappyInline.release.xcconfig */,
+				58DE75E7FFB1E2D694899DE3 /* Pods-OneSignalNotificationServiceExtension.debug.xcconfig */,
+				982FE844F7E536F1AAEE2808 /* Pods-OneSignalNotificationServiceExtension.release.xcconfig */,
+			);
+			path = Pods;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -133,9 +155,9 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				DAF71D8D9A2746DAA7E70EC9 /* OneSignalNotificationServiceExtension */,
-				DEF3B527EF4958F86BFD15C7 /* Pods */,
-				E7C4613C60A4A11A61FE6E71 /* ExpoModulesProviders */,
+				42A4EE02D8E84880B4AEBBE0 /* OneSignalNotificationServiceExtension */,
+				7B10A51F6C90A1A3E8B58047 /* Pods */,
+				5BE029F6439C03D2AF40EB59 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -146,9 +168,17 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* HappyInline.app */,
-				580FE267A7A8476BA87DA87C /* OneSignalNotificationServiceExtension.appex */,
+				87C7080A99DB4435B282BF5F /* OneSignalNotificationServiceExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		913798B0A98EA8CFF94293F8 /* HappyInline */ = {
+			isa = PBXGroup;
+			children = (
+				8A0EB91FD62551DC04A1AB87 /* ExpoModulesProvider.swift */,
+			);
+			name = HappyInline;
 			sourceTree = "<group>";
 		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
@@ -160,36 +190,6 @@
 			path = HappyInline/Supporting;
 			sourceTree = "<group>";
 		};
-		DAF71D8D9A2746DAA7E70EC9 /* OneSignalNotificationServiceExtension */ = {
-			isa = PBXGroup;
-			children = (
-				B710DBDE55B24FA889426BCF /* NotificationService.h */,
-				A31A74944B774836B1ABDC79 /* OneSignalNotificationServiceExtension.entitlements */,
-				75E6F848273C49C2B6B6ACCD /* OneSignalNotificationServiceExtension-Info.plist */,
-				A2BCCBF93A014909BA4CE470 /* NotificationService.m */,
-			);
-			path = OneSignalNotificationServiceExtension;
-			sourceTree = "<group>";
-		};
-		DEF3B527EF4958F86BFD15C7 /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				AA325AFAACEAE37597932358 /* Pods-HappyInline.debug.xcconfig */,
-				BE48C7C300E51672129AE2E4 /* Pods-HappyInline.release.xcconfig */,
-				8CAB02BEB31889E9C627EA2D /* Pods-OneSignalNotificationServiceExtension.debug.xcconfig */,
-				1C6F409E5281381AC6DC5034 /* Pods-OneSignalNotificationServiceExtension.release.xcconfig */,
-			);
-			path = Pods;
-			sourceTree = "<group>";
-		};
-		E7C4613C60A4A11A61FE6E71 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				2D66E2BB121EFDED6AB64BB8 /* HappyInline */,
-			);
-			name = ExpoModulesProviders;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -198,33 +198,33 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "HappyInline" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				E444008ADAD84B59C74F3FE2 /* [Expo] Configure project */,
+				46AC73E04D02DE4065492C3A /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				CC63E55992CF42C597DC7EC8 /* Copy Files */,
-				E412CCEE8342C70BF060729F /* [CP] Embed Pods Frameworks */,
+				26FB60586CF04DD3AD74EF47 /* Copy Files */,
+				20041F1E6624FEC2909CF9B7 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				E13CCD2347EB4748B663131D /* PBXTargetDependency */,
+				3D7C9773C3144198BBA5D8A5 /* PBXTargetDependency */,
 			);
 			name = HappyInline;
 			productName = HappyInline;
 			productReference = 13B07F961A680F5B00A75B9A /* HappyInline.app */;
 			productType = "com.apple.product-type.application";
 		};
-		77D6F78EEDAA463595C44DA1 /* OneSignalNotificationServiceExtension */ = {
+		9E2D7D15D4ED4D35A72F10F9 /* OneSignalNotificationServiceExtension */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = CED61263F9504EAE92355C25 /* Build configuration list for PBXNativeTarget "OneSignalNotificationServiceExtension" */;
+			buildConfigurationList = 11613C3D91B04AD4B3FFA467 /* Build configuration list for PBXNativeTarget "OneSignalNotificationServiceExtension" */;
 			buildPhases = (
-				F6F8F826562F63163ACC93C8 /* [CP] Check Pods Manifest.lock */,
-				2E5AA7BFDF89476CAA8592C8 /* Sources */,
-				50179E24218B4BD3B1FAC114 /* Resources */,
-				E19D21D005E244F3A979646B /* Frameworks */,
+				1D7A61BFD82B3620A3B67283 /* [CP] Check Pods Manifest.lock */,
+				3016165E8B374A9A8EEBC84A /* Sources */,
+				75DF0B5AF00644FD9F2F94D4 /* Resources */,
+				211A3D05FD954C6DB4FF351B /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -232,7 +232,7 @@
 			);
 			name = OneSignalNotificationServiceExtension;
 			productName = OneSignalNotificationServiceExtension;
-			productReference = 580FE267A7A8476BA87DA87C /* OneSignalNotificationServiceExtension.appex */;
+			productReference = 87C7080A99DB4435B282BF5F /* OneSignalNotificationServiceExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
@@ -262,7 +262,7 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* HappyInline */,
-				77D6F78EEDAA463595C44DA1 /* OneSignalNotificationServiceExtension */,
+				9E2D7D15D4ED4D35A72F10F9 /* OneSignalNotificationServiceExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -275,11 +275,11 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				18E0FDBADDEAF8BF771A9268 /* PrivacyInfo.xcprivacy in Resources */,
+				4FDDCE7DAEAAC381CC5D75B9 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		50179E24218B4BD3B1FAC114 /* Resources */ = {
+		75DF0B5AF00644FD9F2F94D4 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -327,6 +327,94 @@
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
+		};
+		1D7A61BFD82B3620A3B67283 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-OneSignalNotificationServiceExtension-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		20041F1E6624FEC2909CF9B7 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-HappyInline/Pods-HappyInline-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignal/OneSignalFramework.framework/OneSignalFramework",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalCore/OneSignalCore.framework/OneSignalCore",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalExtension/OneSignalExtension.framework/OneSignalExtension",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalInAppMessages/OneSignalInAppMessages.framework/OneSignalInAppMessages",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalLiveActivities/OneSignalLiveActivities.framework/OneSignalLiveActivities",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalLocation/OneSignalLocation.framework/OneSignalLocation",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalNotifications/OneSignalNotifications.framework/OneSignalNotifications",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalOSCore/OneSignalOSCore.framework/OneSignalOSCore",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalOutcomes/OneSignalOutcomes.framework/OneSignalOutcomes",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalUser/OneSignalUser.framework/OneSignalUser",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalFramework.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalCore.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalExtension.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalInAppMessages.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalLiveActivities.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalLocation.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalNotifications.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalOSCore.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalOutcomes.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalUser.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-HappyInline/Pods-HappyInline-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		46AC73E04D02DE4065492C3A /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.xcode.env",
+				"$(SRCROOT)/.xcode.env.local",
+				"$(SRCROOT)/HappyInline/HappyInline.entitlements",
+				"$(SRCROOT)/Pods/Target Support Files/Pods-HappyInline/expo-configure-project.sh",
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Pods/Target Support Files/Pods-HappyInline/ExpoModulesProvider.swift",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-HappyInline/expo-configure-project.sh\"\n";
 		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -380,94 +468,6 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-HappyInline/Pods-HappyInline-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		E412CCEE8342C70BF060729F /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-HappyInline/Pods-HappyInline-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignal/OneSignalFramework.framework/OneSignalFramework",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalCore/OneSignalCore.framework/OneSignalCore",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalExtension/OneSignalExtension.framework/OneSignalExtension",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalInAppMessages/OneSignalInAppMessages.framework/OneSignalInAppMessages",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalLiveActivities/OneSignalLiveActivities.framework/OneSignalLiveActivities",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalLocation/OneSignalLocation.framework/OneSignalLocation",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalNotifications/OneSignalNotifications.framework/OneSignalNotifications",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalOSCore/OneSignalOSCore.framework/OneSignalOSCore",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalOutcomes/OneSignalOutcomes.framework/OneSignalOutcomes",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/OneSignalXCFramework/OneSignalUser/OneSignalUser.framework/OneSignalUser",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalFramework.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalCore.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalExtension.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalInAppMessages.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalLiveActivities.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalLocation.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalNotifications.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalOSCore.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalOutcomes.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OneSignalUser.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-HappyInline/Pods-HappyInline-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		E444008ADAD84B59C74F3FE2 /* [Expo] Configure project */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/.xcode.env",
-				"$(SRCROOT)/.xcode.env.local",
-				"$(SRCROOT)/HappyInline/HappyInline.entitlements",
-				"$(SRCROOT)/Pods/Target Support Files/Pods-HappyInline/expo-configure-project.sh",
-			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(SRCROOT)/Pods/Target Support Files/Pods-HappyInline/ExpoModulesProvider.swift",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-HappyInline/expo-configure-project.sh\"\n";
-		};
-		F6F8F826562F63163ACC93C8 /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-OneSignalNotificationServiceExtension-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -476,37 +476,37 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				94A3C1F1CDB8E0C3167B2C77 /* ExpoModulesProvider.swift in Sources */,
+				567B25332E60413D660EC071 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		2E5AA7BFDF89476CAA8592C8 /* Sources */ = {
+		3016165E8B374A9A8EEBC84A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3E7AE8CB9DCA4538AA8B242A /* NotificationService.m in Sources */,
+				610E380A903C44BF8A98C0A3 /* NotificationService.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		E13CCD2347EB4748B663131D /* PBXTargetDependency */ = {
+		3D7C9773C3144198BBA5D8A5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 77D6F78EEDAA463595C44DA1 /* OneSignalNotificationServiceExtension */;
-			targetProxy = 77CF367DC38244B1B9D63CB9 /* PBXContainerItemProxy */;
+			target = 9E2D7D15D4ED4D35A72F10F9 /* OneSignalNotificationServiceExtension */;
+			targetProxy = 84F1E7E25AAD4D918A9A17CE /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = AA325AFAACEAE37597932358 /* Pods-HappyInline.debug.xcconfig */;
+			baseConfigurationReference = 5F475F659CC1E612AD66AF2D /* Pods-HappyInline.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = HappyInline/HappyInline.entitlements;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = 4U272DP588;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -519,7 +519,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.5;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -538,12 +538,12 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = BE48C7C300E51672129AE2E4 /* Pods-HappyInline.release.xcconfig */;
+			baseConfigurationReference = 93E954B179860686A8343D34 /* Pods-HappyInline.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = HappyInline/HappyInline.entitlements;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = 4U272DP588;
 				INFOPLIST_FILE = HappyInline/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -551,7 +551,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.5;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -566,6 +566,32 @@
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
+		};
+		6018C4CA6A254F4088987450 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 58DE75E7FFB1E2D694899DE3 /* Pods-OneSignalNotificationServiceExtension.debug.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = OneSignalNotificationServiceExtension/OneSignalNotificationServiceExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 4U272DP588;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = "OneSignalNotificationServiceExtension/OneSignalNotificationServiceExtension-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				PRODUCT_BUNDLE_IDENTIFIER = com.happyinline.app.OneSignalNotificationServiceExtension;
+				PRODUCT_NAME = OneSignalNotificationServiceExtension;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
 		};
 		83CBBA201A601CBA00E9B192 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -685,35 +711,9 @@
 			};
 			name = Release;
 		};
-		84C93230077044B3B1321DA2 /* Debug */ = {
+		EF5572A960D444BA981EAFD5 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 8CAB02BEB31889E9C627EA2D /* Pods-OneSignalNotificationServiceExtension.debug.xcconfig */;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = OneSignalNotificationServiceExtension/OneSignalNotificationServiceExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 4U272DP588;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				INFOPLIST_FILE = "OneSignalNotificationServiceExtension/OneSignalNotificationServiceExtension-Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.happyinline.app.OneSignalNotificationServiceExtension;
-				PRODUCT_NAME = OneSignalNotificationServiceExtension;
-				SKIP_INSTALL = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		D6177009FC9A455BBA15D5F0 /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 1C6F409E5281381AC6DC5034 /* Pods-OneSignalNotificationServiceExtension.release.xcconfig */;
+			baseConfigurationReference = 982FE844F7E536F1AAEE2808 /* Pods-OneSignalNotificationServiceExtension.release.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = OneSignalNotificationServiceExtension/OneSignalNotificationServiceExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -736,6 +736,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		11613C3D91B04AD4B3FFA467 /* Build configuration list for PBXNativeTarget "OneSignalNotificationServiceExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6018C4CA6A254F4088987450 /* Debug */,
+				EF5572A960D444BA981EAFD5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "HappyInline" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -750,15 +759,6 @@
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,
 				83CBBA211A601CBA00E9B192 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		CED61263F9504EAE92355C25 /* Build configuration list for PBXNativeTarget "OneSignalNotificationServiceExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				84C93230077044B3B1321DA2 /* Debug */,
-				D6177009FC9A455BBA15D5F0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -35,7 +35,7 @@ const WelcomeScreen = ({ navigation }) => {
     if (!permission?.granted) {
       const result = await requestPermission();
       if (!result.granted) {
-        Alert.alert('Permission Required', 'Camera permission is needed to scan QR codes');
+        Alert.alert('Camera Access', 'Happy Inline needs camera access to scan QR codes. Scanning a business QR code lets you instantly register and book appointments with that shop.');
         return;
       }
     }
@@ -130,7 +130,7 @@ const WelcomeScreen = ({ navigation }) => {
               </View>
               <View style={styles.buttonTextContainer}>
                 <Text style={styles.scanButtonText}>Scan QR Code</Text>
-                <Text style={styles.buttonSubtextScan}>New customers scan to register</Text>
+                <Text style={styles.buttonSubtextScan}>Register with your favorite business</Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
             </View>
@@ -147,8 +147,8 @@ const WelcomeScreen = ({ navigation }) => {
                 <Ionicons name="business" size={28} color="#FFFFFF" />
               </View>
               <View style={styles.buttonTextContainer}>
-                <Text style={styles.secondaryButtonText}>I Own a Business</Text>
-                <Text style={styles.buttonSubtextSecondary}>Register and manage your shop</Text>
+                <Text style={styles.secondaryButtonText}>Business Owner Login</Text>
+                <Text style={styles.buttonSubtextSecondary}>Sign in to manage your shop</Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
             </View>
@@ -205,10 +205,39 @@ const WelcomeScreen = ({ navigation }) => {
                 <View style={styles.cornerBottomRight} />
               </View>
               <Text style={styles.scannerText}>
-                Point your camera at the QR code
+                Point your camera at your shop's QR code
               </Text>
             </View>
           </CameraView>
+
+          {/* How It Works Section */}
+          <View style={styles.howItWorksContainer}>
+            <Text style={styles.howItWorksTitle}>How It Works</Text>
+            <View style={styles.howItWorksItem}>
+              <View style={styles.howItWorksNumber}>
+                <Text style={styles.howItWorksNumberText}>1</Text>
+              </View>
+              <Text style={styles.howItWorksText}>
+                Your favorite business has a unique QR code to share with customers
+              </Text>
+            </View>
+            <View style={styles.howItWorksItem}>
+              <View style={styles.howItWorksNumber}>
+                <Text style={styles.howItWorksNumberText}>2</Text>
+              </View>
+              <Text style={styles.howItWorksText}>
+                Scan it once to register - that business becomes your home screen
+              </Text>
+            </View>
+            <View style={styles.howItWorksItem}>
+              <View style={styles.howItWorksNumber}>
+                <Text style={styles.howItWorksNumberText}>3</Text>
+              </View>
+              <Text style={styles.howItWorksText}>
+                Book appointments directly with no distractions - just you and your favorite shop
+              </Text>
+            </View>
+          </View>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -256,6 +285,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 24,
     marginTop: 8,
+    marginBottom: 40,
   },
   trustText: {
     color: '#666666',
@@ -484,6 +514,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
+  },
+  howItWorksContainer: {
+    backgroundColor: '#1A1A1A',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  howItWorksTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  howItWorksItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  howItWorksNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#4A90E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  howItWorksNumberText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  howItWorksText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#CCCCCC',
+    lineHeight: 20,
   },
 });
 

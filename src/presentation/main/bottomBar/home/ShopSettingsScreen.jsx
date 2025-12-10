@@ -175,15 +175,16 @@ const ShopSettingsScreen = ({ route, navigation }) => {
 
   const handlePickImage = async (type) => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant camera roll permissions to upload images');
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      // Check for both 'granted' and 'limited' (iOS 14+) access
+      if (!permissionResult.granted && permissionResult.status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant photo library permissions in Settings to upload images');
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: [ImagePicker.MediaType.Images],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: type === 'logo' ? [1, 1] : [16, 9],
         quality: 0.8,

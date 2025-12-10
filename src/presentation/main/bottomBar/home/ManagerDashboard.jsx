@@ -15,8 +15,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
 import ShopQRCodeModal from '../../../../components/shop/ShopQRCodeModal';
-import { getSubscriptionStatus, cancelSubscription, requestRefund, STRIPE_PLANS, REFUND_DAYS } from '../../../../lib/stripe';
-import { checkLicenseAvailability } from '../../../../lib/auth';
 
 const ManagerDashboard = () => {
   const navigation = useNavigation();
@@ -36,13 +34,6 @@ const ManagerDashboard = () => {
   const [hasShop, setHasShop] = useState(null);
   const [qrModalVisible, setQrModalVisible] = useState(false);
   const [selectedShopForQR, setSelectedShopForQR] = useState(null);
-  const [currentUserId, setCurrentUserId] = useState(null); // Store user ID for subscription actions
-
-  // Subscription state
-  const [subscription, setSubscription] = useState(null);
-  const [loadingSubscription, setLoadingSubscription] = useState(false);
-  const [cancellingSubscription, setCancellingSubscription] = useState(false);
-  const [licenseInfo, setLicenseInfo] = useState({ currentCount: 0, maxLicenses: 0 });
 
   useEffect(() => {
     fetchDashboardData();
@@ -56,9 +47,6 @@ const ManagerDashboard = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Store user ID for subscription actions
-      setCurrentUserId(user.id);
-
       // Get user's profile to get name, role, and profile image
       const { data: profile } = await supabase
         .from('profiles')
@@ -70,27 +58,6 @@ const ManagerDashboard = () => {
       setUserRole(profileRole);
       setOwnerName(profile?.name || 'Business Owner');
       setProfileImage(profile?.profile_image || null);
-
-      // Fetch subscription data for owners FIRST (from profile, not shop)
-      // This runs even if they have no shops yet
-      if (profileRole === 'owner') {
-        try {
-          setLoadingSubscription(true);
-          const [subscriptionData, licenseData] = await Promise.all([
-            getSubscriptionStatus(user.id),
-            checkLicenseAvailability()
-          ]);
-          setSubscription(subscriptionData);
-          setLicenseInfo({
-            currentCount: licenseData.currentCount || 0,
-            maxLicenses: licenseData.maxLicenses || 0
-          });
-        } catch (subError) {
-          console.error('Error fetching subscription:', subError);
-        } finally {
-          setLoadingSubscription(false);
-        }
-      }
 
       // Fetch ALL shops where user is owner/manager/admin (support multiple listings)
       const { data: shopStaffData, error: staffError } = await supabase
@@ -247,157 +214,12 @@ const ManagerDashboard = () => {
     }
   };
 
-  const getPlanIcon = (planKey) => {
-    switch (planKey) {
-      case 'basic': return 'person';
-      case 'starter': return 'people';
-      case 'professional': return 'briefcase';
-      case 'enterprise': return 'business';
-      case 'unlimited': return 'infinite';
-      default: return 'card';
-    }
-  };
-
-  const getPlanColor = (planKey) => {
-    switch (planKey) {
-      case 'basic': return '#8E8E93';
-      case 'starter': return '#007AFF';
-      case 'professional': return '#34C759';
-      case 'enterprise': return '#FF9500';
-      case 'unlimited': return '#AF52DE';
-      default: return '#4A90E2';
-    }
-  };
-
-  const handleCancelSubscription = () => {
-    if (!currentUserId) {
-      Alert.alert('Error', 'User not found');
-      return;
-    }
-
-    const isRefundEligible = subscription?.isRefundEligible;
-
-    Alert.alert(
-      'Cancel Subscription',
-      isRefundEligible
-        ? `You are within the ${REFUND_DAYS}-day refund window. Would you like to:\n\n• Request a full refund and cancel immediately\n• Just cancel (keep access until end of billing period)`
-        : 'Are you sure you want to cancel your subscription? You will retain access until the end of your current billing period.',
-      isRefundEligible
-        ? [
-            { text: 'Keep Subscription', style: 'cancel' },
-            { text: 'Cancel Only', onPress: () => processCancellation(false) },
-            { text: 'Cancel & Refund', style: 'destructive', onPress: () => processCancellation(true) }
-          ]
-        : [
-            { text: 'Keep Subscription', style: 'cancel' },
-            { text: 'Cancel Subscription', style: 'destructive', onPress: () => processCancellation(false) }
-          ]
-    );
-  };
-
-  const processCancellation = async (withRefund) => {
-    try {
-      setCancellingSubscription(true);
-
-      if (withRefund) {
-        const result = await requestRefund(currentUserId, 'Customer requested cancellation');
-        if (result.success) {
-          Alert.alert('Refund Processed', `Your subscription has been cancelled and $${result.refundAmount} has been refunded.`);
-          setSubscription(prev => prev ? { ...prev, subscription_status: 'refunded', isActive: false } : null);
-        } else {
-          Alert.alert('Error', result.error || 'Failed to process refund');
-        }
-      } else {
-        const result = await cancelSubscription(currentUserId, 'Customer requested cancellation');
-        if (result.success) {
-          // Handle different cancellation scenarios
-          if (result.localOnly) {
-            // No Stripe subscription - downgraded locally
-            Alert.alert('Subscription Cancelled', 'Your subscription has been cancelled successfully.');
-            setSubscription(prev => prev ? { ...prev, subscription_status: 'cancelled', subscription_plan: 'none', isActive: false } : null);
-          } else if (result.refundProcessed) {
-            // Within refund window - refunded and cancelled
-            Alert.alert('Subscription Cancelled', result.message || `Your subscription has been cancelled and $${result.refundAmount} has been refunded.`);
-            setSubscription(prev => prev ? { ...prev, subscription_status: 'refunded', isActive: false } : null);
-          } else {
-            // Normal cancellation - access until end of billing period
-            Alert.alert('Subscription Cancelled', 'Your subscription has been cancelled. You will retain access until the end of your current billing period.');
-            setSubscription(prev => prev ? { ...prev, subscription_status: 'cancelled', isActive: false } : null);
-          }
-        } else {
-          Alert.alert('Error', result.error || 'Failed to cancel subscription');
-        }
-      }
-    } catch (error) {
-      console.error('Cancellation error:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
-    } finally {
-      setCancellingSubscription(false);
-    }
-  };
-
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#4A90E2" />
         </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Check if owner has no active subscription - show subscription required screen
-  if (userRole === 'owner' && !loadingSubscription && subscription && !subscription.isActive) {
-    const statusMessage = subscription.subscription_status === 'payment_failed'
-      ? 'Your payment could not be processed. Please add a valid payment method to activate your subscription.'
-      : subscription.subscription_status === 'cancelled'
-      ? 'Your subscription has been cancelled. Resubscribe to continue using Happy Inline.'
-      : 'You need an active subscription to access business features.';
-
-    return (
-      <SafeAreaView style={styles.container}>
-        <ScrollView
-          style={{flex: 1}}
-          contentContainerStyle={styles.emptyContainer}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        >
-          <View style={styles.emptyIconContainer}>
-            <Ionicons name="card-outline" size={80} color="#FF9800" />
-          </View>
-          <Text style={styles.emptyTitle}>Subscription Required</Text>
-          <Text style={styles.emptySubtitle}>{statusMessage}</Text>
-
-          <View style={styles.subscriptionRequiredCard}>
-            <View style={styles.subscriptionRequiredRow}>
-              <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-              <Text style={styles.subscriptionRequiredText}>Unlimited bookings</Text>
-            </View>
-            <View style={styles.subscriptionRequiredRow}>
-              <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-              <Text style={styles.subscriptionRequiredText}>Customer messaging</Text>
-            </View>
-            <View style={styles.subscriptionRequiredRow}>
-              <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-              <Text style={styles.subscriptionRequiredText}>Service provider licenses</Text>
-            </View>
-            <View style={styles.subscriptionRequiredRow}>
-              <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-              <Text style={styles.subscriptionRequiredText}>7-day money-back guarantee</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={styles.subscribeButton}
-            onPress={() => navigation.navigate('ResubscribeScreen')}
-          >
-            <Ionicons name="card" size={24} color="#FFF" />
-            <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.subscriptionPriceHint}>
-            Plans start at $24.99/month
-          </Text>
-        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -489,125 +311,6 @@ const ManagerDashboard = () => {
           </View>
         </View>
 
-        {/* Subscription Card - Only for owners */}
-        {userRole === 'owner' && (
-          <View style={styles.subscriptionSection}>
-            {loadingSubscription ? (
-              <View style={styles.subscriptionLoadingCard}>
-                <ActivityIndicator size="small" color="#4A90E2" />
-                <Text style={styles.subscriptionLoadingText}>Loading plan details...</Text>
-              </View>
-            ) : subscription ? (
-              <View style={styles.subscriptionCard}>
-                {/* Plan Header */}
-                <View style={styles.subscriptionHeader}>
-                  <View style={[styles.planIconCircle, { backgroundColor: getPlanColor(subscription.subscription_plan) + '20' }]}>
-                    <Ionicons
-                      name={getPlanIcon(subscription.subscription_plan)}
-                      size={28}
-                      color={getPlanColor(subscription.subscription_plan)}
-                    />
-                  </View>
-                  <View style={styles.planInfo}>
-                    <Text style={styles.planName}>{subscription.planDetails?.name || 'Unknown'} Plan</Text>
-                    <Text style={styles.planPrice}>${subscription.planDetails?.amount || '0'}/month</Text>
-                  </View>
-                  <View style={[styles.planStatusBadge, { backgroundColor: subscription.isActive ? '#E8F5E9' : '#FFEBEE' }]}>
-                    <Text style={[styles.planStatusText, { color: subscription.isActive ? '#4CAF50' : '#F44336' }]}>
-                      {subscription.subscription_status?.toUpperCase() || 'UNKNOWN'}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* License Usage Bar */}
-                <View style={styles.licenseSection}>
-                  <View style={styles.licenseHeader}>
-                    <Text style={styles.licenseTitle}>Provider Licenses</Text>
-                    <Text style={styles.licenseCount}>
-                      {licenseInfo.currentCount} / {licenseInfo.maxLicenses || subscription.planDetails?.maxLicenses || 0} used
-                    </Text>
-                  </View>
-                  <View style={styles.licenseBar}>
-                    <View
-                      style={[
-                        styles.licenseBarFill,
-                        {
-                          width: `${Math.min(100, (licenseInfo.currentCount / (licenseInfo.maxLicenses || subscription.planDetails?.maxLicenses || 1)) * 100)}%`,
-                          backgroundColor: (licenseInfo.currentCount / (licenseInfo.maxLicenses || subscription.planDetails?.maxLicenses || 1)) > 0.8 ? '#FF9500' : '#4A90E2'
-                        }
-                      ]}
-                    />
-                  </View>
-                </View>
-
-                {/* Features */}
-                <View style={styles.featuresRow}>
-                  <View style={styles.featureItem}>
-                    <Ionicons name="people" size={16} color="#666" />
-                    <Text style={styles.featureText}>{subscription.planDetails?.providers || '0'} providers</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <Ionicons name="calendar" size={16} color="#666" />
-                    <Text style={styles.featureText}>Unlimited bookings</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <Ionicons name="chatbubble" size={16} color="#666" />
-                    <Text style={styles.featureText}>Messaging</Text>
-                  </View>
-                </View>
-
-                {/* Refund Banner */}
-                {subscription.isRefundEligible && subscription.isActive && (
-                  <View style={styles.refundBanner}>
-                    <Ionicons name="shield-checkmark" size={18} color="#4A90E2" />
-                    <Text style={styles.refundBannerText}>
-                      {subscription.refundDaysRemaining} days left for full refund
-                    </Text>
-                  </View>
-                )}
-
-                {/* Action Buttons */}
-                <View style={styles.subscriptionActions}>
-                  {subscription.canUpgrade && subscription.isActive && (
-                    <TouchableOpacity
-                      style={styles.upgradeButton}
-                      onPress={() => navigation.navigate('UpgradePlanScreen', {
-                        userId: currentUserId
-                      })}
-                    >
-                      <Ionicons name="arrow-up-circle" size={20} color="#FFF" />
-                      <Text style={styles.upgradeButtonText}>Upgrade Plan</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {subscription.isActive && (
-                    <TouchableOpacity
-                      style={styles.cancelSubscriptionButton}
-                      onPress={handleCancelSubscription}
-                      disabled={cancellingSubscription}
-                    >
-                      {cancellingSubscription ? (
-                        <ActivityIndicator size="small" color="#FF3B30" />
-                      ) : (
-                        <>
-                          <Ionicons name="close-circle" size={18} color="#FF3B30" />
-                          <Text style={styles.cancelSubscriptionText}>Cancel Subscription</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            ) : (
-              <View style={styles.noSubscriptionCard}>
-                <Ionicons name="alert-circle" size={40} color="#FF9500" />
-                <Text style={styles.noSubscriptionTitle}>No Active Subscription</Text>
-                <Text style={styles.noSubscriptionText}>Contact support if you believe this is an error</Text>
-              </View>
-            )}
-          </View>
-        )}
-
         {/* Your Businesses Section */}
         {shops.length > 0 && (
           <View style={styles.section}>
@@ -691,16 +394,6 @@ const ManagerDashboard = () => {
 
             <TouchableOpacity
               style={styles.quickActionCard}
-              onPress={() => navigation.navigate('StaffManagementScreenManager')}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: '#000' }]}>
-                <Ionicons name="people" size={28} color="#4A90E2" />
-              </View>
-              <Text style={styles.quickActionText}>Providers</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickActionCard}
               onPress={() => {
                 if (shops.length === 1) {
                   navigation.navigate('ShopSettingsScreen', { shopId: shops[0].id });
@@ -725,21 +418,6 @@ const ManagerDashboard = () => {
               <Text style={styles.quickActionText}>Profile Settings</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.quickActionCard}
-              onPress={() => {
-                if (currentUserId) {
-                  navigation.navigate('UpgradePlanScreen', {
-                    userId: currentUserId
-                  });
-                }
-              }}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: '#34C759' }]}>
-                <Ionicons name="arrow-up-circle" size={28} color="#FFF" />
-              </View>
-              <Text style={styles.quickActionText}>Upgrade Plan</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -1320,12 +998,7 @@ const styles = StyleSheet.create({
     color: '#4A90E2',
     fontWeight: '600',
   },
-  subscriptionActions: {
-    flexDirection: 'column',
-    gap: 10,
-    marginTop: 4,
-  },
-  upgradeButton: {
+  manageButton: {
     backgroundColor: '#4A90E2',
     borderRadius: 12,
     paddingVertical: 14,
@@ -1334,28 +1007,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
+    marginTop: 8,
   },
-  upgradeButtonText: {
+  manageButtonText: {
     color: '#FFF',
     fontSize: 15,
     fontWeight: '700',
-  },
-  cancelSubscriptionButton: {
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#FF3B30',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-  },
-  cancelSubscriptionText: {
-    color: '#FF3B30',
-    fontSize: 14,
-    fontWeight: '600',
   },
   noSubscriptionCard: {
     backgroundColor: '#FFF',

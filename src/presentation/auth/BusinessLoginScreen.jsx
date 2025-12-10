@@ -190,12 +190,9 @@ const BusinessLoginScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Register Link */}
+          {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have a business account?</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('BusinessRegistration')}>
-              <Text style={styles.registerLink}>Register Your Business</Text>
-            </TouchableOpacity>
+            <Text style={styles.footerText}>For shop owners and managers only</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -346,13 +343,6 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 15,
     color: '#666',
-    marginBottom: 8,
-  },
-  registerLink: {
-    fontSize: 16,
-    color: '#0393d5',
-    fontWeight: 'bold',
-    textDecorationLine: 'underline',
   },
 });
 

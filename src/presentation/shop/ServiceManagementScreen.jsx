@@ -143,7 +143,7 @@ const ServiceManagementScreen = ({ route, navigation }) => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (!permissionResult.granted) {
-      Alert.alert('Permission Required', 'Please allow access to your photo library');
+      Alert.alert('Photo Library Access', 'Happy Inline needs access to your photos so you can add images for your services. Service images help customers see what to expect.');
       return;
     }
 

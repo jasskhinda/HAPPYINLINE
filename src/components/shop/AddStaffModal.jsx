@@ -96,7 +96,7 @@ const AddStaffModal = ({ visible, onClose, onAdd, existingStaff = [], shopData =
       const currentProviderCount = existingStaff.filter(s => s.role === 'barber').length;
       const maxLicenses = shopData.max_licenses || 0;
       if (currentProviderCount >= maxLicenses) {
-        Alert.alert('Provider Limit Reached', 'Please upgrade your plan to add more providers.');
+        Alert.alert('Provider Limit Reached', 'You have reached your provider limit.');
         return;
       }
     }
@@ -251,61 +251,12 @@ const AddStaffModal = ({ visible, onClose, onAdd, existingStaff = [], shopData =
       const planName = shopData.subscription_plan || 'starter';
 
       if (currentProviderCount >= maxLicenses) {
-        // Show upgrade prompt with correct pricing
-        const upgradeMessage = planName === 'basic'
-          ? `Upgrade to Starter ($74.99/mo) to add up to 4 providers`
-          : planName === 'starter'
-          ? `Upgrade to Professional ($99.99/mo) to add up to 9 providers`
-          : planName === 'professional'
-          ? `Upgrade to Enterprise ($149.99/mo) to add up to 14 providers`
-          : planName === 'enterprise'
-          ? `Upgrade to Unlimited ($199/mo) for unlimited providers`
-          : `You have unlimited providers on this plan`;
-
         Alert.alert(
-          '📊 Provider Limit Reached',
-          `Your ${planName.charAt(0).toUpperCase() + planName.slice(1)} plan supports up to ${maxLicenses} providers.\n\n` +
-          `You currently have: ${currentProviderCount}/${maxLicenses} providers\n\n` +
-          `${upgradeMessage}\n\n` +
-          `💡 Note: Admins don't count toward this limit.\n` +
-          `Only service providers (those who accept bookings) use licenses.`,
-          [
-            { text: 'Maybe Later', style: 'cancel' },
-            {
-              text: 'Learn More',
-              onPress: () => {
-                // Future: Navigate to pricing page or show pricing modal
-                Alert.alert(
-                  'Our Pricing Plans',
-                  '🌱 Basic ($24.99/mo)\n' +
-                  '• 1-2 providers\n' +
-                  '• Perfect for solo providers\n' +
-                  '• Unlimited admins\n' +
-                  '• Unlimited services\n\n' +
-                  '💼 Starter ($74.99/mo)\n' +
-                  '• 3-4 providers\n' +
-                  '• Perfect for small teams\n' +
-                  '• Unlimited admins\n' +
-                  '• Unlimited services\n\n' +
-                  '🚀 Professional ($99.99/mo)\n' +
-                  '• 5-9 providers\n' +
-                  '• Growing teams\n' +
-                  '• Unlimited admins\n' +
-                  '• Unlimited services\n\n' +
-                  '⭐ Enterprise ($149.99/mo)\n' +
-                  '• 10-14 providers\n' +
-                  '• Large operations\n' +
-                  '• Unlimited admins\n' +
-                  '• Unlimited services\n\n' +
-                  '🏆 Unlimited ($199/mo)\n' +
-                  '• Unlimited providers\n' +
-                  '• All features\n' +
-                  '• Priority support',
-                  [{ text: 'Got it!' }]
-                );
-              }
-            }
-          ]
+          'Provider Limit Reached',
+          `Your plan supports up to ${maxLicenses} providers.\n\n` +
+          `You currently have: ${currentProviderCount}/${maxLicenses} providers.\n\n` +
+          `Note: Admins don't count toward this limit. Only service providers use licenses.`,
+          [{ text: 'OK', style: 'default' }]
         );
         return;
       }

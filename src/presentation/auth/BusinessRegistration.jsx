@@ -15,7 +15,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { supabase } from '../../lib/supabase';
-import PricingExplanationModal from '../../components/pricing/PricingExplanationModal';
 
 const BusinessRegistration = ({ navigation }) => {
   const [step, setStep] = useState(0);
@@ -34,10 +33,6 @@ const BusinessRegistration = ({ navigation }) => {
   const [businessTypes, setBusinessTypes] = useState([]);
   const [selectedBusinessType, setSelectedBusinessType] = useState(null);
   const [loadingCategories, setLoadingCategories] = useState(false);
-
-  // Pricing selection
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  const [showPricingModal, setShowPricingModal] = useState(false);
 
   // Load business categories when step 2 is reached
   React.useEffect(() => {
@@ -93,26 +88,77 @@ const BusinessRegistration = ({ navigation }) => {
   const handleRegister = async () => {
     setLoading(true);
     try {
-      console.log('📝 Proceeding to payment (account will be created after successful payment)...');
+      console.log('📝 Creating business account...');
 
-      // DON'T create account or shop yet - only after payment succeeds
-      // Navigate to payment screen with all registration data
-      navigation.replace('PaymentMethodScreen', {
-        businessData: {
-          // Registration data - will be used to create account after payment
-          email: email.toLowerCase().trim(),
-          password: password,
-          name: name,
-          businessName: businessName,
-          selectedPlan: selectedPlan,
-          selectedCategory: selectedCategory,
-          selectedBusinessType: selectedBusinessType,
+      // Create the account directly (no payment required for now)
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email: email.toLowerCase().trim(),
+        password: password,
+        options: {
+          data: {
+            name: name,
+            role: 'owner',
+          }
         }
+      });
+
+      if (signUpError) {
+        throw signUpError;
+      }
+
+      if (!authData.user) {
+        throw new Error('Failed to create account');
+      }
+
+      console.log('✅ Auth account created:', authData.user.id);
+
+      // Update profile with business details
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          name: name,
+          role: 'owner',
+          business_name: businessName,
+          business_category_id: selectedCategory?.id,
+          business_type_id: selectedBusinessType?.id,
+          // No subscription for now - they will subscribe on the website
+          subscription_plan: null,
+          subscription_status: null,
+        })
+        .eq('id', authData.user.id);
+
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        // Don't fail the registration, profile can be updated later
+      }
+
+      // Show success message
+      Toast.show({
+        type: 'success',
+        text1: 'Account Created!',
+        text2: 'Welcome to Happy InLine',
+        visibilityTime: 3000,
+      });
+
+      // Navigate to main app
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainScreen' }],
       });
 
     } catch (error) {
       console.error('❌ Registration error:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+
+      let errorMessage = 'Something went wrong. Please try again.';
+      if (error.message?.includes('already registered')) {
+        errorMessage = 'This email is already registered. Please sign in instead.';
+      } else if (error.message?.includes('invalid email')) {
+        errorMessage = 'Please enter a valid email address.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert('Registration Failed', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -402,7 +448,7 @@ const BusinessRegistration = ({ navigation }) => {
               onPress={() => setStep(3)}
               disabled={!selectedCategory || !selectedBusinessType}
             >
-              <Text style={styles.primaryButtonText}>Continue</Text>
+              <Text style={styles.primaryButtonText}>Continue to Review</Text>
               <Ionicons name="arrow-forward" size={20} color="#FFF" />
             </TouchableOpacity>
 
@@ -414,230 +460,7 @@ const BusinessRegistration = ({ navigation }) => {
         )}
 
         {/* STEP 3: Review & Confirm */}
-        {/* STEP 3: License-Based Pricing Selection */}
         {step === 3 && (
-          <View style={styles.stepContainer}>
-            <View style={styles.titleWithInfo}>
-              <Text style={styles.stepTitle}>Choose Your License Plan</Text>
-              <TouchableOpacity
-                style={styles.infoButton}
-                onPress={() => Alert.alert(
-                  'What is a License?',
-                  'Each service provider (stylist, therapist, trainer, instructor, etc.) needs one license to use the platform and accept bookings.\n\nFor example:\n• A salon with 5 stylists needs 5 licenses\n• A gym with 8 trainers needs 8 licenses\n• A spa with 3 therapists needs 3 licenses',
-                  [{ text: 'Got it!' }]
-                )}
-              >
-                <Ionicons name="help-circle" size={24} color="#0393d5" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.stepSubtitle}>
-              Pay only for the licenses you need. Cancel anytime.
-            </Text>
-
-            {/* Not Sure Which Plan Button */}
-            <TouchableOpacity
-              style={styles.helpButton}
-              onPress={() => setShowPricingModal(true)}
-            >
-              <Ionicons name="help-circle-outline" size={20} color="#0393d5" />
-              <Text style={styles.helpButtonText}>Not sure which plan to buy?</Text>
-            </TouchableOpacity>
-
-            <View style={styles.pricingContainer}>
-              {/* 1-2 Licenses Plan (Basic) */}
-              <TouchableOpacity
-                style={[
-                  styles.pricingCard,
-                  selectedPlan === 'basic' && styles.pricingCardSelected
-                ]}
-                onPress={() => setSelectedPlan('basic')}
-                activeOpacity={0.7}
-              >
-                {selectedPlan === 'basic' && (
-                  <View style={styles.selectedBadge}>
-                    <Ionicons name="checkmark-circle" size={24} color="#0393d5" />
-                  </View>
-                )}
-                <View style={styles.pricingHeader}>
-                  <Ionicons name="person" size={28} color="#0393d5" />
-                  <Text style={styles.planName}>Basic</Text>
-                </View>
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceSymbol}>$</Text>
-                  <Text style={styles.priceAmount}>24.99</Text>
-                  <Text style={styles.pricePeriod}>/month</Text>
-                </View>
-                <Text style={styles.planDescription}>1-2 Licenses</Text>
-                <View style={styles.featuresList}>
-                  <View style={styles.featureItem}>
-                    <Ionicons name="checkmark" size={18} color="#34C759" />
-                    <Text style={styles.featureText}>All features included</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              {/* 3-4 Licenses Plan */}
-              <TouchableOpacity
-                style={[
-                  styles.pricingCard,
-                  selectedPlan === 'starter' && styles.pricingCardSelected,
-                  styles.popularCard
-                ]}
-                onPress={() => setSelectedPlan('starter')}
-                activeOpacity={0.7}
-              >
-                <View style={styles.popularBadge}>
-                  <Text style={styles.popularBadgeText}>MOST POPULAR</Text>
-                </View>
-                {selectedPlan === 'starter' && (
-                  <View style={styles.selectedBadge}>
-                    <Ionicons name="checkmark-circle" size={24} color="#0393d5" />
-                  </View>
-                )}
-                <View style={styles.pricingHeader}>
-                  <Ionicons name="people" size={28} color="#0393d5" />
-                  <Text style={styles.planName}>Starter</Text>
-                </View>
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceSymbol}>$</Text>
-                  <Text style={styles.priceAmount}>74.99</Text>
-                  <Text style={styles.pricePeriod}>/month</Text>
-                </View>
-                <Text style={styles.planDescription}>3-4 Licenses</Text>
-                <View style={styles.featuresList}>
-                  <View style={styles.featureItem}>
-                    <Ionicons name="checkmark" size={18} color="#34C759" />
-                    <Text style={styles.featureText}>All features included</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              {/* 5-9 Licenses Plan */}
-              <TouchableOpacity
-                style={[
-                  styles.pricingCard,
-                  selectedPlan === 'professional' && styles.pricingCardSelected
-                ]}
-                onPress={() => setSelectedPlan('professional')}
-                activeOpacity={0.7}
-              >
-                {selectedPlan === 'professional' && (
-                  <View style={styles.selectedBadge}>
-                    <Ionicons name="checkmark-circle" size={24} color="#0393d5" />
-                  </View>
-                )}
-                <View style={styles.pricingHeader}>
-                  <Ionicons name="briefcase" size={28} color="#0393d5" />
-                  <Text style={styles.planName}>Professional</Text>
-                </View>
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceSymbol}>$</Text>
-                  <Text style={styles.priceAmount}>99.99</Text>
-                  <Text style={styles.pricePeriod}>/month</Text>
-                </View>
-                <Text style={styles.planDescription}>5-9 Licenses</Text>
-                <View style={styles.featuresList}>
-                  <View style={styles.featureItem}>
-                    <Ionicons name="checkmark" size={18} color="#34C759" />
-                    <Text style={styles.featureText}>All features included</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              {/* 10-14 Licenses Plan */}
-              <TouchableOpacity
-                style={[
-                  styles.pricingCard,
-                  selectedPlan === 'enterprise' && styles.pricingCardSelected
-                ]}
-                onPress={() => setSelectedPlan('enterprise')}
-                activeOpacity={0.7}
-              >
-                {selectedPlan === 'enterprise' && (
-                  <View style={styles.selectedBadge}>
-                    <Ionicons name="checkmark-circle" size={24} color="#0393d5" />
-                  </View>
-                )}
-                <View style={styles.pricingHeader}>
-                  <Ionicons name="business" size={28} color="#0393d5" />
-                  <Text style={styles.planName}>Enterprise</Text>
-                </View>
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceSymbol}>$</Text>
-                  <Text style={styles.priceAmount}>149.99</Text>
-                  <Text style={styles.pricePeriod}>/month</Text>
-                </View>
-                <Text style={styles.planDescription}>10-14 Licenses</Text>
-                <View style={styles.featuresList}>
-                  <View style={styles.featureItem}>
-                    <Ionicons name="checkmark" size={18} color="#34C759" />
-                    <Text style={styles.featureText}>All features included</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              {/* Unlimited Plan */}
-              <TouchableOpacity
-                style={[
-                  styles.pricingCard,
-                  selectedPlan === 'unlimited' && styles.pricingCardSelected
-                ]}
-                onPress={() => setSelectedPlan('unlimited')}
-                activeOpacity={0.7}
-              >
-                {selectedPlan === 'unlimited' && (
-                  <View style={styles.selectedBadge}>
-                    <Ionicons name="checkmark-circle" size={24} color="#0393d5" />
-                  </View>
-                )}
-                <View style={styles.pricingHeader}>
-                  <Ionicons name="infinite" size={28} color="#0393d5" />
-                  <Text style={styles.planName}>Unlimited</Text>
-                </View>
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceSymbol}>$</Text>
-                  <Text style={styles.priceAmount}>199</Text>
-                  <Text style={styles.pricePeriod}>/month</Text>
-                </View>
-                <Text style={styles.planDescription}>Unlimited Licenses</Text>
-                <View style={styles.featuresList}>
-                  <View style={styles.featureItem}>
-                    <Ionicons name="checkmark" size={18} color="#34C759" />
-                    <Text style={styles.featureText}>All features included</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <Ionicons name="checkmark" size={18} color="#34C759" />
-                    <Text style={styles.featureText}>Priority support</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.refundNotice}>
-              <Ionicons name="shield-checkmark" size={20} color="#0393d5" />
-              <Text style={styles.refundNoticeText}>
-                7-day money-back guarantee. Not satisfied? Get a full refund, no questions asked.
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.primaryButton, !selectedPlan && styles.disabledButton]}
-              onPress={() => setStep(4)}
-              disabled={!selectedPlan}
-            >
-              <Text style={styles.primaryButtonText}>Continue</Text>
-              <Ionicons name="arrow-forward" size={20} color="#FFF" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.backButton} onPress={() => setStep(2)}>
-              <Ionicons name="arrow-back" size={20} color="#0393d5" />
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* STEP 4: Review */}
-        {step === 4 && (
           <View style={styles.stepContainer}>
             <View style={styles.iconHeader}>
               <View style={styles.largeIconCircle}>
@@ -647,7 +470,7 @@ const BusinessRegistration = ({ navigation }) => {
 
             <Text style={styles.stepTitle}>Review Your Information</Text>
             <Text style={styles.stepSubtitle}>
-              Make sure everything looks good before registering
+              Make sure everything looks good before creating your account
             </Text>
 
             <View style={styles.reviewContainer}>
@@ -659,24 +482,13 @@ const BusinessRegistration = ({ navigation }) => {
               <View style={styles.reviewItem}>
                 <Text style={styles.reviewLabel}>Industry</Text>
                 <Text style={styles.reviewValue}>
-                  {selectedCategory?.icon} {selectedCategory?.name}
+                  {selectedCategory?.name}
                 </Text>
               </View>
 
               <View style={styles.reviewItem}>
                 <Text style={styles.reviewLabel}>Business Type</Text>
                 <Text style={styles.reviewValue}>{selectedBusinessType?.name}</Text>
-              </View>
-
-              <View style={styles.reviewItem}>
-                <Text style={styles.reviewLabel}>Selected Plan</Text>
-                <Text style={styles.reviewValue}>
-                  {selectedPlan === 'basic' && 'Basic (1-2 providers) - $24.99/month'}
-                  {selectedPlan === 'starter' && 'Starter (3-4 providers) - $74.99/month'}
-                  {selectedPlan === 'professional' && 'Professional (5-9 providers) - $99.99/month'}
-                  {selectedPlan === 'enterprise' && 'Enterprise (10-14 providers) - $149.99/month'}
-                  {selectedPlan === 'unlimited' && 'Unlimited (Unlimited providers) - $199/month'}
-                </Text>
               </View>
 
               <View style={styles.reviewItem}>
@@ -690,9 +502,9 @@ const BusinessRegistration = ({ navigation }) => {
               </View>
 
               <View style={styles.reviewNote}>
-                <Ionicons name="shield-checkmark" size={20} color="#0393d5" />
+                <Ionicons name="information-circle" size={20} color="#0393d5" />
                 <Text style={styles.reviewNoteText}>
-                  Next step: Complete your payment. Remember, you have a 7-day money-back guarantee if you're not satisfied.
+                  Your account will be created with free access. You can activate your subscription anytime from our website to unlock all business features.
                 </Text>
               </View>
             </View>
@@ -714,7 +526,7 @@ const BusinessRegistration = ({ navigation }) => {
 
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => setStep(3)}
+              onPress={() => setStep(2)}
               disabled={loading}
             >
               <Ionicons name="arrow-back" size={20} color="#0393d5" />
@@ -724,12 +536,6 @@ const BusinessRegistration = ({ navigation }) => {
         )}
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* Pricing Explanation Modal */}
-      <PricingExplanationModal
-        visible={showPricingModal}
-        onClose={() => setShowPricingModal(false)}
-      />
     </SafeAreaView>
   );
 };

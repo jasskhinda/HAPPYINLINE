@@ -16,15 +16,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../../../../../lib/supabase';
+import { deleteAccount } from '../../../../../lib/auth';
 import SettingAppBar from '../../../../../components/appBar/SettingAppBar';
+import { useNavigation } from '@react-navigation/native';
 
 const EditProfileScreen = () => {
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [userId, setUserId] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -79,6 +84,7 @@ const EditProfileScreen = () => {
         profile_image: profile.profile_image || null,
       });
       setUserRole(profile.role || 'customer');
+      setIsPlatformAdmin(profile.is_platform_admin || false);
 
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -102,8 +108,8 @@ const EditProfileScreen = () => {
 
       if (status !== 'granted') {
         Alert.alert(
-          'Permission Required',
-          'Please grant permission to access your photo library to change your profile picture.',
+          'Photo Library Access',
+          'Happy Inline needs access to your photo library so you can choose a profile picture. This helps other users and businesses recognize you when you book appointments.',
           [{ text: 'OK' }]
         );
         return;
@@ -121,7 +127,7 @@ const EditProfileScreen = () => {
               if (cameraPermission.status === 'granted') {
                 pickImage('camera');
               } else {
-                Alert.alert('Permission Denied', 'Camera permission is required to take photos.');
+                Alert.alert('Camera Access', 'Happy Inline needs camera access so you can take a profile picture. This helps businesses recognize you when you arrive for appointments.');
               }
             }
           },
@@ -351,6 +357,79 @@ const EditProfileScreen = () => {
     }
   };
 
+  const handleDeleteAccount = () => {
+    if (isPlatformAdmin) {
+      Alert.alert(
+        'Cannot Delete',
+        'Platform admin accounts cannot be deleted for security reasons.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to permanently delete your account? This action cannot be undone.\n\nAll your data, bookings, and profile information will be permanently removed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: confirmDeleteAccount,
+        },
+      ]
+    );
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Final Confirmation',
+      'This is your last chance. Are you absolutely sure you want to delete your account?',
+      [
+        { text: 'No, Keep My Account', style: 'cancel' },
+        {
+          text: 'Yes, Delete Forever',
+          style: 'destructive',
+          onPress: processDeleteAccount,
+        },
+      ]
+    );
+  };
+
+  const processDeleteAccount = async () => {
+    try {
+      setDeletingAccount(true);
+
+      const result = await deleteAccount();
+
+      if (result.success) {
+        Alert.alert(
+          'Account Deleted',
+          result.message || 'Your account has been permanently deleted.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigate to welcome screen
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'WelcomeScreen' }],
+                });
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Error', result.error || 'Failed to delete account');
+      }
+    } catch (error) {
+      console.error('Delete account error:', error);
+      Alert.alert('Error', 'An unexpected error occurred while deleting your account');
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -557,6 +636,38 @@ const EditProfileScreen = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Delete Account Section */}
+        <View style={styles.deleteAccountSection}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+            <Text style={[styles.sectionTitle, { color: '#FF3B30' }]}>Delete Account</Text>
+          </View>
+
+          <Text style={styles.deleteWarningText}>
+            Permanently delete your account and all associated data. This action cannot be undone.
+          </Text>
+
+          <TouchableOpacity
+            onPress={handleDeleteAccount}
+            disabled={deletingAccount || isPlatformAdmin}
+            activeOpacity={0.9}
+            style={[
+              styles.deleteAccountButton,
+              (deletingAccount || isPlatformAdmin) && styles.deleteAccountButtonDisabled
+            ]}
+          >
+            {deletingAccount ? (
+              <ActivityIndicator color="#FF3B30" size="small" />
+            ) : (
+              <>
+                <Ionicons name="trash" size={18} color="#FF3B30" style={{ marginRight: 8 }} />
+                <Text style={styles.deleteAccountButtonText}>Delete My Account</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 50 }} />
       </ScrollView>
     </View>
   );
@@ -729,6 +840,45 @@ const styles = StyleSheet.create({
   },
   changePasswordButtonText: {
     color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  deleteAccountSection: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#FFE5E5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  deleteWarningText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  deleteAccountButton: {
+    backgroundColor: '#FFF',
+    borderWidth: 2,
+    borderColor: '#FF3B30',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  deleteAccountButtonDisabled: {
+    borderColor: '#CCC',
+    backgroundColor: '#F5F5F5',
+  },
+  deleteAccountButtonText: {
+    color: '#FF3B30',
     fontSize: 16,
     fontWeight: 'bold',
   },

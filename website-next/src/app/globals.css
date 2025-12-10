@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #0071E3;
+  --primary-dark: #0077ED;
+  --text-primary: #1D1D1F;
+  --text-secondary: #86868B;
+  --background: #000000;
+  --foreground: #F5F5F7;
+  --card-bg: #161617;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+/* Plan colors */
+.plan-basic { --plan-color: #4A90E2; }
+.plan-starter { --plan-color: #34C759; }
+.plan-professional { --plan-color: #FF9500; }
+.plan-enterprise { --plan-color: #AF52DE; }
+.plan-unlimited { --plan-color: #FF2D55; }
+
+/* Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 113, 227, 0.4); }
+  50% { box-shadow: 0 0 40px rgba(0, 113, 227, 0.6); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(180deg, #FFFFFF 0%, #A1A1A6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

@@ -245,9 +245,9 @@ const CreateShopScreen = ({ route, navigation }) => {
   // Image Pickers
   const handlePickLogoImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
+
     if (!permissionResult.granted) {
-      Alert.alert('Permission Required', 'Please allow access to your photo library');
+      Alert.alert('Photo Library Access', 'Happy Inline needs access to your photos so you can upload a logo for your business. Your logo helps customers recognize your shop.');
       return;
     }
 
@@ -268,9 +268,9 @@ const CreateShopScreen = ({ route, navigation }) => {
 
   const handlePickCoverImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
+
     if (!permissionResult.granted) {
-      Alert.alert('Permission Required', 'Please allow access to your photo library');
+      Alert.alert('Photo Library Access', 'Happy Inline needs access to your photos so you can upload a cover image for your business profile. Cover images make your shop page more attractive to customers.');
       return;
     }
 

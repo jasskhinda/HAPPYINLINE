@@ -165,20 +165,10 @@ const BarberManagementScreen = () => {
       const planName = licenseInfo.planName?.charAt(0).toUpperCase() + licenseInfo.planName?.slice(1) || 'Current';
 
       Alert.alert(
-        '📊 License Limit Reached',
+        'Provider Limit Reached',
         `Your ${planName} plan allows ${licenseInfo.maxLicenses} service providers.\n\n` +
-        `You currently have: ${licenseInfo.currentCount}/${licenseInfo.maxLicenses} providers.\n\n` +
-        `To add more providers, please upgrade your plan.`,
-        [
-          { text: 'Maybe Later', style: 'cancel' },
-          {
-            text: 'Upgrade Plan',
-            onPress: async () => {
-              const { data: { user } } = await supabase.auth.getUser();
-              navigation.navigate('UpgradePlanScreen', { userId: user?.id });
-            }
-          }
-        ]
+        `You currently have: ${licenseInfo.currentCount}/${licenseInfo.maxLicenses} providers.`,
+        [{ text: 'OK', style: 'default' }]
       );
       return;
     }
@@ -618,16 +608,7 @@ const BarberManagementScreen = () => {
               </Text>
             </View>
             {!licenseInfo.canAdd && (
-              <TouchableOpacity
-                style={styles.upgradeLink}
-                onPress={async () => {
-                  const { data: { user } } = await supabase.auth.getUser();
-                  navigation.navigate('UpgradePlanScreen', { userId: user?.id });
-                }}
-              >
-                <Text style={styles.upgradeLinkText}>Upgrade</Text>
-                <Ionicons name="arrow-forward" size={14} color="#4A90E2" />
-              </TouchableOpacity>
+              <Text style={styles.upgradeLinkText}>Limit reached</Text>
             )}
           </View>
 

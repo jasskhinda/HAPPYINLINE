@@ -19,12 +19,9 @@ import {
 import CustomerOnboarding from './presentation/auth/CustomerOnboarding';
 import ExclusiveCustomerRegistration from './presentation/auth/ExclusiveCustomerRegistration';
 import ExclusiveCustomerLogin from './presentation/auth/ExclusiveCustomerLogin';
-import BusinessRegistration from './presentation/auth/BusinessRegistration';
 import BusinessLoginScreen from './presentation/auth/BusinessLoginScreen';
 import ForgotPasswordScreen from './presentation/auth/ForgotPasswordScreen';
 import RegistrationSuccessScreen from './presentation/auth/RegistrationSuccessScreen';
-import PaymentMethodScreen from './presentation/auth/PaymentMethodScreen';
-import PaymentSuccessScreen from './presentation/auth/PaymentSuccessScreen';
 import EmailAuthScreen from './presentation/auth/EmailAuthScreen';
 import OTPVerificationScreen from './presentation/auth/OTPVerificationScreen';
 import CustomerRegistration from './presentation/auth/CustomerRegistration';
@@ -71,8 +68,6 @@ import SearchScreen from './presentation/main/bottomBar/home/SearchScreen';
 import StaffManagementScreen from './presentation/main/bottomBar/home/StaffManagementScreen';
 import InvitationsScreen from './presentation/invitations/InvitationsScreen';
 import PaymentTrackingScreen from './presentation/admin/PaymentTrackingScreen';
-import UpgradePlanScreen from './presentation/shop/UpgradePlanScreen';
-import ResubscribeScreen from './presentation/shop/ResubscribeScreen';
 import { checkAuthState, onAuthStateChange, hasCompletedOnboarding, clearAllAppData, isCreatingProvider } from './lib/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -219,12 +214,9 @@ const Main = () => {
             <RootStack.Screen name="CustomerOnboarding" component={CustomerOnboarding}/>
             <RootStack.Screen name="ExclusiveCustomerRegistration" component={ExclusiveCustomerRegistration} />
             <RootStack.Screen name="ExclusiveCustomerLogin" component={ExclusiveCustomerLogin} />
-            <RootStack.Screen name="BusinessRegistration" component={BusinessRegistration}/>
             <RootStack.Screen name="BusinessLoginScreen" component={BusinessLoginScreen}/>
             <RootStack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} options={{ headerShown: false }}/>
             <RootStack.Screen name="RegistrationSuccessScreen" component={RegistrationSuccessScreen}/>
-            <RootStack.Screen name="PaymentMethodScreen" component={PaymentMethodScreen} options={{ headerShown: false }}/>
-            <RootStack.Screen name="PaymentSuccessScreen" component={PaymentSuccessScreen} options={{ headerShown: false }}/>
             <RootStack.Screen name="EmailAuthScreen" component={EmailAuthScreen}/>
             <RootStack.Screen name="OTPVerificationScreen" component={OTPVerificationScreen}/>
             <RootStack.Screen name="CustomerRegistration" component={CustomerRegistration}/>
@@ -270,8 +262,6 @@ const Main = () => {
             <RootStack.Screen name="StaffManagementScreen" component={StaffManagementScreen} />
             <RootStack.Screen name="InvitationsScreen" component={InvitationsScreen} />
             <RootStack.Screen name="PaymentTrackingScreen" component={PaymentTrackingScreen} options={{ headerShown: false }} />
-            <RootStack.Screen name="UpgradePlanScreen" component={UpgradePlanScreen} options={{ headerShown: false }} />
-            <RootStack.Screen name="ResubscribeScreen" component={ResubscribeScreen} options={{ headerShown: false }} />
             {/*
             <RootStack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen}/>
             <RootStack.Screen name="TermsPolicyScreen" component={TermsPolicyScreen}/> */}

@@ -1,11 +1,11 @@
-import { Image, ScrollView, StyleSheet, Text, View, Dimensions, Alert, ActivityIndicator, Modal, TextInput, TouchableOpacity } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View, Dimensions, Alert, ActivityIndicator, Modal, TextInput, TouchableOpacity, Linking } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ProfileComponent from './ui/ProfileComponent';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { signOut, getCurrentUser, sendEmailChangeOTP, verifyEmailChangeOTP, checkLicenseAvailability } from '../../../../lib/auth';
 import { getMyShops, getCurrentShopId } from '../../../../lib/shopAuth';
-import { getSubscriptionStatus, cancelSubscription, STRIPE_PLANS, REFUND_DAYS } from '../../../../lib/stripe';
+import { getSubscriptionStatus } from '../../../../lib/stripe';
 import { useState, useCallback } from 'react';
 
 const { width, height } = Dimensions.get('window');
@@ -29,11 +29,10 @@ const ProfileScreen = () => {
   const [otpCode, setOtpCode] = useState('');
   const [verifyingOTP, setVerifyingOTP] = useState(false);
 
-  // Subscription data
+  // Subscription data (read-only display)
   const [subscription, setSubscription] = useState(null);
   const [loadingSubscription, setLoadingSubscription] = useState(false);
-  const [cancellingSubscription, setCancellingSubscription] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null); // Store user ID for subscription actions
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [licenseInfo, setLicenseInfo] = useState({ currentCount: 0, maxLicenses: 0 });
 
   // Fetch user data when screen comes into focus
@@ -192,66 +191,9 @@ const ProfileScreen = () => {
     setEmailChangeStep('email');
   };
 
-  const handleCancelSubscription = () => {
-    if (!currentUserId) {
-      Alert.alert('Error', 'User not found');
-      return;
-    }
-
-    // Check if eligible for refund
-    const isRefundEligible = subscription?.isRefundEligible;
-    const daysRemaining = subscription?.refundDaysRemaining || 0;
-
-    Alert.alert(
-      'Cancel Subscription',
-      isRefundEligible
-        ? `You are within the ${REFUND_DAYS}-day refund window (${daysRemaining} days remaining).\n\nYou will receive a full refund of $${subscription?.monthly_amount || '0.00'} and your subscription will be cancelled immediately.`
-        : 'Are you sure you want to cancel your subscription?\n\nYou will retain access until the end of your current billing period. No refund is available after the 7-day window.',
-      [
-        { text: 'Keep Subscription', style: 'cancel' },
-        {
-          text: isRefundEligible ? 'Cancel & Get Refund' : 'Cancel Subscription',
-          style: 'destructive',
-          onPress: processCancellation
-        }
-      ]
-    );
-  };
-
-  const processCancellation = async () => {
-    try {
-      setCancellingSubscription(true);
-
-      // cancelSubscription now auto-handles refunds if within 7-day window
-      const result = await cancelSubscription(currentUserId, 'Customer requested cancellation');
-
-      if (result.success) {
-        if (result.refundProcessed) {
-          // Refund was processed (within 7-day window)
-          Alert.alert(
-            'Refund Processed',
-            result.message || `Your subscription has been cancelled and $${result.refundAmount} has been refunded to your payment method.`,
-            [{ text: 'OK' }]
-          );
-          setSubscription(prev => prev ? { ...prev, subscription_status: 'refunded', isActive: false } : null);
-        } else {
-          // Just cancelled (after 7-day window)
-          Alert.alert(
-            'Subscription Cancelled',
-            result.message || 'Your subscription has been cancelled. You will retain access until the end of your current billing period.',
-            [{ text: 'OK' }]
-          );
-          setSubscription(prev => prev ? { ...prev, subscription_status: 'cancelled', isActive: false } : null);
-        }
-      } else {
-        Alert.alert('Error', result.error || 'Failed to cancel subscription');
-      }
-    } catch (error) {
-      console.error('Cancellation error:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
-    } finally {
-      setCancellingSubscription(false);
-    }
+  // Open website for subscription management
+  const handleManageSubscription = () => {
+    Linking.openURL('https://www.happyinline.com/dashboard');
   };
 
   const getPlanIcon = (planKey) => {
@@ -409,178 +351,6 @@ const ProfileScreen = () => {
 
           <ProfileComponent icon={'person-outline'} text={'Edit Profile'} onPress={() => navigation.navigate('EditProfileScreen')} />
 
-          {/* Subscription Management Section - for owners (subscription is on profile, not shop) */}
-          {profileRole === 'owner' && currentUserId && (
-            <View style={styles.subscriptionSection}>
-              <Text style={styles.sectionTitle}>Subscription</Text>
-
-              {loadingSubscription ? (
-                <View style={styles.subscriptionLoadingContainer}>
-                  <ActivityIndicator size="small" color="#0393d5" />
-                  <Text style={styles.subscriptionLoadingText}>Loading plan details...</Text>
-                </View>
-              ) : subscription ? (
-                <View style={styles.subscriptionCard}>
-                  {/* Current Plan Header */}
-                  <View style={styles.planHeader}>
-                    <View style={[styles.planIconCircle, { backgroundColor: getPlanColor(subscription.subscription_plan) + '20' }]}>
-                      <Icon
-                        name={getPlanIcon(subscription.subscription_plan)}
-                        size={24}
-                        color={getPlanColor(subscription.subscription_plan)}
-                      />
-                    </View>
-                    <View style={styles.planInfo}>
-                      <Text style={styles.planName}>{subscription.planDetails?.name || 'Unknown'} Plan</Text>
-                      <Text style={styles.planPrice}>${subscription.planDetails?.amount || '0'}/month</Text>
-                    </View>
-                    <View style={[
-                      styles.statusBadge,
-                      { backgroundColor: subscription.isActive ? '#E8F5E9' : '#FFEBEE' }
-                    ]}>
-                      <Text style={[
-                        styles.statusText,
-                        { color: subscription.isActive ? '#4CAF50' : '#F44336' }
-                      ]}>
-                        {subscription.subscription_status?.toUpperCase() || 'UNKNOWN'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Plan Features */}
-                  <View style={styles.planFeatures}>
-                    <View style={styles.featureRow}>
-                      <Icon name="people" size={18} color="#666" />
-                      <Text style={styles.featureText}>
-                        {subscription.planDetails?.providers || '0'} service providers
-                      </Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                      <Icon name="checkmark-circle" size={18} color="#4CAF50" />
-                      <Text style={styles.featureText}>Unlimited bookings</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                      <Icon name="chatbubble" size={18} color="#666" />
-                      <Text style={styles.featureText}>Customer messaging</Text>
-                    </View>
-                  </View>
-
-                  {/* License Usage */}
-                  <View style={styles.licenseSection}>
-                    <View style={styles.licenseHeader}>
-                      <Text style={styles.licenseTitle}>License Usage</Text>
-                      <Text style={styles.licenseCount}>
-                        {licenseInfo.currentCount} / {licenseInfo.maxLicenses || 0}
-                      </Text>
-                    </View>
-                    <View style={styles.licenseBar}>
-                      <View
-                        style={[
-                          styles.licenseBarFill,
-                          {
-                            width: `${Math.min(100, (licenseInfo.currentCount / (licenseInfo.maxLicenses || 1)) * 100)}%`,
-                            backgroundColor: (licenseInfo.currentCount / (licenseInfo.maxLicenses || 1)) > 0.8 ? '#FF9500' : '#0393d5'
-                          }
-                        ]}
-                      />
-                    </View>
-                    {(licenseInfo.currentCount / (licenseInfo.maxLicenses || 1)) > 0.8 && (
-                      <Text style={styles.licenseWarning}>
-                        Running low on licenses. Consider upgrading your plan.
-                      </Text>
-                    )}
-                  </View>
-
-                  {/* Billing Info */}
-                  {subscription.next_billing_date && subscription.isActive && (
-                    <View style={styles.billingInfo}>
-                      <Icon name="calendar" size={16} color="#666" />
-                      <Text style={styles.billingText}>
-                        Next billing: {new Date(subscription.next_billing_date).toLocaleDateString()}
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Payment Method */}
-                  {subscription.payment_method_last4 && (
-                    <View style={styles.paymentMethod}>
-                      <Icon name="card" size={16} color="#666" />
-                      <Text style={styles.paymentMethodText}>
-                        {subscription.payment_method_brand?.toUpperCase() || 'Card'} •••• {subscription.payment_method_last4}
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Refund Eligibility */}
-                  {subscription.isRefundEligible && subscription.isActive && (
-                    <View style={styles.refundBanner}>
-                      <Icon name="shield-checkmark" size={18} color="#0393d5" />
-                      <Text style={styles.refundBannerText}>
-                        {subscription.refundDaysRemaining} days left for full refund
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Action Buttons */}
-                  <View style={styles.subscriptionActions}>
-                    {subscription.canUpgrade && subscription.isActive && (
-                      <TouchableOpacity
-                        style={styles.upgradeButton}
-                        onPress={() => navigation.navigate('UpgradePlanScreen', {
-                          userId: currentUserId
-                        })}
-                      >
-                        <Icon name="arrow-up-circle" size={20} color="#FFF" />
-                        <Text style={styles.upgradeButtonText}>Upgrade Plan</Text>
-                      </TouchableOpacity>
-                    )}
-
-                    {subscription.isActive && (
-                      <TouchableOpacity
-                        style={styles.cancelButton}
-                        onPress={handleCancelSubscription}
-                        disabled={cancellingSubscription}
-                      >
-                        {cancellingSubscription ? (
-                          <ActivityIndicator size="small" color="#FF3B30" />
-                        ) : (
-                          <>
-                            <Icon name="close-circle" size={18} color="#FF3B30" />
-                            <Text style={styles.cancelButtonText}>Cancel Subscription</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    )}
-
-                    {/* Resubscribe button for cancelled/refunded subscriptions */}
-                    {(subscription.subscription_status === 'cancelled' || subscription.subscription_status === 'refunded') && (
-                      <TouchableOpacity
-                        style={styles.resubscribeButton}
-                        onPress={() => navigation.navigate('ResubscribeScreen')}
-                      >
-                        <Icon name="refresh-circle" size={20} color="#FFF" />
-                        <Text style={styles.resubscribeButtonText}>Resubscribe</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.noSubscriptionCard}>
-                  <Icon name="card-outline" size={40} color="#0393d5" />
-                  <Text style={styles.noSubscriptionText}>No active subscription</Text>
-                  <Text style={styles.noSubscriptionSubtext}>Subscribe to start accepting bookings</Text>
-                  <TouchableOpacity
-                    style={styles.subscribeButton}
-                    onPress={() => navigation.navigate('ResubscribeScreen')}
-                  >
-                    <Icon name="card" size={18} color="#FFF" />
-                    <Text style={styles.subscribeButtonText}>Choose a Plan</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          )}
-
           {/* Shop Management - for owners and admins only (not providers/barbers) */}
           {(profileRole === 'owner' || profileRole === 'admin') && (
             <ProfileComponent
@@ -590,30 +360,6 @@ const ProfileScreen = () => {
             />
           )}
 
-          {/* Provider Management - for owners and admins (limited by plan) */}
-          {(profileRole === 'owner' || userRole === 'admin') && (
-            <ProfileComponent
-              icon={'people-outline'}
-              text={'Manage Providers'}
-              onPress={() => {
-                if (!currentShop) {
-                  Alert.alert(
-                    'No Shop Selected',
-                    'Please select a shop first to manage providers.',
-                    [
-                      {
-                        text: 'Select Shop',
-                        onPress: () => navigation.navigate('ShopSelectionScreen')
-                      },
-                      { text: 'Cancel', style: 'cancel' }
-                    ]
-                  );
-                } else {
-                  navigation.navigate('StaffManagementScreenManager');
-                }
-              }}
-            />
-          )}
 
           {/* Change Email option - for owners and admins (not for platform admin) */}
           {(profileRole === 'owner' || userRole === 'admin') && !isSuperAdmin && (
@@ -1216,6 +962,22 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 15,
     fontWeight: '600',
+  },
+  // Web manage notice styles
+  webManageNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    padding: 12,
+    borderRadius: 10,
+    marginTop: 16,
+  },
+  webManageText: {
+    fontSize: 13,
+    color: '#666',
+    marginLeft: 10,
+    flex: 1,
+    lineHeight: 18,
   },
 });
 
