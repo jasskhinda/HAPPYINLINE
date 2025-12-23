@@ -239,24 +239,12 @@ const ProfileScreen = () => {
 
               if (result.success) {
                 console.log('✅ Logout successful');
-                console.log('👤 Profile role:', profileRole);
+                console.log('🔄 Navigating to WelcomeScreen...');
 
-                // Navigate based on user role
-                let targetScreen = 'WelcomeScreen'; // Default to main welcome screen
-
-                // Admins/owners go to BusinessLoginScreen
-                if (profileRole === 'admin' || profileRole === 'owner') {
-                  targetScreen = 'BusinessLoginScreen';
-                  console.log('🔄 Navigating admin/owner to BusinessLoginScreen...');
-                } else {
-                  // Customers go to WelcomeScreen (main entry point)
-                  console.log('🔄 Navigating customer to WelcomeScreen...');
-                }
-
-                // Reset navigation stack
+                // Reset navigation stack - always go to WelcomeScreen
                 navigation.reset({
                   index: 0,
-                  routes: [{ name: targetScreen }],
+                  routes: [{ name: 'WelcomeScreen' }],
                 });
               } else {
                 console.error('❌ Logout failed:', result.error);

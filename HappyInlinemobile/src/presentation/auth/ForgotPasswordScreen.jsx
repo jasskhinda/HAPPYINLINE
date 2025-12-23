@@ -132,12 +132,8 @@ const ForgotPasswordScreen = ({ navigation }) => {
             .eq('id', user.id)
             .single();
 
-          // Navigate based on role
-          if (profile?.role === 'customer') {
-            loginScreen = 'CustomerLogin';
-          } else {
-            loginScreen = 'BusinessLoginScreen';
-          }
+          // Always navigate to CustomerLogin (this is a customer-only app)
+          loginScreen = 'CustomerLogin';
         }
 
         Alert.alert(
