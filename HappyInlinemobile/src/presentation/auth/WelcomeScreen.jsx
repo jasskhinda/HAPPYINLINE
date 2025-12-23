@@ -23,10 +23,6 @@ const WelcomeScreen = ({ navigation }) => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
 
-  const handleBusinessPath = () => {
-    navigation.navigate('BusinessLoginScreen');
-  };
-
   const handleCustomerLogin = () => {
     navigation.navigate('CustomerLogin');
   };
@@ -120,35 +116,17 @@ const WelcomeScreen = ({ navigation }) => {
 
           {/* Scan QR Code Button */}
           <TouchableOpacity
-            style={styles.scanButton}
+            style={styles.secondaryButton}
             onPress={handleScanQR}
             activeOpacity={0.8}
           >
             <View style={styles.buttonContent}>
-              <View style={styles.iconCircleScan}>
+              <View style={styles.iconCircleSecondary}>
                 <Ionicons name="qr-code-outline" size={28} color="#FFFFFF" />
               </View>
               <View style={styles.buttonTextContainer}>
-                <Text style={styles.scanButtonText}>Scan QR Code</Text>
-                <Text style={styles.buttonSubtextScan}>Register with your favorite business</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
-            </View>
-          </TouchableOpacity>
-
-          {/* Business Owner Button */}
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={handleBusinessPath}
-            activeOpacity={0.8}
-          >
-            <View style={styles.buttonContent}>
-              <View style={styles.iconCircleSecondary}>
-                <Ionicons name="business" size={28} color="#FFFFFF" />
-              </View>
-              <View style={styles.buttonTextContainer}>
-                <Text style={styles.secondaryButtonText}>Business Owner Login</Text>
-                <Text style={styles.buttonSubtextSecondary}>Sign in to manage your shop</Text>
+                <Text style={styles.secondaryButtonText}>Scan QR Code</Text>
+                <Text style={styles.buttonSubtextSecondary}>Register with your favorite business</Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
             </View>

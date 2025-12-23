@@ -63,20 +63,10 @@ const SplashScreen = () => {
 
       // User is authenticated and onboarding complete
       console.log('\n✅✅✅ FULLY AUTHENTICATED & ONBOARDING COMPLETE');
-
-      // Check if user is an exclusive customer
-      if (authState.profile?.exclusive_shop_id) {
-        console.log('→ Decision: Exclusive customer -> Navigate to ExclusiveCustomerMainScreen');
-        console.log('   Exclusive Shop ID:', authState.profile.exclusive_shop_id);
-        console.log('━'.repeat(60));
-        console.log('\n\n');
-        navigation.replace('ExclusiveCustomerMainScreen');
-      } else {
-        console.log('→ Decision: Regular user -> Navigate to MainScreen');
-        console.log('━'.repeat(60));
-        console.log('\n\n');
-        navigation.replace('MainScreen');
-      }
+      console.log('→ Decision: Navigate to CustomerMainScreen');
+      console.log('━'.repeat(60));
+      console.log('\n\n');
+      navigation.replace('CustomerMainScreen');
 
     } catch (error) {
       console.error('\n❌ CRITICAL ERROR in splash screen:');
