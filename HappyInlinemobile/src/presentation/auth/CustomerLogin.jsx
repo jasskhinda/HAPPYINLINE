@@ -65,6 +65,41 @@ const CustomerLogin = ({ navigation }) => {
         return;
       }
 
+      // Check if user is a customer
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) {
+        console.log('⚠️ Profile fetch error:', profileError.message);
+        // Sign out since we couldn't verify the role
+        await supabase.auth.signOut();
+        Toast.show({
+          type: 'error',
+          text1: 'Login Failed',
+          text2: 'Unable to verify your account. Please try again.',
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Only allow customers to login
+      if (profile.role !== 'customer') {
+        console.log('⚠️ Non-customer role attempted login:', profile.role);
+        // Sign out the non-customer user
+        await supabase.auth.signOut();
+        Toast.show({
+          type: 'error',
+          text1: 'Access Denied',
+          text2: 'This app is for customers only',
+          topOffset: 80,
+        });
+        setLoading(false);
+        return;
+      }
+
       console.log('✅ Customer logged in:', data.user?.id);
 
       Toast.show({
@@ -73,8 +108,7 @@ const CustomerLogin = ({ navigation }) => {
         text2: 'Logged in successfully',
       });
 
-      // Navigate to SplashScreen to handle routing based on user type
-      // SplashScreen will check if user is exclusive and route accordingly
+      // Navigate to SplashScreen to handle routing
       navigation.replace('SplashScreen');
 
     } catch (error) {

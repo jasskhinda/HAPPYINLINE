@@ -89,8 +89,8 @@ const WelcomeScreen = ({ navigation }) => {
 
           {/* Trust Signal */}
           <View style={styles.trustBadge}>
-            <Ionicons name="people" size={16} color="#4A90E2" />
-            <Text style={styles.trustText}>Trusted by 10,000+ professionals</Text>
+            <Ionicons name="heart" size={16} color="#4A90E2" />
+            <Text style={styles.trustText}>Loved by 10,000+ happy customers</Text>
           </View>
         </View>
 
