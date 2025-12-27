@@ -2531,13 +2531,25 @@ export const createBooking = async (bookingData) => {
       .single();
     
     if (error) throw error;
-    
+
     console.log('✅ Booking created successfully!');
     console.log('   - UUID (id):', data.id);
     console.log('   - Booking ID:', data.booking_id);
     console.log('   - Status:', data.status);
     console.log('   - Full data:', JSON.stringify(data, null, 2));
-    
+
+    // Send email notifications (non-blocking)
+    if (data.id) {
+      fetch('https://happyinline.com/api/booking/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: data.id }),
+      })
+        .then(res => res.json())
+        .then(result => console.log('📧 Email notifications sent:', result))
+        .catch(err => console.error('📧 Failed to send email notifications:', err));
+    }
+
     return { success: true, data };
   } catch (error) {
     console.error('❌ Error creating booking:', error.message);

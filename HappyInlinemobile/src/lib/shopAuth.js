@@ -724,6 +724,19 @@ export const createBooking = async (bookingData) => {
     }
 
     console.log('✅ Booking created:', booking.booking_id);
+
+    // Send email notifications (non-blocking)
+    if (booking.id) {
+      fetch('https://happyinline.com/api/booking/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: booking.id }),
+      })
+        .then(res => res.json())
+        .then(result => console.log('📧 Email notifications sent:', result))
+        .catch(err => console.error('📧 Failed to send email notifications:', err));
+    }
+
     return { success: true, booking };
   } catch (error) {
     console.error('❌ Unexpected error:', error);
