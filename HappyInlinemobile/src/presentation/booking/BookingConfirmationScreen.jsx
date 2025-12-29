@@ -38,6 +38,24 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
   const [bookingIdPreview, setBookingIdPreview] = useState('');
   const [showBarberBottomSheet, setShowBarberBottomSheet] = useState(false);
   const [barberSearchQuery, setBarberSearchQuery] = useState('');
+  // Service format choices for services that offer both in-person and online
+  const [serviceFormatChoices, setServiceFormatChoices] = useState({});
+
+  // Check if any service has "both" type
+  const hasBothTypeServices = selectedServices.some(s => s.service_type === 'both');
+
+  // Get effective service type for a service
+  const getEffectiveServiceType = (service) => {
+    if (service.service_type === 'both') {
+      return serviceFormatChoices[service.id] || 'in_person';
+    }
+    return service.service_type || 'in_person';
+  };
+
+  // Check if any selected service will be online
+  const hasOnlineService = () => {
+    return selectedServices.some(s => getEffectiveServiceType(s) === 'online');
+  };
 
   useEffect(() => {
     loadShopData();
@@ -433,7 +451,15 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
           {selectedServices.map((service, index) => (
             <View key={index} style={styles.serviceItem}>
               <View style={styles.serviceInfo}>
-                <Text style={styles.serviceName}>{service.name}</Text>
+                <View style={styles.serviceNameRow}>
+                  <Text style={styles.serviceName}>{service.name}</Text>
+                  {getEffectiveServiceType(service) === 'online' && (
+                    <View style={styles.onlineServiceBadge}>
+                      <Ionicons name="videocam" size={12} color="#9333EA" />
+                      <Text style={styles.onlineServiceBadgeText}>Online</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.serviceDuration}>
                   {service.duration_minutes || service.duration || 30} min
                 </Text>
@@ -455,6 +481,98 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
             <Text style={styles.paymentNoticeText}>Payment due at store</Text>
           </View>
         </View>
+
+        {/* Service Format Selection (for services with "both" type) */}
+        {hasBothTypeServices && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="options-outline" size={24} color="#0393d5" />
+              <Text style={styles.cardTitle}>Choose Service Format</Text>
+            </View>
+            <Text style={styles.formatHint}>
+              Some services can be done in-person or online. Please select your preference.
+            </Text>
+            {selectedServices.filter(s => s.service_type === 'both').map((service) => (
+              <View key={service.id} style={styles.formatSelectionItem}>
+                <Text style={styles.formatServiceName}>{service.name}</Text>
+                <View style={styles.formatButtonsRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.formatButton,
+                      (serviceFormatChoices[service.id] || 'in_person') === 'in_person' && styles.formatButtonActive
+                    ]}
+                    onPress={() => setServiceFormatChoices(prev => ({ ...prev, [service.id]: 'in_person' }))}
+                  >
+                    <Ionicons
+                      name="location"
+                      size={18}
+                      color={(serviceFormatChoices[service.id] || 'in_person') === 'in_person' ? '#FFF' : '#666'}
+                    />
+                    <Text style={[
+                      styles.formatButtonText,
+                      (serviceFormatChoices[service.id] || 'in_person') === 'in_person' && styles.formatButtonTextActive
+                    ]}>In-Person</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.formatButton,
+                      styles.formatButtonOnline,
+                      serviceFormatChoices[service.id] === 'online' && styles.formatButtonOnlineActive
+                    ]}
+                    onPress={() => setServiceFormatChoices(prev => ({ ...prev, [service.id]: 'online' }))}
+                  >
+                    <Ionicons
+                      name="videocam"
+                      size={18}
+                      color={serviceFormatChoices[service.id] === 'online' ? '#FFF' : '#9333EA'}
+                    />
+                    <Text style={[
+                      styles.formatButtonText,
+                      styles.formatButtonTextOnline,
+                      serviceFormatChoices[service.id] === 'online' && styles.formatButtonTextOnlineActive
+                    ]}>Online</Text>
+                  </TouchableOpacity>
+                </View>
+                {serviceFormatChoices[service.id] === 'online' && service.online_instructions && (
+                  <View style={styles.onlineInstructionsBox}>
+                    <Ionicons name="information-circle" size={16} color="#9333EA" />
+                    <Text style={styles.onlineInstructionsText}>{service.online_instructions}</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Online Meeting Details */}
+        {hasOnlineService() && (
+          <View style={styles.onlineMeetingCard}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="videocam" size={24} color="#9333EA" />
+              <Text style={[styles.cardTitle, { color: '#9333EA' }]}>Online Meeting Details</Text>
+            </View>
+            {selectedServices.filter(s => getEffectiveServiceType(s) === 'online').map((service) => (
+              <View key={service.id} style={styles.onlineMeetingItem}>
+                <Text style={styles.onlineMeetingServiceName}>{service.name}</Text>
+                {service.online_meeting_link && (
+                  <View style={styles.onlineMeetingRow}>
+                    <Ionicons name="link" size={14} color="#9333EA" />
+                    <Text style={styles.onlineMeetingLink} numberOfLines={2}>{service.online_meeting_link}</Text>
+                  </View>
+                )}
+                {service.online_meeting_password && (
+                  <View style={styles.onlineMeetingRow}>
+                    <Ionicons name="lock-closed" size={14} color="#9333EA" />
+                    <Text style={styles.onlineMeetingPassword}>Password: {service.online_meeting_password}</Text>
+                  </View>
+                )}
+                {service.online_instructions && (
+                  <Text style={styles.onlineMeetingInstructions}>{service.online_instructions}</Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Selected Provider Card */}
         {selectedBarberName && (
@@ -1130,6 +1248,144 @@ const styles = StyleSheet.create({
   },
   bold: {
     fontWeight: '600',
+  },
+  // Service name row for badge
+  serviceNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  onlineServiceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(147, 51, 234, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 3,
+  },
+  onlineServiceBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#9333EA',
+  },
+  // Format selection styles
+  formatHint: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  formatSelectionItem: {
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  formatServiceName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  formatButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  formatButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#FFF',
+    gap: 6,
+  },
+  formatButtonActive: {
+    backgroundColor: '#0393d5',
+    borderColor: '#0393d5',
+  },
+  formatButtonOnline: {
+    borderColor: '#9333EA',
+  },
+  formatButtonOnlineActive: {
+    backgroundColor: '#9333EA',
+    borderColor: '#9333EA',
+  },
+  formatButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  formatButtonTextActive: {
+    color: '#FFF',
+  },
+  formatButtonTextOnline: {
+    color: '#9333EA',
+  },
+  formatButtonTextOnlineActive: {
+    color: '#FFF',
+  },
+  onlineInstructionsBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: 'rgba(147, 51, 234, 0.08)',
+    borderRadius: 8,
+    gap: 8,
+  },
+  onlineInstructionsText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#9333EA',
+    lineHeight: 18,
+  },
+  // Online meeting card styles
+  onlineMeetingCard: {
+    backgroundColor: 'rgba(147, 51, 234, 0.08)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(147, 51, 234, 0.3)',
+  },
+  onlineMeetingItem: {
+    marginBottom: 12,
+  },
+  onlineMeetingServiceName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  onlineMeetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 8,
+  },
+  onlineMeetingLink: {
+    flex: 1,
+    fontSize: 13,
+    color: '#9333EA',
+  },
+  onlineMeetingPassword: {
+    fontSize: 13,
+    color: '#9333EA',
+    fontWeight: '500',
+  },
+  onlineMeetingInstructions: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginTop: 8,
+    lineHeight: 16,
   },
   footer: {
     position: 'absolute',

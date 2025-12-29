@@ -63,7 +63,22 @@ const SelectableServiceItem = ({ service, selected, onToggle }) => {
 
       {/* Service Info */}
       <View style={styles.info}>
-        <Text style={styles.name}>{service.name}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{service.name}</Text>
+          {/* Service Type Badge */}
+          {service.service_type === 'online' && (
+            <View style={[styles.typeBadge, styles.onlineBadge]}>
+              <Ionicons name="videocam" size={10} color="#9333EA" />
+              <Text style={styles.onlineBadgeText}>Online</Text>
+            </View>
+          )}
+          {service.service_type === 'both' && (
+            <View style={[styles.typeBadge, styles.bothBadge]}>
+              <Ionicons name="videocam" size={10} color="#3B82F6" />
+              <Text style={styles.bothBadgeText}>Both</Text>
+            </View>
+          )}
+        </View>
         {service.description && (
           <Text style={styles.description} numberOfLines={2}>
             {service.description}
@@ -120,11 +135,41 @@ const styles = StyleSheet.create({
   info: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 3,
+  },
   name: {
     fontSize: 15,
     fontWeight: '600',
     color: '#1A1A1A',
-    marginBottom: 3,
+  },
+  typeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 3,
+  },
+  onlineBadge: {
+    backgroundColor: 'rgba(147, 51, 234, 0.15)',
+  },
+  onlineBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#9333EA',
+  },
+  bothBadge: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+  },
+  bothBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#3B82F6',
   },
   description: {
     fontSize: 12,
