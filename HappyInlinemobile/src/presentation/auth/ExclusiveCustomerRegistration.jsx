@@ -122,33 +122,40 @@ const ExclusiveCustomerRegistration = ({ route, navigation }) => {
 
       // 2. Wait a moment for profile to be created by trigger
       console.log('⏳ Waiting for profile creation...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // 3. Update profile with exclusive shop ID
-      console.log('🔗 Binding customer to shop:', shopId);
+      // 3. Call the link-shop API to bind customer to shop
+      // This API has proper error handling for edge cases like duplicate emails
+      console.log('🔗 Calling link-shop API to bind customer to shop:', shopId);
       console.log('   Customer ID:', authData.user.id);
       console.log('   Shop ID:', shopId);
 
-      const { data: updateData, error: profileError } = await supabase
-        .from('profiles')
-        .update({
+      const response = await fetch('https://www.happyinline.com/api/customer/link-shop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: authData.user.id,
+          shopId: shopId,
           name: name.trim(),
           phone: phone.trim(),
-          role: 'customer',
-          exclusive_shop_id: shopId, // Bind to this shop
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', authData.user.id)
-        .select();
+        }),
+      });
 
-      if (profileError) {
-        console.error('❌ Failed to bind customer to shop:', profileError);
-        throw profileError;
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Link-shop API error:', result.error);
+        // Handle specific error for duplicate email
+        if (response.status === 409) {
+          throw new Error(result.error || 'This email is already registered.');
+        }
+        throw new Error(result.error || 'Failed to link customer to shop');
       }
 
       console.log('✅ Customer successfully bound to shop!');
-      console.log('   Updated profile:', JSON.stringify(updateData, null, 2));
-      console.log('   exclusive_shop_id set to:', shopId);
+      console.log('   Shop:', result.shopName);
 
       // 4. Verify the update worked
       const { data: verifyData } = await supabase
