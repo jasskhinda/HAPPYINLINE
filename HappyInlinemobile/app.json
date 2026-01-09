@@ -15,6 +15,14 @@
         {
           "mode": "production"
         }
+      ],
+      "expo-font",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.happyinline.app",
+          "enableGooglePay": true
+        }
       ]
     ],
     "splash": {
@@ -27,7 +35,9 @@
       "bundleIdentifier": "com.happyinline.app",
       "buildNumber": "7",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"],
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
         "NSLocationWhenInUseUsageDescription": "Happy Inline needs your location to help you find nearby service providers and show accurate business locations on the map.",
         "NSCameraUsageDescription": "Happy Inline needs camera access to scan QR codes for quick customer registration with your favorite service provider. For example, scan a business QR code to instantly connect with their booking system.",
         "NSPhotoLibraryUsageDescription": "Happy Inline needs photo library access to let you upload a profile picture or business logo to personalize your account."
