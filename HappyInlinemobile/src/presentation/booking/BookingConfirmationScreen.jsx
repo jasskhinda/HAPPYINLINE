@@ -38,16 +38,17 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
   const [bookingIdPreview, setBookingIdPreview] = useState('');
   const [showBarberBottomSheet, setShowBarberBottomSheet] = useState(false);
   const [barberSearchQuery, setBarberSearchQuery] = useState('');
-  // Service format choices for services that offer both in-person and online
-  const [serviceFormatChoices, setServiceFormatChoices] = useState({});
+  // Single booking format choice for all services (applies to services with "both" type)
+  const [bookingFormat, setBookingFormat] = useState('in_person'); // 'in_person' or 'online'
 
-  // Check if any service has "both" type
+  // Check if any service has "both" type (can be either in-person or online)
   const hasBothTypeServices = selectedServices.some(s => s.service_type === 'both');
 
   // Get effective service type for a service
   const getEffectiveServiceType = (service) => {
     if (service.service_type === 'both') {
-      return serviceFormatChoices[service.id] || 'in_person';
+      // Use the single booking-wide format choice
+      return bookingFormat;
     }
     return service.service_type || 'in_person';
   };
@@ -482,65 +483,62 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
           </View>
         </View>
 
-        {/* Service Format Selection (for services with "both" type) */}
+        {/* Service Format Selection (single choice for all services with "both" type) */}
         {hasBothTypeServices && (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Ionicons name="options-outline" size={24} color="#0393d5" />
-              <Text style={styles.cardTitle}>Choose Service Format</Text>
+              <Text style={styles.cardTitle}>How would you like your appointment?</Text>
             </View>
             <Text style={styles.formatHint}>
-              Some services can be done in-person or online. Please select your preference.
+              Choose how you'd like to receive your services. This applies to all services in your booking.
             </Text>
-            {selectedServices.filter(s => s.service_type === 'both').map((service) => (
-              <View key={service.id} style={styles.formatSelectionItem}>
-                <Text style={styles.formatServiceName}>{service.name}</Text>
-                <View style={styles.formatButtonsRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.formatButton,
-                      (serviceFormatChoices[service.id] || 'in_person') === 'in_person' && styles.formatButtonActive
-                    ]}
-                    onPress={() => setServiceFormatChoices(prev => ({ ...prev, [service.id]: 'in_person' }))}
-                  >
-                    <Ionicons
-                      name="location"
-                      size={18}
-                      color={(serviceFormatChoices[service.id] || 'in_person') === 'in_person' ? '#FFF' : '#666'}
-                    />
-                    <Text style={[
-                      styles.formatButtonText,
-                      (serviceFormatChoices[service.id] || 'in_person') === 'in_person' && styles.formatButtonTextActive
-                    ]}>In-Person</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.formatButton,
-                      styles.formatButtonOnline,
-                      serviceFormatChoices[service.id] === 'online' && styles.formatButtonOnlineActive
-                    ]}
-                    onPress={() => setServiceFormatChoices(prev => ({ ...prev, [service.id]: 'online' }))}
-                  >
-                    <Ionicons
-                      name="videocam"
-                      size={18}
-                      color={serviceFormatChoices[service.id] === 'online' ? '#FFF' : '#9333EA'}
-                    />
-                    <Text style={[
-                      styles.formatButtonText,
-                      styles.formatButtonTextOnline,
-                      serviceFormatChoices[service.id] === 'online' && styles.formatButtonTextOnlineActive
-                    ]}>Online</Text>
-                  </TouchableOpacity>
-                </View>
-                {serviceFormatChoices[service.id] === 'online' && service.online_instructions && (
-                  <View style={styles.onlineInstructionsBox}>
-                    <Ionicons name="information-circle" size={16} color="#9333EA" />
-                    <Text style={styles.onlineInstructionsText}>{service.online_instructions}</Text>
-                  </View>
-                )}
+            <View style={styles.formatButtonsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.formatButton,
+                  bookingFormat === 'in_person' && styles.formatButtonActive
+                ]}
+                onPress={() => setBookingFormat('in_person')}
+              >
+                <Ionicons
+                  name="location"
+                  size={20}
+                  color={bookingFormat === 'in_person' ? '#FFF' : '#666'}
+                />
+                <Text style={[
+                  styles.formatButtonText,
+                  bookingFormat === 'in_person' && styles.formatButtonTextActive
+                ]}>In-Person</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.formatButton,
+                  styles.formatButtonOnline,
+                  bookingFormat === 'online' && styles.formatButtonOnlineActive
+                ]}
+                onPress={() => setBookingFormat('online')}
+              >
+                <Ionicons
+                  name="videocam"
+                  size={20}
+                  color={bookingFormat === 'online' ? '#FFF' : '#9333EA'}
+                />
+                <Text style={[
+                  styles.formatButtonText,
+                  styles.formatButtonTextOnline,
+                  bookingFormat === 'online' && styles.formatButtonTextOnlineActive
+                ]}>Online</Text>
+              </TouchableOpacity>
+            </View>
+            {bookingFormat === 'online' && (
+              <View style={styles.onlineFormatNotice}>
+                <Ionicons name="videocam" size={18} color="#9333EA" />
+                <Text style={styles.onlineFormatNoticeText}>
+                  You'll receive meeting details via email after booking
+                </Text>
               </View>
-            ))}
+            )}
           </View>
         )}
 
@@ -1277,18 +1275,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 20,
   },
-  formatSelectionItem: {
-    marginBottom: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  formatServiceName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-  },
   formatButtonsRow: {
     flexDirection: 'row',
     gap: 12,
@@ -1330,6 +1316,21 @@ const styles = StyleSheet.create({
   },
   formatButtonTextOnlineActive: {
     color: '#FFF',
+  },
+  onlineFormatNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: 'rgba(147, 51, 234, 0.1)',
+    borderRadius: 8,
+    gap: 10,
+  },
+  onlineFormatNoticeText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#9333EA',
+    fontWeight: '500',
   },
   onlineInstructionsBox: {
     flexDirection: 'row',
