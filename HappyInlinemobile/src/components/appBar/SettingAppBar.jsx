@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
-const SettingAppBar = ({ title }) => {
+const SettingAppBar = ({ title, rightIcon, onRightPress }) => {
   const navigation = useNavigation();
 
   return (
@@ -15,6 +15,11 @@ const SettingAppBar = ({ title }) => {
         <Text style={styles.title}>
           {title}
         </Text>
+        {rightIcon && onRightPress && (
+          <TouchableOpacity onPress={onRightPress} style={styles.rightButton}>
+            <Ionicons name={rightIcon} size={24} color="#4A90E2" />
+          </TouchableOpacity>
+        )}
       </View>
       <View style={styles.separator}/>
     </SafeAreaView>
@@ -42,6 +47,9 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 18,
         marginLeft: 6
+    },
+    rightButton: {
+        padding: 4,
     },
     separator: {
         height: 1,

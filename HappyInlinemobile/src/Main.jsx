@@ -36,6 +36,7 @@ import ProviderSelectionScreen from './presentation/booking/ProviderSelectionScr
 import RateServiceScreen from './presentation/main/bottomBar/bookings/RateServiceScreen';
 import RescheduleBookingScreen from './presentation/main/bottomBar/bookings/RescheduleBookingScreen';
 import BookingDetailScreen from './presentation/main/bottomBar/bookings/BookingDetailScreen';
+import StaffCalendarScreen from './presentation/main/bottomBar/bookings/StaffCalendarScreen';
 
 // Profile Screens
 import ProfileScreen from './presentation/main/bottomBar/profile/ProfileScreen';
@@ -194,6 +195,7 @@ const Main = () => {
               <RootStack.Screen name="RateServiceScreen" component={RateServiceScreen} />
               <RootStack.Screen name="RescheduleBookingScreen" component={RescheduleBookingScreen} />
               <RootStack.Screen name="BookingDetailScreen" component={BookingDetailScreen} />
+              <RootStack.Screen name="StaffCalendarScreen" component={StaffCalendarScreen} />
 
               {/* Profile */}
               <RootStack.Screen name="ProfileScreen" component={ProfileScreen} />

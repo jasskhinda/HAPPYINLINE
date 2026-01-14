@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import SettingAppBar from '../../../../../components/appBar/SettingAppBar';
 import {
   fetchAllBookingsForManagers,
@@ -32,6 +32,7 @@ import {
 const initialLayout = { width: Dimensions.get('window').width };
 
 const BookingManagementScreen = () => {
+  const navigation = useNavigation();
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'pending', title: 'Pending' },
@@ -671,8 +672,12 @@ const BookingManagementScreen = () => {
 
   return (
     <View style={styles.container}>
-        {/* Header with back button */}
-        <SettingAppBar title="Booking Management" />
+        {/* Header with back button and calendar icon */}
+        <SettingAppBar
+          title="Booking Management"
+          rightIcon="calendar"
+          onRightPress={() => navigation.navigate('StaffCalendarScreen')}
+        />
 
         <View style={styles.content}>
             <TabView

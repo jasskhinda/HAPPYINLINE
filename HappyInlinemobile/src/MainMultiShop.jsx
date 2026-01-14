@@ -22,6 +22,7 @@ import ChatConversationScreen from './presentation/main/bottomBar/chat/ChatConve
 import RateServiceScreen from './presentation/main/bottomBar/bookings/RateServiceScreen';
 import RescheduleBookingScreen from './presentation/main/bottomBar/bookings/RescheduleBookingScreen';
 import BookingDetailScreen from './presentation/main/bottomBar/bookings/BookingDetailScreen';
+import StaffCalendarScreen from './presentation/main/bottomBar/bookings/StaffCalendarScreen';
 import ServiceManagementScreen from './presentation/main/bottomBar/home/manager/ServiceManagementScreen';
 import BarberManagementScreen from './presentation/main/bottomBar/home/manager/BarberManagementScreen';
 import BookingManagementScreen from './presentation/main/bottomBar/home/manager/BookingManagementScreen';
@@ -201,6 +202,7 @@ const Main = () => {
             <RootStack.Screen name="RateServiceScreen" component={RateServiceScreen}/>
             <RootStack.Screen name="RescheduleBookingScreen" component={RescheduleBookingScreen}/>
             <RootStack.Screen name="BookingDetailScreen" component={BookingDetailScreen}/>
+            <RootStack.Screen name="StaffCalendarScreen" component={StaffCalendarScreen}/>
             <RootStack.Screen name="ServiceManagementScreen" component={ServiceManagementScreen} />
             <RootStack.Screen name="BarberManagementScreen" component={BarberManagementScreen} />
             <RootStack.Screen name="BookingManagementScreen" component={BookingManagementScreen} />
