@@ -157,11 +157,21 @@ const BookingCard = ({ booking, isBarberMode = false, userRole = 'customer', onB
                 Alert.alert('Reason Required', 'Please provide a cancellation reason for the customer.');
                 return;
               }
-              
+
               setCancelling(true);
               try {
                 const result = await cancelBooking(booking.id, reason);
                 if (result.success) {
+                  // Send cancellation email notifications (non-blocking)
+                  fetch('https://happyinline.com/api/booking/cancel-notify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      bookingId: booking.id,
+                      cancelledBy: 'business'
+                    }),
+                  }).catch(err => console.error('Failed to send cancellation notifications:', err));
+
                   Alert.alert(
                     'Appointment Cancelled',
                     'Customer will be notified of the cancellation.',
@@ -201,6 +211,16 @@ const BookingCard = ({ booking, isBarberMode = false, userRole = 'customer', onB
               try {
                 const result = await cancelBooking(booking.id, reason || 'Cancelled by customer');
                 if (result.success) {
+                  // Send cancellation email notifications (non-blocking)
+                  fetch('https://happyinline.com/api/booking/cancel-notify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      bookingId: booking.id,
+                      cancelledBy: 'customer'
+                    }),
+                  }).catch(err => console.error('Failed to send cancellation notifications:', err));
+
                   Alert.alert(
                     'Booking Cancelled',
                     'Your appointment has been cancelled successfully.',

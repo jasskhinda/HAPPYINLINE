@@ -497,6 +497,7 @@ export const getShopServices = async (shopId) => {
       .select('*')
       .eq('shop_id', shopId)
       .eq('is_active', true)
+      .order('display_order', { ascending: true })
       .order('name', { ascending: true });
 
     if (error) {

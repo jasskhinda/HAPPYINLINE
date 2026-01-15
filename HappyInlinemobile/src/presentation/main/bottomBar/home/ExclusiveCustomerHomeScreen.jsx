@@ -70,7 +70,8 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
         .select('*')
         .eq('shop_id', shopId)
         .eq('is_active', true)
-        .order('name');
+        .order('display_order', { ascending: true })
+        .order('name', { ascending: true });
 
       if (!error && data) {
         setServices(data);

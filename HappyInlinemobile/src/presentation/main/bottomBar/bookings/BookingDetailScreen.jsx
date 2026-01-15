@@ -164,6 +164,16 @@ const BookingDetailScreen = () => {
                 // Update local booking state immediately
                 setBooking(prev => ({ ...prev, status: 'cancelled', customer_notes: reason || 'No reason provided' }));
 
+                // Send cancellation email notifications (non-blocking)
+                fetch('https://happyinline.com/api/booking/cancel-notify', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    bookingId: booking.id,
+                    cancelledBy: 'customer'
+                  }),
+                }).catch(err => console.error('Failed to send cancellation notifications:', err));
+
                 Alert.alert(
                   '✅ Booking Cancelled',
                   'Your appointment has been cancelled successfully.',
