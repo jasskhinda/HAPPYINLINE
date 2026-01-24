@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../../../lib/supabase';
 import { getShopDetails } from '../../../../lib/shopAuth';
 import { getCurrentUser, signOut } from '../../../../lib/auth';
+import { getTotalUnreadCount } from '../../../../lib/messaging';
 
 const ExclusiveCustomerHomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
@@ -26,10 +27,29 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [selectedServices, setSelectedServices] = useState([]);
   const [bookingFormat, setBookingFormat] = useState('in_person'); // 'in_person' or 'online'
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     loadData();
+
+    // Poll for unread messages every 10 seconds
+    const interval = setInterval(fetchUnreadCount, 10000);
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const { profile } = await getCurrentUser();
+      if (profile?.id) {
+        const result = await getTotalUnreadCount(profile.id);
+        if (result.success) {
+          setUnreadCount(result.count);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -53,6 +73,11 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
         setShop(shopData);
         await loadShopServices(shopData.id);
         await loadUpcomingBookings(profile.id, shopData.id);
+        // Fetch unread message count
+        const unreadResult = await getTotalUnreadCount(profile.id);
+        if (unreadResult.success) {
+          setUnreadCount(unreadResult.count);
+        }
       } else {
         Alert.alert('Error', 'Could not load shop details');
       }
@@ -349,7 +374,16 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
 
             <TouchableOpacity style={styles.quickActionButton} onPress={handleMessageShop}>
               <View style={styles.quickActionOutline}>
-                <Ionicons name="chatbubble" size={20} color="#4A90E2" />
+                <View style={styles.messageIconContainer}>
+                  <Ionicons name="chatbubble" size={20} color="#4A90E2" />
+                  {unreadCount > 0 && (
+                    <View style={styles.messageBadge}>
+                      <Text style={styles.messageBadgeText}>
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.quickActionTextOutline}>Message</Text>
               </View>
             </TouchableOpacity>
@@ -771,6 +805,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     color: '#4A90E2',
+  },
+  messageIconContainer: {
+    position: 'relative',
+  },
+  messageBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -10,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  messageBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   section: {
     backgroundColor: '#FFF',

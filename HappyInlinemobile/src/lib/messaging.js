@@ -255,6 +255,37 @@ export const unsubscribeFromMessages = (subscription) => {
 };
 
 /**
+ * Get total unread message count for a user
+ */
+export const getTotalUnreadCount = async (userId) => {
+  try {
+    const { data: conversations, error } = await supabase
+      .from('conversations')
+      .select('user1_id, user2_id, user1_unread_count, user2_unread_count')
+      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+
+    if (error) {
+      console.error('Error fetching unread count:', error);
+      return { success: false, error: error.message, count: 0 };
+    }
+
+    let totalUnread = 0;
+    (conversations || []).forEach((conv) => {
+      if (conv.user1_id === userId) {
+        totalUnread += conv.user1_unread_count || 0;
+      } else {
+        totalUnread += conv.user2_unread_count || 0;
+      }
+    });
+
+    return { success: true, count: totalUnread };
+  } catch (err) {
+    console.error('Unexpected error in getTotalUnreadCount:', err);
+    return { success: false, error: 'An unexpected error occurred', count: 0 };
+  }
+};
+
+/**
  * Get all conversations for a user
  */
 export const getUserConversations = async (userId) => {
