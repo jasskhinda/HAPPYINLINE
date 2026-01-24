@@ -272,7 +272,7 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
   };
 
   const handleViewBooking = (booking) => {
-    navigation.navigate('BookingDetailsScreen', {
+    navigation.navigate('BookingDetailScreen', {
       bookingId: booking.id,
     });
   };
