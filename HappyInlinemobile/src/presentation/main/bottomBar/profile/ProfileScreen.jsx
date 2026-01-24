@@ -301,12 +301,12 @@ const ProfileScreen = () => {
           ) : (
             <View style={styles.profileContainer}>
               <View style={styles.profilePicWrapper}>
-                <Image 
+                <Image
                   source={
-                    userData?.profileImage 
+                    userData?.profileImage
                       ? { uri: userData.profileImage }
-                      : require('../../../../../assets/image.png')
-                  } 
+                      : require('../../../../../assets/logowithouttagline.png')
+                  }
                   style={styles.userProfilePic}
                   resizeMode="cover"
                 />

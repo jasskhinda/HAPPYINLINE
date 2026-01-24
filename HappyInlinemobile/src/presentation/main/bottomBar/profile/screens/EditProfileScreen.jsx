@@ -152,23 +152,34 @@ const EditProfileScreen = () => {
     try {
       let result;
 
+      const imageOptions = {
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      };
+
       if (source === 'camera') {
-        result = await ImagePicker.launchCameraAsync({
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.7,
-        });
+        result = await ImagePicker.launchCameraAsync(imageOptions);
       } else {
-        result = await ImagePicker.launchImageLibraryAsync({
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.7,
-        });
+        result = await ImagePicker.launchImageLibraryAsync(imageOptions);
       }
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const imageUri = result.assets[0].uri;
-        await uploadProfileImage(imageUri);
+        const asset = result.assets[0];
+        const { uri, width, height } = asset;
+
+        // Validate minimum dimensions (200x200 for good quality profile picture)
+        const MIN_SIZE = 200;
+        if (width < MIN_SIZE || height < MIN_SIZE) {
+          Alert.alert(
+            'Image Too Small',
+            `Please select an image that is at least ${MIN_SIZE}x${MIN_SIZE} pixels.\n\nYour image is ${width}x${height} pixels.`,
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+
+        await uploadProfileImage(uri);
       }
 
     } catch (error) {
@@ -476,6 +487,9 @@ const EditProfileScreen = () => {
           <Text style={styles.changePictureText}>
             {uploadingImage ? 'Uploading...' : 'Tap to change profile picture'}
           </Text>
+          <Text style={styles.changePictureHint}>
+            Square image, minimum 200x200 pixels
+          </Text>
         </View>
 
         {/* Form Fields */}
@@ -727,6 +741,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
+  },
+  changePictureHint: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 4,
   },
   formSection: {
     marginBottom: 30,

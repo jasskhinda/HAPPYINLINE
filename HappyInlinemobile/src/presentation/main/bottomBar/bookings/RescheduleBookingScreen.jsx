@@ -299,8 +299,15 @@ const RescheduleBookingScreen = () => {
 
               // Call API to reschedule
               const result = await rescheduleBooking(booking.id, newDate, newTime);
-              
+
               if (result.success) {
+                // Send reschedule email notifications to customer, owner, and provider (fire and forget)
+                fetch('https://happyinline.com/api/booking/reschedule-notify', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ bookingId: booking.id }),
+                }).catch(err => console.error('Failed to send reschedule notifications:', err));
+
                 Alert.alert(
                   '✅ Appointment Rescheduled',
                   `Your appointment has been successfully rescheduled to ${newDateTime}.`,

@@ -25,6 +25,8 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
   const [services, setServices] = useState([]);
   const [upcomingBookings, setUpcomingBookings] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
+  const [selectedServices, setSelectedServices] = useState([]);
+  const [bookingFormat, setBookingFormat] = useState('in_person'); // 'in_person' or 'online'
 
   useEffect(() => {
     loadData();
@@ -112,13 +114,76 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const handleBookService = (service) => {
-    // Navigate to provider selection screen first
+  const handleToggleService = (service) => {
+    // Toggle service selection (like web app behavior)
+    const isSelected = selectedServices.some(s => s.id === service.id);
+    if (isSelected) {
+      setSelectedServices(selectedServices.filter(s => s.id !== service.id));
+    } else {
+      setSelectedServices([...selectedServices, service]);
+    }
+  };
+
+  const handleBookSelectedServices = () => {
+    if (!canContinue) return;
+
+    // Map services with their chosen format
+    const servicesWithFormat = selectedServices.map(s => {
+      let chosen_format;
+      if (s.service_type === 'both') {
+        chosen_format = bookingFormat;
+      } else if (s.service_type === 'online') {
+        chosen_format = 'online';
+      } else {
+        chosen_format = 'in_person';
+      }
+      return { ...s, chosen_format };
+    });
+
+    // Navigate to provider selection screen with all selected services
     navigation.navigate('ProviderSelectionScreen', {
       shopId: shop.id,
       shopName: shop.name,
-      selectedServices: [service],
+      selectedServices: servicesWithFormat,
+      bookingFormat: bookingFormat,
     });
+  };
+
+  const getTotalPrice = () => {
+    return selectedServices.reduce((total, service) => total + (parseFloat(service.price) || 0), 0);
+  };
+
+  const getTotalDuration = () => {
+    return selectedServices.reduce((total, service) => total + (parseInt(service.duration) || 0), 0);
+  };
+
+  // Check if any selected service has service_type 'both' (needs format choice)
+  const hasBothTypeServices = selectedServices.some(s => s.service_type === 'both');
+
+  // Check for format conflicts
+  const inPersonOnlyServices = selectedServices.filter(s =>
+    s.service_type === 'in_person' || !s.service_type
+  );
+  const onlineOnlyServices = selectedServices.filter(s => s.service_type === 'online');
+
+  // Is there an impossible conflict? (has both in-person-only AND online-only)
+  const hasImpossibleConflict = inPersonOnlyServices.length > 0 && onlineOnlyServices.length > 0;
+
+  // Check if selected format conflicts with any selected service
+  const hasFormatConflict = (bookingFormat === 'online' && inPersonOnlyServices.length > 0) ||
+                            (bookingFormat === 'in_person' && onlineOnlyServices.length > 0);
+
+  // Continue button should be disabled if there's any format conflict
+  const canContinue = selectedServices.length > 0 && !hasFormatConflict && !hasImpossibleConflict;
+
+  // Get service type badge info
+  const getServiceTypeBadge = (serviceType) => {
+    if (serviceType === 'online') {
+      return { label: 'Online', color: '#9333EA', bgColor: '#9333EA20' };
+    } else if (serviceType === 'both') {
+      return { label: 'Choose Format', color: '#3B82F6', bgColor: '#3B82F620' };
+    }
+    return { label: 'In-Person', color: '#10B981', bgColor: '#10B98120' };
   };
 
   const handleMessageShop = async () => {
@@ -399,7 +464,7 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Popular Services */}
+        {/* Services - Selectable like web app */}
         {services.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -410,41 +475,168 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
                 </TouchableOpacity>
               )}
             </View>
-            {services.slice(0, 5).map((service) => (
-              <TouchableOpacity
-                key={service.id}
-                style={styles.serviceCard}
-                onPress={() => handleBookService(service)}
-              >
-                <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName}>{service.name}</Text>
-                  {service.description && (
-                    <Text style={styles.serviceDescription} numberOfLines={2}>
-                      {service.description}
-                    </Text>
-                  )}
-                  <View style={styles.serviceMeta}>
-                    <View style={styles.serviceMetaItem}>
-                      <Ionicons name="time-outline" size={14} color="#666" />
-                      <Text style={styles.serviceMetaText}>{service.duration} min</Text>
+            <Text style={styles.selectServicesHint}>Select services for your appointment:</Text>
+            {services.map((service) => {
+              const isSelected = selectedServices.some(s => s.id === service.id);
+              const badge = getServiceTypeBadge(service.service_type);
+              // Check if this service conflicts with current format selection
+              const hasConflict = isSelected && (
+                (bookingFormat === 'online' && (service.service_type === 'in_person' || !service.service_type)) ||
+                (bookingFormat === 'in_person' && service.service_type === 'online')
+              );
+              return (
+                <TouchableOpacity
+                  key={service.id}
+                  style={[
+                    styles.serviceCard,
+                    isSelected && styles.serviceCardSelected,
+                    hasConflict && styles.serviceCardConflict,
+                  ]}
+                  onPress={() => handleToggleService(service)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.serviceInfo}>
+                    <View style={styles.serviceNameRow}>
+                      <Text style={styles.serviceName}>{service.name}</Text>
+                      {/* Service Type Badge */}
+                      <View style={[styles.serviceTypeBadge, { backgroundColor: badge.bgColor }]}>
+                        {service.service_type === 'both' ? (
+                          <View style={styles.badgeIconRow}>
+                            <Ionicons name="location-outline" size={10} color={badge.color} />
+                            <Text style={[styles.badgeSlash, { color: badge.color }]}>/</Text>
+                            <Ionicons name="videocam-outline" size={10} color={badge.color} />
+                          </View>
+                        ) : service.service_type === 'online' ? (
+                          <Ionicons name="videocam-outline" size={10} color={badge.color} />
+                        ) : (
+                          <Ionicons name="location-outline" size={10} color={badge.color} />
+                        )}
+                        <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
+                      </View>
                     </View>
-                    <View style={styles.serviceMetaItem}>
-                      <Ionicons name="cash-outline" size={14} color="#666" />
-                      <Text style={styles.serviceMetaText}>${service.price}</Text>
+                    {service.description && (
+                      <Text style={styles.serviceDescription} numberOfLines={2}>
+                        {service.description}
+                      </Text>
+                    )}
+                    <View style={styles.serviceMeta}>
+                      <View style={styles.serviceMetaItem}>
+                        <Ionicons name="time-outline" size={14} color="#666" />
+                        <Text style={styles.serviceMetaText}>{service.duration} min</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-                <TouchableOpacity
-                  style={styles.bookButton}
-                  onPress={() => handleBookService(service)}
-                >
-                  <Text style={styles.bookButtonText}>Book</Text>
+                  <View style={styles.serviceRight}>
+                    <Text style={styles.servicePrice}>${parseFloat(service.price).toFixed(0)}</Text>
+                    <View style={[styles.serviceCheckbox, isSelected && styles.serviceCheckboxSelected]}>
+                      {isSelected ? (
+                        <Ionicons name="checkmark" size={18} color="#FFF" />
+                      ) : (
+                        <Ionicons name="add" size={18} color="#CCC" />
+                      )}
+                    </View>
+                  </View>
                 </TouchableOpacity>
-              </TouchableOpacity>
-            ))}
+              );
+            })}
           </View>
         )}
       </ScrollView>
+
+      {/* Floating Book Now Bar - Shows when services are selected */}
+      {selectedServices.length > 0 && (
+        <View style={styles.floatingBookBar}>
+          {/* Format Conflict Warning */}
+          {(hasFormatConflict || hasImpossibleConflict) && (
+            <View style={styles.conflictWarning}>
+              <Ionicons name="warning" size={16} color="#F59E0B" />
+              <Text style={styles.conflictWarningText}>
+                {hasImpossibleConflict
+                  ? 'Cannot mix in-person only and online only services'
+                  : `Some services are ${bookingFormat === 'online' ? 'in-person' : 'online'} only`}
+              </Text>
+            </View>
+          )}
+
+          {/* Top row: Duration, Price, Service count */}
+          <View style={styles.floatingBookTopRow}>
+            <View style={styles.floatingBookStats}>
+              <View style={styles.floatingStatItem}>
+                <Ionicons name="time-outline" size={16} color="#666" />
+                <Text style={styles.floatingStatText}>{getTotalDuration()} min</Text>
+              </View>
+              <View style={styles.floatingStatItem}>
+                <Ionicons name="cash-outline" size={16} color="#4A90E2" />
+                <Text style={styles.floatingStatPrice}>${getTotalPrice().toFixed(2)}</Text>
+              </View>
+            </View>
+            <Text style={styles.floatingServiceCount}>
+              {selectedServices.length} service{selectedServices.length > 1 ? 's' : ''} selected
+            </Text>
+          </View>
+
+          {/* Bottom row: Format toggle buttons (if needed) and Continue button */}
+          <View style={styles.floatingBookBottomRow}>
+            {/* In-Person / Online Toggle - Only show if any service has 'both' type */}
+            {hasBothTypeServices && (
+              <View style={styles.formatToggleContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.formatToggleButton,
+                    bookingFormat === 'in_person' && styles.formatToggleActive,
+                    bookingFormat === 'in_person' && styles.formatToggleInPerson,
+                  ]}
+                  onPress={() => setBookingFormat('in_person')}
+                >
+                  <Ionicons
+                    name="location"
+                    size={16}
+                    color={bookingFormat === 'in_person' ? '#FFF' : '#666'}
+                  />
+                  <Text style={[
+                    styles.formatToggleText,
+                    bookingFormat === 'in_person' && styles.formatToggleTextActive,
+                  ]}>
+                    In-Person
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.formatToggleButton,
+                    bookingFormat === 'online' && styles.formatToggleActive,
+                    bookingFormat === 'online' && styles.formatToggleOnline,
+                  ]}
+                  onPress={() => setBookingFormat('online')}
+                >
+                  <Ionicons
+                    name="videocam"
+                    size={16}
+                    color={bookingFormat === 'online' ? '#FFF' : '#666'}
+                  />
+                  <Text style={[
+                    styles.formatToggleText,
+                    bookingFormat === 'online' && styles.formatToggleTextActive,
+                  ]}>
+                    Online
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.floatingBookButton,
+                !canContinue && styles.floatingBookButtonDisabled,
+              ]}
+              onPress={handleBookSelectedServices}
+              disabled={!canContinue}
+            >
+              <Text style={styles.floatingBookButtonText}>Continue</Text>
+              <Ionicons name="arrow-forward" size={18} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -720,11 +912,11 @@ const styles = StyleSheet.create({
   serviceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
+    backgroundColor: '#FFF',
   },
   serviceInfo: {
     flex: 1,
@@ -762,6 +954,196 @@ const styles = StyleSheet.create({
   },
   bookButtonText: {
     fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  serviceCardSelected: {
+    backgroundColor: '#F0F7FF',
+    borderLeftWidth: 3,
+    borderLeftColor: '#4A90E2',
+  },
+  serviceCardConflict: {
+    backgroundColor: '#FEF2F2',
+    borderLeftWidth: 3,
+    borderLeftColor: '#EF4444',
+  },
+  serviceNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 4,
+  },
+  serviceTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 4,
+  },
+  badgeIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  badgeSlash: {
+    fontSize: 10,
+    marginHorizontal: 1,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  serviceRight: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  servicePrice: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4A90E2',
+  },
+  serviceCheckbox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#DDD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+  },
+  serviceCheckboxSelected: {
+    backgroundColor: '#4A90E2',
+    borderColor: '#4A90E2',
+  },
+  selectServicesHint: {
+    fontSize: 14,
+    color: '#666',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    fontStyle: 'italic',
+  },
+  floatingBookBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFF',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 30,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 15,
+  },
+  conflictWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 10,
+    gap: 8,
+  },
+  conflictWarningText: {
+    fontSize: 12,
+    color: '#92400E',
+    flex: 1,
+  },
+  floatingBookTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  floatingBookStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  floatingStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  floatingStatText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  floatingStatPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4A90E2',
+  },
+  floatingServiceCount: {
+    fontSize: 12,
+    color: '#999',
+  },
+  floatingBookBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  formatToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    padding: 4,
+    flex: 1,
+  },
+  formatToggleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  formatToggleActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  formatToggleInPerson: {
+    backgroundColor: '#10B981',
+  },
+  formatToggleOnline: {
+    backgroundColor: '#9333EA',
+  },
+  formatToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+  },
+  formatToggleTextActive: {
+    color: '#FFF',
+  },
+  floatingBookButton: {
+    backgroundColor: '#4A90E2',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 10,
+    gap: 6,
+  },
+  floatingBookButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  floatingBookButtonText: {
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#FFF',
   },

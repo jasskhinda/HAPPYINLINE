@@ -21,7 +21,7 @@ import { getShopDetails, getShopStaff } from '../../lib/shopAuth';
 import { sendNewBookingNotification, scheduleBookingReminder, sendBookingConfirmationEmail } from '../../lib/notifications';
 
 const BookingConfirmationScreen = ({ route, navigation }) => {
-  const { shopId, shopName, selectedServices = [], selectedBarber = null } = route.params;
+  const { shopId, shopName, selectedServices = [], selectedBarber = null, bookingFormat: initialBookingFormat } = route.params;
 
   const [shop, setShop] = useState(null);
   const [barbers, setBarbers] = useState([]);
@@ -39,7 +39,8 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
   const [showBarberBottomSheet, setShowBarberBottomSheet] = useState(false);
   const [barberSearchQuery, setBarberSearchQuery] = useState('');
   // Single booking format choice for all services (applies to services with "both" type)
-  const [bookingFormat, setBookingFormat] = useState('in_person'); // 'in_person' or 'online'
+  // Initialize from route params if passed from ExclusiveCustomerHomeScreen
+  const [bookingFormat, setBookingFormat] = useState(initialBookingFormat || 'in_person'); // 'in_person' or 'online'
 
   // Check if any service has "both" type (can be either in-person or online)
   const hasBothTypeServices = selectedServices.some(s => s.service_type === 'both');
@@ -361,6 +362,13 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
         bookingReference: bookingReference,
         totalAmount: calculateTotal().toFixed(2),
       }).catch(err => console.log('Email error (non-blocking):', err));
+
+      // Send email notifications to customer, owner, and provider via web API (fire and forget)
+      fetch('https://happyinline.com/api/booking/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: data.id }),
+      }).catch(err => console.log('Web API email notification error (non-blocking):', err));
 
       // Show success message
       Alert.alert(
