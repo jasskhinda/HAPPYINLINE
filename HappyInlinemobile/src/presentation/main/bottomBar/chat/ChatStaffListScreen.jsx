@@ -66,10 +66,10 @@ const ChatStaffListScreen = () => {
 
       setShopId(customerShopId);
 
-      // Get shop name
+      // Get shop details including owner
       const { data: shopData } = await supabase
         .from('shops')
-        .select('name')
+        .select('name, created_by')
         .eq('id', customerShopId)
         .single();
 
@@ -77,18 +77,46 @@ const ChatStaffListScreen = () => {
         setShopName(shopData.name);
       }
 
-      // Load shop staff (providers + owner)
+      // Load shop staff (providers + admin)
       const { success, staff, error } = await getShopStaff(customerShopId);
 
-      if (success && staff) {
-        // Sort: admin first, then by name
-        const sortedStaff = staff.sort((a, b) => {
-          if (a.role === 'admin' && b.role !== 'admin') return -1;
-          if (a.role !== 'admin' && b.role === 'admin') return 1;
-          return (a.user?.name || '').localeCompare(b.user?.name || '');
-        });
-        setShopStaff(sortedStaff);
+      let allStaff = staff || [];
+
+      // Check if shop owner is already in staff list
+      const ownerInStaff = allStaff.some(s => s.user?.id === shopData?.created_by);
+
+      // If owner is not in staff list, fetch and add them
+      if (shopData?.created_by && !ownerInStaff) {
+        const { data: ownerProfile } = await supabase
+          .from('profiles')
+          .select('id, name, email, phone, profile_image')
+          .eq('id', shopData.created_by)
+          .single();
+
+        if (ownerProfile) {
+          // Add owner as virtual staff entry with admin role
+          allStaff = [
+            {
+              id: `owner-${ownerProfile.id}`,
+              role: 'admin',
+              bio: null,
+              specialties: [],
+              user: ownerProfile,
+            },
+            ...allStaff,
+          ];
+        }
       }
+
+      // Sort: admin/owner first, then by name
+      const sortedStaff = allStaff.sort((a, b) => {
+        const aIsAdmin = a.role === 'admin' || a.role === 'owner';
+        const bIsAdmin = b.role === 'admin' || b.role === 'owner';
+        if (aIsAdmin && !bIsAdmin) return -1;
+        if (!aIsAdmin && bIsAdmin) return 1;
+        return (a.user?.name || '').localeCompare(b.user?.name || '');
+      });
+      setShopStaff(sortedStaff);
 
       // Load existing conversations to show unread counts
       const convResult = await getUserConversations(profile.id);
@@ -156,7 +184,8 @@ const ChatStaffListScreen = () => {
   };
 
   const getRoleTag = (role) => {
-    if (role === 'admin') {
+    // Owner/admin roles get ADMIN tag
+    if (role === 'admin' || role === 'owner') {
       return { label: 'ADMIN', color: '#9333EA', bgColor: '#9333EA20' };
     }
     return { label: 'Provider', color: '#3B82F6', bgColor: '#3B82F620' };

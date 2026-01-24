@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 
 const ProviderSelectionScreen = ({ route, navigation }) => {
-  const { shopId, shopName, selectedServices = [] } = route.params;
+  const { shopId, shopName, selectedServices = [], bookingFormat } = route.params;
 
   const [loading, setLoading] = useState(true);
   const [providers, setProviders] = useState([]);
@@ -51,6 +51,7 @@ const ProviderSelectionScreen = ({ route, navigation }) => {
           shopName,
           selectedServices,
           selectedBarber: null,
+          bookingFormat,
         });
         return;
       }
@@ -66,6 +67,7 @@ const ProviderSelectionScreen = ({ route, navigation }) => {
           shopName,
           selectedServices,
           selectedBarber: null,
+          bookingFormat,
         });
         return;
       }
@@ -83,6 +85,7 @@ const ProviderSelectionScreen = ({ route, navigation }) => {
           shopName,
           selectedServices,
           selectedBarber: null,
+          bookingFormat,
         });
         return;
       }
@@ -102,6 +105,7 @@ const ProviderSelectionScreen = ({ route, navigation }) => {
           shopName,
           selectedServices,
           selectedBarber: null,
+          bookingFormat,
         });
         return;
       }
@@ -125,6 +129,7 @@ const ProviderSelectionScreen = ({ route, navigation }) => {
       shopName,
       selectedServices,
       selectedBarber: selectedProvider ? { id: selectedProvider.id, user: { name: selectedProvider.name } } : null,
+      bookingFormat,
     });
   };
 
@@ -134,6 +139,7 @@ const ProviderSelectionScreen = ({ route, navigation }) => {
       shopName,
       selectedServices,
       selectedBarber: null,
+      bookingFormat,
     });
   };
 

@@ -7,6 +7,7 @@ import { getCurrentUser } from '../../../../lib/auth';
 import { getAllShops, isShopOpen } from '../../../../lib/shopAuth';
 import { supabase } from '../../../../lib/supabase';
 import ShopStatusBadge from '../../../../components/shop/ShopStatusBadge';
+import ExclusiveCustomerHomeScreen from './ExclusiveCustomerHomeScreen';
 
 const CustomerHomeScreen = () => {
   const navigation = useNavigation();
@@ -15,6 +16,7 @@ const CustomerHomeScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isLockedCustomer, setIsLockedCustomer] = useState(false);
+  const [isExclusiveCustomer, setIsExclusiveCustomer] = useState(false);
   const [categories, setCategories] = useState([]);
   const flatListRef = useRef(null);
 
@@ -32,7 +34,16 @@ const CustomerHomeScreen = () => {
         setUserName(profile.name || 'Guest');
       }
 
-      // Check if customer is locked to a home shop
+      // Check if customer has exclusive_shop_id (linked via QR code on web)
+      // This matches the web app behavior where customers are linked to ONE shop
+      if (profile && profile.exclusive_shop_id && profile.role === 'customer') {
+        console.log('🔐 Customer has exclusive_shop_id:', profile.exclusive_shop_id);
+        setIsExclusiveCustomer(true);
+        setLoading(false);
+        return; // Will render ExclusiveCustomerHomeScreen instead
+      }
+
+      // Check if customer is locked to a home shop (legacy)
       let shopsToDisplay = [];
       const customerIsLocked = !!(profile && profile.home_shop_id && profile.role === 'customer');
       setIsLockedCustomer(customerIsLocked);
@@ -183,8 +194,14 @@ const CustomerHomeScreen = () => {
     </View>
   );
 
-  // If customer WITHOUT home shop, show QR scan prompt
-  if (!loading && !isLockedCustomer) {
+  // If customer has exclusive_shop_id, show the exclusive customer home screen
+  // This matches the web app behavior for customers linked to a shop via QR code
+  if (!loading && isExclusiveCustomer) {
+    return <ExclusiveCustomerHomeScreen navigation={navigation} />;
+  }
+
+  // If customer WITHOUT home shop or exclusive shop, show QR scan prompt
+  if (!loading && !isLockedCustomer && !isExclusiveCustomer) {
     return (
       <View style={styles.outerWrapper}>
         <View style={styles.container}>
