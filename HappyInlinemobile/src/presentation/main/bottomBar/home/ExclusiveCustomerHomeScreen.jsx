@@ -28,6 +28,7 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
   const [selectedServices, setSelectedServices] = useState([]);
   const [bookingFormat, setBookingFormat] = useState('in_person'); // 'in_person' or 'online'
   const [unreadCount, setUnreadCount] = useState(0);
+  const [expandedDescriptions, setExpandedDescriptions] = useState({}); // Track which services have expanded descriptions
 
   useEffect(() => {
     loadData();
@@ -109,27 +110,75 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
 
   const loadUpcomingBookings = async (customerId, shopId) => {
     try {
-      const now = new Date().toISOString();
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
 
       const { data, error } = await supabase
         .from('bookings')
-        .select(`
-          *,
-          shop_services (name, price, duration)
-        `)
+        .select('*')
         .eq('customer_id', customerId)
         .eq('shop_id', shopId)
-        .gte('appointment_datetime', now)
+        .gte('appointment_date', today)
         .in('status', ['confirmed', 'pending'])
-        .order('appointment_datetime', { ascending: true })
+        .order('appointment_date', { ascending: true })
+        .order('appointment_time', { ascending: true })
         .limit(5);
 
       if (!error && data) {
+        console.log('📅 Loaded upcoming bookings:', data.length);
         setUpcomingBookings(data);
+      } else if (error) {
+        console.error('Error loading bookings:', error);
       }
     } catch (error) {
       console.error('Error loading bookings:', error);
     }
+  };
+
+  // Helper to get service names from booking
+  const getBookingServices = (booking) => {
+    try {
+      let servicesList = booking.services;
+      if (typeof servicesList === 'string') {
+        servicesList = JSON.parse(servicesList);
+      }
+      if (Array.isArray(servicesList)) {
+        return servicesList.map(s => s.name || s).join(', ');
+      }
+      return 'Service';
+    } catch {
+      return 'Service';
+    }
+  };
+
+  // Helper to format booking date/time
+  const formatBookingDateTime = (booking) => {
+    if (!booking.appointment_date || !booking.appointment_time) return { date: 'N/A', time: 'N/A' };
+
+    const [year, month, day] = booking.appointment_date.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+
+    const dateStr = date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+
+    const [hours, minutes] = booking.appointment_time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    const timeStr = `${hour12}:${minutes} ${ampm}`;
+
+    return { date: dateStr, time: timeStr };
+  };
+
+  // Toggle description expansion for a service
+  const toggleDescription = (serviceId) => {
+    setExpandedDescriptions(prev => ({
+      ...prev,
+      [serviceId]: !prev[serviceId]
+    }));
   };
 
   const handleRefresh = async () => {
@@ -388,21 +437,14 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
                   <View style={styles.bookingDateContainer}>
                     <Ionicons name="calendar" size={20} color="#4A90E2" />
                     <Text style={styles.bookingDate}>
-                      {new Date(upcomingBookings[0].appointment_datetime).toLocaleDateString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                      })}
+                      {formatBookingDateTime(upcomingBookings[0]).date}
                     </Text>
                   </View>
-                  <Text style={styles.bookingService}>{upcomingBookings[0].shop_services?.name}</Text>
+                  <Text style={styles.bookingService}>{getBookingServices(upcomingBookings[0])}</Text>
                   <View style={styles.bookingTimeContainer}>
                     <Ionicons name="time" size={16} color="#666" />
                     <Text style={styles.bookingTime}>
-                      {new Date(upcomingBookings[0].appointment_datetime).toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}
+                      {formatBookingDateTime(upcomingBookings[0]).time}
                     </Text>
                   </View>
                 </View>
@@ -476,17 +518,36 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
                         <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
                       </View>
                     </View>
-                    {service.description && (
-                      <Text style={styles.serviceDescription} numberOfLines={2}>
-                        {service.description}
-                      </Text>
-                    )}
                     <View style={styles.serviceMeta}>
                       <View style={styles.serviceMetaItem}>
                         <Ionicons name="time-outline" size={14} color="#666" />
                         <Text style={styles.serviceMetaText}>{service.duration} min</Text>
                       </View>
                     </View>
+                    {/* Description - collapsed by default */}
+                    {service.description && (
+                      <>
+                        {expandedDescriptions[service.id] && (
+                          <Text style={styles.serviceDescription}>
+                            {service.description}
+                          </Text>
+                        )}
+                        <TouchableOpacity
+                          style={styles.readMoreButton}
+                          onPress={() => toggleDescription(service.id)}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Text style={styles.readMoreText}>
+                            {expandedDescriptions[service.id] ? 'SHOW LESS' : 'READ MORE'}
+                          </Text>
+                          <Ionicons
+                            name={expandedDescriptions[service.id] ? 'chevron-up' : 'chevron-down'}
+                            size={14}
+                            color="#4A90E2"
+                          />
+                        </TouchableOpacity>
+                      </>
+                    )}
                   </View>
                   <View style={styles.serviceRight}>
                     <Text style={styles.servicePrice}>${parseFloat(service.price).toFixed(0)}</Text>
@@ -761,12 +822,12 @@ const styles = StyleSheet.create({
   messageButtonInline: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#4A90E2',
-    paddingVertical: 10,
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 25,
-    alignSelf: 'flex-start',
-    marginTop: 12,
+    borderRadius: 12,
+    marginTop: 16,
     gap: 8,
   },
   messageButtonText: {
@@ -921,7 +982,20 @@ const styles = StyleSheet.create({
   serviceDescription: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  readMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  readMoreText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4A90E2',
   },
   serviceMeta: {
     flexDirection: 'row',
