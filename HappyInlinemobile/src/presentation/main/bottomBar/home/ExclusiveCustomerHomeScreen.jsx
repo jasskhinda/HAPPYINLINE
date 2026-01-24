@@ -360,19 +360,7 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
 
           {/* Quick Actions */}
           <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.quickActionButton} onPress={handleViewAllServices}>
-              <LinearGradient
-                colors={['#4A90E2', '#3A7BC8', '#2A6BA8']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.quickActionGradient}
-              >
-                <Ionicons name="calendar" size={20} color="#FFF" />
-                <Text style={styles.quickActionText}>Book Now</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.quickActionButton} onPress={handleMessageShop}>
+            <TouchableOpacity style={styles.messageButton} onPress={handleMessageShop}>
               <View style={styles.quickActionOutline}>
                 <View style={styles.messageIconContainer}>
                   <Ionicons name="chatbubble" size={20} color="#4A90E2" />
@@ -773,18 +761,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingBottom: 20,
-    gap: 12,
-  },
-  quickActionButton: {
-    flex: 1,
-  },
-  quickActionGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
+  },
+  messageButton: {
+    minWidth: 160,
   },
   quickActionOutline: {
     flexDirection: 'row',
@@ -795,11 +775,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#4A90E2',
     gap: 8,
-  },
-  quickActionText: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#FFF',
   },
   quickActionTextOutline: {
     fontSize: 15,
