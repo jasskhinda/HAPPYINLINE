@@ -49,6 +49,7 @@ import ProviderReviewsScreen from './presentation/main/bottomBar/home/ProviderRe
 
 // Chat
 import ChatConversationScreen from './presentation/main/bottomBar/chat/ChatConversationScreen';
+import ChatStaffListScreen from './presentation/main/bottomBar/chat/ChatStaffListScreen';
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { onAuthStateChange, hasCompletedOnboarding } from './lib/auth';
@@ -207,6 +208,7 @@ const Main = () => {
               <RootStack.Screen name="ProviderReviewsScreen" component={ProviderReviewsScreen} />
 
               {/* Chat */}
+              <RootStack.Screen name="ChatStaffListScreen" component={ChatStaffListScreen} />
               <RootStack.Screen name="ChatConversationScreen" component={ChatConversationScreen} />
             </RootStack.Navigator>
           </NavigationContainer>

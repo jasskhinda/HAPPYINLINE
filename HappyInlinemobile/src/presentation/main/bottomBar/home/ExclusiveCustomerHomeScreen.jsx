@@ -186,9 +186,9 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
   };
 
   const handleMessageShop = () => {
-    // Navigate to Chat tab which shows the staff list with Provider/ADMIN tags
+    // Navigate to ChatStaffListScreen which shows the staff list with Provider/ADMIN tags
     // Customer can choose who to message from there
-    navigation.navigate('Chat');
+    navigation.navigate('ChatStaffListScreen');
   };
 
   const handleViewAllServices = () => {
