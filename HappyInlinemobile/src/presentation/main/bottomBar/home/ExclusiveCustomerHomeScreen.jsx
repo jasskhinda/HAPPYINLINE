@@ -16,7 +16,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../../../lib/supabase';
 import { getShopDetails } from '../../../../lib/shopAuth';
 import { getCurrentUser, signOut } from '../../../../lib/auth';
-import { getOrCreateConversation } from '../../../../lib/messaging';
 
 const ExclusiveCustomerHomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
@@ -186,70 +185,10 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
     return { label: 'In-Person', color: '#10B981', bgColor: '#10B98120' };
   };
 
-  const handleMessageShop = async () => {
-    try {
-      // Get current user
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-      if (!currentUser?.id) {
-        Alert.alert('Please log in', 'You need to be logged in to message this shop');
-        return;
-      }
-
-      console.log('🔍 Looking for shop owner/admin/manager for shopId:', shop.id);
-
-      // Get shop owner/admin/manager ID from shop staff (include 'owner' role)
-      const { data: ownerData, error: queryError } = await supabase
-        .from('shop_staff')
-        .select('user_id, role')
-        .eq('shop_id', shop.id)
-        .in('role', ['owner', 'admin'])
-        .eq('is_active', true)
-        .order('role', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (queryError) {
-        console.error('❌ Query error:', queryError);
-        Alert.alert('Error', 'Database error: ' + queryError.message);
-        return;
-      }
-
-      // If no staff found, fall back to shop.created_by
-      let recipientId = ownerData?.user_id;
-
-      if (!recipientId && shop.created_by) {
-        console.log('📌 No staff found, using shop.created_by:', shop.created_by);
-        recipientId = shop.created_by;
-      }
-
-      if (!recipientId) {
-        console.error('❌ No owner/admin/manager found for shop:', shop.id);
-        Alert.alert('Error', 'Could not find shop owner or manager');
-        return;
-      }
-
-      console.log('✅ Found recipient:', recipientId, ownerData?.role || 'created_by');
-
-      // Create or get existing conversation
-      const result = await getOrCreateConversation(currentUser.id, recipientId, shop.id);
-
-      if (result.success && result.conversationId) {
-        console.log('✅ Conversation created/found:', result.conversationId);
-        // Navigate to chat conversation screen
-        navigation.navigate('ChatConversationScreen', {
-          conversationId: result.conversationId,
-          recipientName: shop.name,
-          recipientId: recipientId,
-        });
-      } else {
-        console.error('❌ Failed to create conversation:', result.error);
-        Alert.alert('Error', result.error || 'Could not create conversation');
-      }
-    } catch (error) {
-      console.error('❌ Error starting conversation:', error);
-      Alert.alert('Error', 'Could not start conversation: ' + error.message);
-    }
+  const handleMessageShop = () => {
+    // Navigate to Chat tab which shows the staff list with Provider/ADMIN tags
+    // Customer can choose who to message from there
+    navigation.navigate('Chat');
   };
 
   const handleViewAllServices = () => {
