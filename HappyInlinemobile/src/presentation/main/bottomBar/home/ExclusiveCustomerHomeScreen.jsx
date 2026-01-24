@@ -259,7 +259,8 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
   };
 
   const handleViewAllBookings = () => {
-    navigation.navigate('MyBookingScreen');
+    // Navigate to the Bookings tab in the bottom tab navigator
+    navigation.navigate('BookingsTabScreen');
   };
 
   if (loading) {
@@ -356,74 +357,74 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
                 <Text style={styles.infoText}>{shop.phone}</Text>
               </View>
             )}
-          </View>
 
-          {/* Quick Actions */}
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.messageButton} onPress={handleMessageShop}>
-              <View style={styles.quickActionOutline}>
-                <View style={styles.messageIconContainer}>
-                  <Ionicons name="chatbubble" size={20} color="#4A90E2" />
-                  {unreadCount > 0 && (
-                    <View style={styles.messageBadge}>
-                      <Text style={styles.messageBadgeText}>
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </Text>
-                    </View>
-                  )}
+            {/* Message Button - inline */}
+            <TouchableOpacity style={styles.messageButtonInline} onPress={handleMessageShop}>
+              <Ionicons name="chatbubble" size={18} color="#FFF" />
+              <Text style={styles.messageButtonText}>Message</Text>
+              {unreadCount > 0 && (
+                <View style={styles.messageBadgeInline}>
+                  <Text style={styles.messageBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
                 </View>
-                <Text style={styles.quickActionTextOutline}>Message</Text>
-              </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Upcoming Bookings */}
-        {upcomingBookings.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Upcoming Appointments</Text>
-              <TouchableOpacity onPress={handleViewAllBookings}>
-                <Text style={styles.sectionLink}>View All</Text>
-              </TouchableOpacity>
-            </View>
-            {upcomingBookings.map((booking) => (
+        {/* Your Upcoming Booking */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Your Upcoming Booking</Text>
+          </View>
+          {upcomingBookings.length > 0 ? (
+            <>
               <TouchableOpacity
-                key={booking.id}
                 style={styles.bookingCard}
-                onPress={() => handleViewBooking(booking)}
+                onPress={() => handleViewBooking(upcomingBookings[0])}
               >
                 <View style={styles.bookingInfo}>
                   <View style={styles.bookingDateContainer}>
                     <Ionicons name="calendar" size={20} color="#4A90E2" />
                     <Text style={styles.bookingDate}>
-                      {new Date(booking.appointment_datetime).toLocaleDateString('en-US', {
+                      {new Date(upcomingBookings[0].appointment_datetime).toLocaleDateString('en-US', {
+                        weekday: 'short',
                         month: 'short',
                         day: 'numeric',
-                        year: 'numeric',
                       })}
                     </Text>
                   </View>
-                  <Text style={styles.bookingService}>{booking.shop_services?.name}</Text>
+                  <Text style={styles.bookingService}>{upcomingBookings[0].shop_services?.name}</Text>
                   <View style={styles.bookingTimeContainer}>
                     <Ionicons name="time" size={16} color="#666" />
                     <Text style={styles.bookingTime}>
-                      {new Date(booking.appointment_datetime).toLocaleTimeString('en-US', {
+                      {new Date(upcomingBookings[0].appointment_datetime).toLocaleTimeString('en-US', {
                         hour: 'numeric',
                         minute: '2-digit',
                       })}
                     </Text>
                   </View>
                 </View>
-                <View style={[styles.bookingStatus, booking.status === 'confirmed' ? styles.statusConfirmed : styles.statusPending]}>
+                <View style={[styles.bookingStatus, upcomingBookings[0].status === 'confirmed' ? styles.statusConfirmed : styles.statusPending]}>
                   <Text style={styles.bookingStatusText}>
-                    {booking.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                    {upcomingBookings[0].status === 'confirmed' ? 'Confirmed' : 'Pending'}
                   </Text>
                 </View>
               </TouchableOpacity>
-            ))}
-          </View>
-        )}
+              <TouchableOpacity style={styles.viewAllButton} onPress={handleViewAllBookings}>
+                <Text style={styles.viewAllButtonText}>View All Bookings</Text>
+                <Ionicons name="chevron-forward" size={18} color="#4A90E2" />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={styles.noBookingsContainer}>
+              <Ionicons name="calendar-outline" size={48} color="#CCC" />
+              <Text style={styles.noBookingsText}>No upcoming bookings</Text>
+              <Text style={styles.noBookingsSubtext}>Select services below to book an appointment</Text>
+            </View>
+          )}
+        </View>
 
         {/* Services - Selectable like web app */}
         {services.length > 0 && (
@@ -757,49 +758,70 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 8,
   },
-  quickActions: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    justifyContent: 'center',
-  },
-  messageButton: {
-    minWidth: 160,
-  },
-  quickActionOutline: {
+  messageButtonInline: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#4A90E2',
+    backgroundColor: '#4A90E2',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    alignSelf: 'flex-start',
+    marginTop: 12,
     gap: 8,
   },
-  quickActionTextOutline: {
+  messageButtonText: {
     fontSize: 15,
-    fontWeight: 'bold',
-    color: '#4A90E2',
+    fontWeight: '600',
+    color: '#FFF',
   },
-  messageIconContainer: {
-    position: 'relative',
-  },
-  messageBadge: {
-    position: 'absolute',
-    top: -8,
-    right: -10,
+  messageBadgeInline: {
     backgroundColor: '#FF3B30',
     borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 4,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: 4,
   },
   messageBadgeText: {
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginHorizontal: 20,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#4A90E2',
+    borderRadius: 8,
+    gap: 4,
+  },
+  viewAllButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#4A90E2',
+  },
+  noBookingsContainer: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    paddingHorizontal: 20,
+  },
+  noBookingsText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 12,
+  },
+  noBookingsSubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 4,
+    textAlign: 'center',
   },
   section: {
     backgroundColor: '#FFF',
