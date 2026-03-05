@@ -724,17 +724,26 @@ const ShopDetailsScreen = ({ route, navigation }) => {
         </View>
       </View>
 
-      {shop?.business_hours && (
+      {(shop?.operating_hours || shop?.business_hours) && (
         <View style={styles.aboutSection}>
           <Text style={styles.aboutTitle}>Business Hours</Text>
-          {Object.entries(JSON.parse(JSON.stringify(shop.business_hours))).map(([day, hours]) => (
-            <View key={day} style={styles.hoursRow}>
-              <Text style={styles.dayText}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
-              <Text style={styles.hoursText}>
-                {hours.closed ? 'Closed' : `${hours.open} - ${hours.close}`}
-              </Text>
-            </View>
-          ))}
+          {(() => {
+            const hoursData = shop.operating_hours || shop.business_hours;
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            return days.map(day => {
+              const key = shop.operating_hours ? day : day.toLowerCase();
+              const h = hoursData[key];
+              if (!h) return null;
+              return (
+                <View key={day} style={styles.hoursRow}>
+                  <Text style={styles.dayText}>{day}</Text>
+                  <Text style={[styles.hoursText, h.closed && { color: '#FF3B30' }]}>
+                    {h.closed ? 'Closed' : `${formatTime(h.open)} - ${formatTime(h.close)}`}
+                  </Text>
+                </View>
+              );
+            });
+          })()}
         </View>
       )}
     </ScrollView>
@@ -842,31 +851,42 @@ const ShopDetailsScreen = ({ route, navigation }) => {
             )}
 
             {/* Operating Hours - Show to Everyone */}
-            {shop && shop.operating_days && shop.opening_time && shop.closing_time && (
+            {shop && (shop.operating_hours || (shop.operating_days && shop.opening_time)) && (
               <View style={styles.operatingHoursCard}>
                 <View style={styles.hoursHeader}>
                   <Ionicons name="time-outline" size={20} color="#4A90E2" />
                   <Text style={styles.hoursTitle}>Operating Hours</Text>
                 </View>
                 <View style={styles.hoursDetails}>
-                  <View style={styles.hoursRow}>
-                    <Ionicons name="calendar-outline" size={16} color="#666" />
-                    <Text style={styles.hoursLabel}>Days:</Text>
-                    <Text style={styles.hoursValue}>{formatOperatingDays(shop.operating_days)}</Text>
-                  </View>
-                  <View style={styles.hoursRow}>
-                    <Ionicons name="time-outline" size={16} color="#666" />
-                    <Text style={styles.hoursLabel}>Hours:</Text>
-                    <Text style={styles.hoursValue}>
-                      {formatTime(shop.opening_time)} - {formatTime(shop.closing_time)}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.hoursNote}>
-                  <Ionicons name="information-circle-outline" size={14} color="#999" />
-                  <Text style={styles.hoursNoteText}>
-                    These are regular operating hours. Actual availability may vary.
-                  </Text>
+                  {shop.operating_hours ? (
+                    ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => {
+                      const h = shop.operating_hours[day];
+                      if (!h) return null;
+                      return (
+                        <View key={day} style={styles.hoursRow}>
+                          <Text style={[styles.hoursLabel, { minWidth: 80 }]}>{day.slice(0, 3)}</Text>
+                          <Text style={[styles.hoursValue, h.closed && { color: '#FF3B30' }]}>
+                            {h.closed ? 'Closed' : `${formatTime(h.open)} - ${formatTime(h.close)}`}
+                          </Text>
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <>
+                      <View style={styles.hoursRow}>
+                        <Ionicons name="calendar-outline" size={16} color="#666" />
+                        <Text style={styles.hoursLabel}>Days:</Text>
+                        <Text style={styles.hoursValue}>{formatOperatingDays(shop.operating_days)}</Text>
+                      </View>
+                      <View style={styles.hoursRow}>
+                        <Ionicons name="time-outline" size={16} color="#666" />
+                        <Text style={styles.hoursLabel}>Hours:</Text>
+                        <Text style={styles.hoursValue}>
+                          {formatTime(shop.opening_time)} - {formatTime(shop.closing_time)}
+                        </Text>
+                      </View>
+                    </>
+                  )}
                 </View>
               </View>
             )}

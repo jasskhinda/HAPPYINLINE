@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Image,
   ScrollView,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 
 import FlexibleInputField from '../../../../components/inputTextField/FlexibleInputField';
 import { supabase } from '../../../../lib/supabase';
@@ -27,6 +27,9 @@ import { getOrCreateConversation, getUserConversations } from '../../../../lib/m
  */
 const ChatStaffListScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  // Check if this screen is being used as a tab (no back button needed)
+  const isTabScreen = route.name === 'ChatScreen';
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -35,11 +38,36 @@ const ChatStaffListScreen = () => {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [shopId, setShopId] = useState(null);
   const [shopName, setShopName] = useState('');
+  const pollingRef = useRef(null);
+
+  // Lightweight refresh that only updates conversations (no loading flash)
+  const refreshConversations = useCallback(async () => {
+    if (!currentUserId) return;
+    try {
+      const convResult = await getUserConversations(currentUserId);
+      if (convResult.success) {
+        setConversations(convResult.conversations);
+      }
+    } catch (error) {
+      // Silent fail for background polling
+    }
+  }, [currentUserId]);
 
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [])
+      // Start polling while screen is focused
+      pollingRef.current = setInterval(() => {
+        refreshConversations();
+      }, 5000);
+
+      return () => {
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+      };
+    }, [refreshConversations])
   );
 
   const loadData = async () => {
@@ -202,10 +230,12 @@ const ChatStaffListScreen = () => {
     return (
       <View style={styles.outerWrapper}>
         <SafeAreaView style={styles.appBarWrapper} edges={['top', 'left', 'right']}>
-          <View style={styles.appBar}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="chevron-back" size={24} color="#333" />
-            </TouchableOpacity>
+          <View style={[styles.appBar, isTabScreen && styles.appBarTab]}>
+            {!isTabScreen && (
+              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <Ionicons name="chevron-back" size={24} color="#333" />
+              </TouchableOpacity>
+            )}
             <View style={styles.titleContainer}>
               <Text style={styles.titleText}>Messages</Text>
             </View>
@@ -223,10 +253,12 @@ const ChatStaffListScreen = () => {
     return (
       <View style={styles.outerWrapper}>
         <SafeAreaView style={styles.appBarWrapper} edges={['top', 'left', 'right']}>
-          <View style={styles.appBar}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="chevron-back" size={24} color="#333" />
-            </TouchableOpacity>
+          <View style={[styles.appBar, isTabScreen && styles.appBarTab]}>
+            {!isTabScreen && (
+              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <Ionicons name="chevron-back" size={24} color="#333" />
+              </TouchableOpacity>
+            )}
             <View style={styles.titleContainer}>
               <Text style={styles.titleText}>Messages</Text>
             </View>
@@ -246,10 +278,12 @@ const ChatStaffListScreen = () => {
   return (
     <View style={styles.outerWrapper}>
       <SafeAreaView style={styles.appBarWrapper} edges={['top', 'left', 'right']}>
-        <View style={styles.appBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color="#333" />
-          </TouchableOpacity>
+        <View style={[styles.appBar, isTabScreen && styles.appBarTab]}>
+          {!isTabScreen && (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Ionicons name="chevron-back" size={24} color="#333" />
+            </TouchableOpacity>
+          )}
           <View style={styles.titleContainer}>
             <Text style={styles.titleText}>Messages</Text>
             {shopName && (
@@ -350,6 +384,88 @@ const ChatStaffListScreen = () => {
               );
             })
           )}
+
+          {/* Previous Chats Section */}
+          {conversations.length > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Previous Chats</Text>
+              {conversations.map((conv) => {
+                // Find the other user in the conversation
+                const isUser1 = conv.user1_id === currentUserId;
+                const otherUserId = isUser1 ? conv.user2_id : conv.user1_id;
+                const unreadCount = isUser1 ? (conv.user1_unread_count || 0) : (conv.user2_unread_count || 0);
+
+                // Get the staff member info for this conversation
+                const staffMember = shopStaff.find(s => s.user?.id === otherUserId);
+                const recipientName = staffMember?.user?.name || conv.other_user_name || 'Staff Member';
+                const recipientImage = staffMember?.user?.profile_image || conv.other_user_avatar;
+
+                // Format time
+                const formatTime = (timestamp) => {
+                  if (!timestamp) return '';
+                  const date = new Date(timestamp);
+                  const now = new Date();
+                  const diffInHours = (now - date) / (1000 * 60 * 60);
+
+                  if (diffInHours < 24) {
+                    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                  } else if (diffInHours < 168) {
+                    return date.toLocaleDateString('en-US', { weekday: 'short' });
+                  } else {
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                  }
+                };
+
+                return (
+                  <TouchableOpacity
+                    key={conv.id}
+                    style={styles.chatCard}
+                    onPress={() => navigation.navigate('ChatConversationScreen', {
+                      conversationId: conv.id,
+                      recipientName: recipientName,
+                      recipientId: otherUserId,
+                    })}
+                    activeOpacity={0.7}
+                  >
+                    <Image
+                      source={
+                        recipientImage
+                          ? { uri: recipientImage }
+                          : require('../../../../../assets/logowithouttagline.png')
+                      }
+                      style={styles.staffImage}
+                      resizeMode="cover"
+                    />
+
+                    <View style={styles.chatInfo}>
+                      <View style={styles.chatHeader}>
+                        <Text style={styles.staffName} numberOfLines={1}>
+                          {recipientName}
+                        </Text>
+                        <Text style={styles.chatTime}>
+                          {formatTime(conv.last_message_at)}
+                        </Text>
+                      </View>
+                      <Text style={styles.lastMessage} numberOfLines={1}>
+                        {conv.last_message_text || 'No messages yet'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.staffRight}>
+                      {unreadCount > 0 && (
+                        <View style={styles.unreadBadge}>
+                          <Text style={styles.unreadBadgeText}>
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </Text>
+                        </View>
+                      )}
+                      <Ionicons name="chevron-forward" size={20} color="#CCC" />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </>
+          )}
         </ScrollView>
       </View>
     </View>
@@ -371,6 +487,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 10,
+  },
+  appBarTab: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   backButton: {
     padding: 5,
@@ -521,5 +641,37 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'white',
     textAlign: 'center',
+  },
+  chatCard: {
+    marginHorizontal: 15,
+    marginVertical: 6,
+    backgroundColor: 'white',
+    padding: 14,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  chatInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  chatHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  chatTime: {
+    fontSize: 12,
+    color: '#999',
+  },
+  lastMessage: {
+    fontSize: 14,
+    color: '#666',
   },
 });

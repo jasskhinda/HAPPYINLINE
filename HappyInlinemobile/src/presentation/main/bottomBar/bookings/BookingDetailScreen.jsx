@@ -8,6 +8,7 @@ import {
   Alert,
   Image,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -262,6 +263,59 @@ const BookingDetailScreen = () => {
           </View>
         </View>
 
+        {/* Service Type Card - Online/In-Person */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons
+              name={booking.booking_format === 'online' ? 'videocam-outline' : 'location-outline'}
+              size={22}
+              color={booking.booking_format === 'online' ? '#9333EA' : '#10B981'}
+            />
+            <Text style={styles.cardTitle}>Service Type</Text>
+          </View>
+          <View style={[
+            styles.serviceTypeBadge,
+            booking.booking_format === 'online' ? styles.serviceTypeOnline : styles.serviceTypeInPerson
+          ]}>
+            <Ionicons
+              name={booking.booking_format === 'online' ? 'videocam' : 'location'}
+              size={20}
+              color={booking.booking_format === 'online' ? '#9333EA' : '#10B981'}
+            />
+            <Text style={[
+              styles.serviceTypeText,
+              booking.booking_format === 'online' ? styles.serviceTypeTextOnline : styles.serviceTypeTextInPerson
+            ]}>
+              {booking.booking_format === 'online' ? 'Online Meeting' : 'In-Person Visit'}
+            </Text>
+          </View>
+          {booking.booking_format === 'online' && (
+            <>
+              {booking.meeting_link ? (
+                <TouchableOpacity
+                  style={styles.joinMeetingButton}
+                  onPress={() => {
+                    Linking.openURL(booking.meeting_link).catch(() => {
+                      Alert.alert('Error', 'Could not open meeting link');
+                    });
+                  }}
+                >
+                  <Ionicons name="videocam" size={20} color="#FFF" />
+                  <Text style={styles.joinMeetingButtonText}>Join Meeting</Text>
+                  <Ionicons name="open-outline" size={16} color="#FFF" />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.onlineMeetingInfo}>
+                  <Ionicons name="mail-outline" size={16} color="#666" />
+                  <Text style={styles.onlineMeetingText}>
+                    Meeting link will be sent to your email before your appointment
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+
         {/* Shop/Customer Info Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -351,12 +405,12 @@ const BookingDetailScreen = () => {
             services.map((service, index) => (
               <View key={index} style={styles.serviceItem}>
                 <View style={styles.serviceLeft}>
-                  <Text style={styles.serviceName}>{service.name}</Text>
-                  {service.duration && (
+                  <Text style={styles.serviceName}>{service.name || 'Service'}</Text>
+                  {service.duration != null && (
                     <Text style={styles.serviceDuration}>{service.duration} min</Text>
                   )}
                 </View>
-                {service.price && (
+                {service.price != null && (
                   <Text style={styles.servicePrice}>${service.price}</Text>
                 )}
               </View>
@@ -365,7 +419,7 @@ const BookingDetailScreen = () => {
             <Text style={styles.noServices}>No services listed</Text>
           )}
 
-          {booking.total_amount && (
+          {booking.total_amount != null && (
             <>
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Total</Text>
@@ -750,6 +804,66 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#FFF',
+  },
+  serviceTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 10,
+  },
+  serviceTypeOnline: {
+    backgroundColor: '#9333EA15',
+    borderWidth: 1,
+    borderColor: '#9333EA40',
+  },
+  serviceTypeInPerson: {
+    backgroundColor: '#10B98115',
+    borderWidth: 1,
+    borderColor: '#10B98140',
+  },
+  serviceTypeText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  serviceTypeTextOnline: {
+    color: '#9333EA',
+  },
+  serviceTypeTextInPerson: {
+    color: '#10B981',
+  },
+  onlineMeetingInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F3F4F6',
+    padding: 12,
+    borderRadius: 10,
+    marginTop: 12,
+    gap: 10,
+  },
+  onlineMeetingText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 18,
+  },
+  joinMeetingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#9333EA',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginTop: 12,
+    gap: 8,
+  },
+  joinMeetingButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
     color: '#FFF',
   },
 });

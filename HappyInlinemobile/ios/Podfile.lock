@@ -1,12 +1,12 @@
 PODS:
   - EXApplication (7.0.8):
     - ExpoModulesCore
-  - EXConstants (18.0.12):
+  - EXConstants (18.0.13):
     - ExpoModulesCore
   - EXImageLoader (6.0.0):
     - ExpoModulesCore
     - React-Core
-  - EXNotifications (0.32.15):
+  - EXNotifications (0.32.16):
     - ExpoModulesCore
   - Expo (54.0.30):
     - ExpoModulesCore
@@ -35,6 +35,8 @@ PODS:
     - Yoga
   - ExpoAsset (12.0.12):
     - ExpoModulesCore
+  - ExpoBackgroundFetch (14.0.9):
+    - ExpoModulesCore
   - ExpoCamera (17.0.10):
     - ExpoModulesCore
     - ZXingObjC/OneD
@@ -45,13 +47,19 @@ PODS:
     - ExpoModulesCore
   - ExpoFileSystem (19.0.21):
     - ExpoModulesCore
-  - ExpoFont (14.0.10):
+  - ExpoFont (14.0.11):
+    - ExpoModulesCore
+  - ExpoHaptics (15.0.8):
     - ExpoModulesCore
   - ExpoImagePicker (17.0.10):
     - ExpoModulesCore
   - ExpoKeepAwake (15.0.8):
     - ExpoModulesCore
   - ExpoLinearGradient (15.0.8):
+    - ExpoModulesCore
+  - ExpoLinking (8.0.11):
+    - ExpoModulesCore
+  - ExpoLocation (19.0.8):
     - ExpoModulesCore
   - ExpoModulesCore (3.0.29):
     - hermes-engine
@@ -76,8 +84,21 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - ExpoPrint (15.0.8):
+    - ExpoModulesCore
+  - ExpoSecureStore (15.0.8):
+    - ExpoModulesCore
   - ExpoSharing (14.0.8):
     - ExpoModulesCore
+  - ExpoSplashScreen (31.0.13):
+    - ExpoModulesCore
+  - ExpoSystemUI (6.0.9):
+    - ExpoModulesCore
+  - ExpoWebBrowser (15.0.10):
+    - ExpoModulesCore
+  - EXTaskManager (14.0.9):
+    - ExpoModulesCore
+    - UMAppLoader
   - FBLazyVector (0.81.5)
   - hermes-engine (0.81.5):
     - hermes-engine/Pre-built (= 0.81.5)
@@ -1523,6 +1544,28 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - react-native-webview (13.15.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - react-native-worklets-core (1.6.2):
     - hermes-engine
     - RCTRequired
@@ -2220,91 +2263,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - Stripe (24.19.0):
-    - StripeApplePay (= 24.19.0)
-    - StripeCore (= 24.19.0)
-    - StripePayments (= 24.19.0)
-    - StripePaymentsUI (= 24.19.0)
-    - StripeUICore (= 24.19.0)
-  - stripe-react-native (0.50.3):
-    - hermes-engine
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-Core-prebuilt
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-jsi
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - ReactNativeDependencies
-    - Stripe (~> 24.19.0)
-    - stripe-react-native/NewArch (= 0.50.3)
-    - StripeApplePay (~> 24.19.0)
-    - StripeFinancialConnections (~> 24.19.0)
-    - StripePayments (~> 24.19.0)
-    - StripePaymentSheet (~> 24.19.0)
-    - StripePaymentsUI (~> 24.19.0)
-    - Yoga
-  - stripe-react-native/NewArch (0.50.3):
-    - hermes-engine
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-Core-prebuilt
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-jsi
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - ReactNativeDependencies
-    - Stripe (~> 24.19.0)
-    - StripeApplePay (~> 24.19.0)
-    - StripeFinancialConnections (~> 24.19.0)
-    - StripePayments (~> 24.19.0)
-    - StripePaymentSheet (~> 24.19.0)
-    - StripePaymentsUI (~> 24.19.0)
-    - Yoga
-  - StripeApplePay (24.19.0):
-    - StripeCore (= 24.19.0)
-  - StripeCore (24.19.0)
-  - StripeFinancialConnections (24.19.0):
-    - StripeCore (= 24.19.0)
-    - StripeUICore (= 24.19.0)
-  - StripePayments (24.19.0):
-    - StripeCore (= 24.19.0)
-    - StripePayments/Stripe3DS2 (= 24.19.0)
-  - StripePayments/Stripe3DS2 (24.19.0):
-    - StripeCore (= 24.19.0)
-  - StripePaymentSheet (24.19.0):
-    - StripeApplePay (= 24.19.0)
-    - StripeCore (= 24.19.0)
-    - StripePayments (= 24.19.0)
-    - StripePaymentsUI (= 24.19.0)
-  - StripePaymentsUI (24.19.0):
-    - StripeCore (= 24.19.0)
-    - StripePayments (= 24.19.0)
-    - StripeUICore (= 24.19.0)
-  - StripeUICore (24.19.0):
-    - StripeCore (= 24.19.0)
+  - UMAppLoader (6.0.8)
   - Yoga (0.0.0)
   - ZXingObjC/Core (3.6.9)
   - ZXingObjC/OneD (3.6.9):
@@ -2319,16 +2278,26 @@ DEPENDENCIES:
   - EXNotifications (from `../node_modules/expo-notifications/ios`)
   - Expo (from `../node_modules/expo`)
   - ExpoAsset (from `../node_modules/expo/node_modules/expo-asset/ios`)
+  - ExpoBackgroundFetch (from `../node_modules/expo-background-fetch/ios`)
   - ExpoCamera (from `../node_modules/expo-camera/ios`)
   - ExpoClipboard (from `../node_modules/expo-clipboard/ios`)
   - ExpoDevice (from `../node_modules/expo-device/ios`)
-  - ExpoFileSystem (from `../node_modules/expo/node_modules/expo-file-system/ios`)
+  - ExpoFileSystem (from `../node_modules/expo-file-system/ios`)
   - ExpoFont (from `../node_modules/expo-font/ios`)
+  - ExpoHaptics (from `../node_modules/expo-haptics/ios`)
   - ExpoImagePicker (from `../node_modules/expo-image-picker/ios`)
   - ExpoKeepAwake (from `../node_modules/expo/node_modules/expo-keep-awake/ios`)
   - ExpoLinearGradient (from `../node_modules/expo-linear-gradient/ios`)
+  - ExpoLinking (from `../node_modules/expo-linking/ios`)
+  - ExpoLocation (from `../node_modules/expo-location/ios`)
   - ExpoModulesCore (from `../node_modules/expo-modules-core`)
+  - ExpoPrint (from `../node_modules/expo-print/ios`)
+  - ExpoSecureStore (from `../node_modules/expo-secure-store/ios`)
   - ExpoSharing (from `../node_modules/expo-sharing/ios`)
+  - ExpoSplashScreen (from `../node_modules/expo-splash-screen/ios`)
+  - ExpoSystemUI (from `../node_modules/expo-system-ui/ios`)
+  - ExpoWebBrowser (from `../node_modules/expo-web-browser/ios`)
+  - EXTaskManager (from `../node_modules/expo-task-manager/ios`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - OneSignalXCFramework (< 6.0, >= 5.0)
@@ -2370,6 +2339,7 @@ DEPENDENCIES:
   - react-native-pager-view (from `../node_modules/react-native-pager-view`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - react-native-view-shot (from `../node_modules/react-native-view-shot`)
+  - react-native-webview (from `../node_modules/react-native-webview`)
   - react-native-worklets-core (from `../node_modules/react-native-worklets-core`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-oscompat (from `../node_modules/react-native/ReactCommon/oscompat`)
@@ -2410,20 +2380,12 @@ DEPENDENCIES:
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
   - RNWorklets (from `../node_modules/react-native-worklets`)
-  - "stripe-react-native (from `../node_modules/@stripe/stripe-react-native`)"
+  - UMAppLoader (from `../node_modules/unimodules-app-loader/ios`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
   trunk:
     - OneSignalXCFramework
-    - Stripe
-    - StripeApplePay
-    - StripeCore
-    - StripeFinancialConnections
-    - StripePayments
-    - StripePaymentSheet
-    - StripePaymentsUI
-    - StripeUICore
     - ZXingObjC
 
 EXTERNAL SOURCES:
@@ -2439,6 +2401,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo"
   ExpoAsset:
     :path: "../node_modules/expo/node_modules/expo-asset/ios"
+  ExpoBackgroundFetch:
+    :path: "../node_modules/expo-background-fetch/ios"
   ExpoCamera:
     :path: "../node_modules/expo-camera/ios"
   ExpoClipboard:
@@ -2446,19 +2410,37 @@ EXTERNAL SOURCES:
   ExpoDevice:
     :path: "../node_modules/expo-device/ios"
   ExpoFileSystem:
-    :path: "../node_modules/expo/node_modules/expo-file-system/ios"
+    :path: "../node_modules/expo-file-system/ios"
   ExpoFont:
     :path: "../node_modules/expo-font/ios"
+  ExpoHaptics:
+    :path: "../node_modules/expo-haptics/ios"
   ExpoImagePicker:
     :path: "../node_modules/expo-image-picker/ios"
   ExpoKeepAwake:
     :path: "../node_modules/expo/node_modules/expo-keep-awake/ios"
   ExpoLinearGradient:
     :path: "../node_modules/expo-linear-gradient/ios"
+  ExpoLinking:
+    :path: "../node_modules/expo-linking/ios"
+  ExpoLocation:
+    :path: "../node_modules/expo-location/ios"
   ExpoModulesCore:
     :path: "../node_modules/expo-modules-core"
+  ExpoPrint:
+    :path: "../node_modules/expo-print/ios"
+  ExpoSecureStore:
+    :path: "../node_modules/expo-secure-store/ios"
   ExpoSharing:
     :path: "../node_modules/expo-sharing/ios"
+  ExpoSplashScreen:
+    :path: "../node_modules/expo-splash-screen/ios"
+  ExpoSystemUI:
+    :path: "../node_modules/expo-system-ui/ios"
+  ExpoWebBrowser:
+    :path: "../node_modules/expo-web-browser/ios"
+  EXTaskManager:
+    :path: "../node_modules/expo-task-manager/ios"
   FBLazyVector:
     :path: "../node_modules/react-native/Libraries/FBLazyVector"
   hermes-engine:
@@ -2538,6 +2520,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-view-shot:
     :path: "../node_modules/react-native-view-shot"
+  react-native-webview:
+    :path: "../node_modules/react-native-webview"
   react-native-worklets-core:
     :path: "../node_modules/react-native-worklets-core"
   React-NativeModulesApple:
@@ -2618,28 +2602,38 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-svg"
   RNWorklets:
     :path: "../node_modules/react-native-worklets"
-  stripe-react-native:
-    :path: "../node_modules/@stripe/stripe-react-native"
+  UMAppLoader:
+    :path: "../node_modules/unimodules-app-loader/ios"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
   EXApplication: 1e98d4b1dccdf30627f92917f4b2c5a53c330e5f
-  EXConstants: 805f35b1b295c542ca6acce836f21a1f9ee104d5
+  EXConstants: fce59a631a06c4151602843667f7cfe35f81e271
   EXImageLoader: 189e3476581efe3ad4d1d3fb4735b7179eb26f05
-  EXNotifications: 983f04ad4ad879b181179e326bf220541e478386
+  EXNotifications: 9eec98712cc814ceff916d876cb53859003b0597
   Expo: 60c21ba34593688a2a6e8445c1f8b44abb0e3fae
   ExpoAsset: f867e55ceb428aab99e1e8c082b5aee7c159ea18
+  ExpoBackgroundFetch: 1631d1fbf59e6ad98ca83b6780ae3a35f678f632
   ExpoCamera: 6a326deb45ba840749652e4c15198317aa78497e
   ExpoClipboard: b36b287d8356887844bb08ed5c84b5979bb4dd1e
   ExpoDevice: 6327c3c200816795708885adf540d26ecab83d1a
   ExpoFileSystem: 858a44267a3e6e9057e0888ad7c7cfbf55d52063
-  ExpoFont: 35ac6191ed86bbf56b3ebd2d9154eda9fad5b509
+  ExpoFont: f543ce20a228dd702813668b1a07b46f51878d47
+  ExpoHaptics: d3a6375d8dcc3a1083d003bc2298ff654fafb536
   ExpoImagePicker: 1af3e4e31512d2f34c95c2a3018a3edc40aee748
   ExpoKeepAwake: 55f75eca6499bb9e4231ebad6f3e9cb8f99c0296
   ExpoLinearGradient: 809102bdb979f590083af49f7fa4805cd931bd58
+  ExpoLinking: 8f0aaf69aa56f832913030503b6263dc6f647f37
+  ExpoLocation: d5b61cb4970fa982e39ca94246a206a0c3b812ca
   ExpoModulesCore: f3da4f1ab5a8375d0beafab763739dbee8446583
+  ExpoPrint: 813bfa965eda2ecc4b1cdc61612c820e239c382a
+  ExpoSecureStore: d32f751874a2ceb5aaeebeb3578e165c1ba2b24a
   ExpoSharing: 0d983394ed4a80334bab5a0d5384f75710feb7e8
+  ExpoSplashScreen: bc3cffefca2716e5f22350ca109badd7e50ec14d
+  ExpoSystemUI: 2ad325f361a2fcd96a464e8574e19935c461c9cc
+  ExpoWebBrowser: 17b064c621789e41d4816c95c93f429b84971f52
+  EXTaskManager: 6f1a66e4c8cc6df6e24c3d90928704bc3013eae5
   FBLazyVector: e95a291ad2dadb88e42b06e0c5fb8262de53ec12
   hermes-engine: 9f4dfe93326146a1c99eb535b1cb0b857a3cd172
   OneSignalXCFramework: ea9e14a95b92ad48d9b35037cbae88a9542bdea3
@@ -2680,6 +2674,7 @@ SPEC CHECKSUMS:
   react-native-pager-view: c8817c1d9f4643417e68f0b846c51214b2252eea
   react-native-safe-area-context: eb2fb5c796f18a08959ee5400bb1c65e4c1b4833
   react-native-view-shot: fb3c0774edb448f42705491802a455beac1502a2
+  react-native-webview: b29007f4723bca10872028067b07abacfa1cb35a
   react-native-worklets-core: f4ac400fe6a0df6cd303a7d2fa3b595f7ac2beac
   React-NativeModulesApple: 8969913947d5b576de4ed371a939455a8daf28aa
   React-oscompat: ce47230ed20185e91de62d8c6d139ae61763d09c
@@ -2720,18 +2715,10 @@ SPEC CHECKSUMS:
   RNScreens: d8d6f1792f6e7ac12b0190d33d8d390efc0c1845
   RNSVG: 31d6639663c249b7d5abc9728dde2041eb2a3c34
   RNWorklets: 76fce72926e28e304afb44f0da23b2d24f2c1fa0
-  Stripe: d1824162e4bcb6ead10401a0dc8e8a3d5ffee41f
-  stripe-react-native: eb0d6fac02a31029c3c3d0fc43e6b25dbf9c61fd
-  StripeApplePay: eb64705d3c919492b1b28876652fd0aca2db38cc
-  StripeCore: b5bee05167f0c8ccce936244a031a9972fdeade8
-  StripeFinancialConnections: fd6c661f86f47b1d26a32f588b3a0b09826aba84
-  StripePayments: cf00b3c85cd7b57e40f622493f81bdf361cb3982
-  StripePaymentSheet: b126816213ae4f56ff4525ad25f94bb985a43e27
-  StripePaymentsUI: 05d4be35b34f821d5ddc8617dee04219f3646253
-  StripeUICore: d07bd63a4b53dee8cab4d6f81ce5a7ab3e28511e
+  UMAppLoader: 145337733539f9af9b3dd97eeaa7f3bd97cacb23
   Yoga: 5934998fbeaef7845dbf698f698518695ab4cd1a
   ZXingObjC: 8898711ab495761b2dbbdec76d90164a6d7e14c5
 
-PODFILE CHECKSUM: bc6e8e2d7392fa116559035612ef0002bdcf0f13
+PODFILE CHECKSUM: d625ba2ee2b8f1b354a90fb4a62c4053e13b9a24
 
 COCOAPODS: 1.16.2

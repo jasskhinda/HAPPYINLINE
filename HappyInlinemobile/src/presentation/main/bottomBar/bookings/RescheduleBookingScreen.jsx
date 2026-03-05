@@ -14,6 +14,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import SettingAppBar from '../../../../components/appBar/SettingAppBar';
 import { rescheduleBooking } from '../../../../lib/auth';
+import { sendBookingRescheduledNotification } from '../../../../lib/notifications';
+import { supabase } from '../../../../lib/supabase';
 
 const RescheduleBookingScreen = () => {
   const navigation = useNavigation();
@@ -301,11 +303,73 @@ const RescheduleBookingScreen = () => {
               const result = await rescheduleBooking(booking.id, newDate, newTime);
 
               if (result.success) {
+                // Send push notifications to all shop members (fire and forget)
+                (async () => {
+                  try {
+                    // Get customer name
+                    const { data: { user } } = await supabase.auth.getUser();
+                    const { data: profile } = await supabase
+                      .from('profiles')
+                      .select('name')
+                      .eq('id', user?.id)
+                      .single();
+                    const customerName = profile?.name || 'A customer';
+
+                    // Get service names
+                    const services = getServices();
+                    const serviceNames = services.join(', ') || 'an appointment';
+
+                    // Get all active shop members
+                    const { data: members } = await supabase
+                      .from('shop_members')
+                      .select('user_id')
+                      .eq('shop_id', booking.shop_id)
+                      .eq('is_active', true);
+
+                    // Also get shop owner
+                    const { data: shop } = await supabase
+                      .from('shops')
+                      .select('created_by')
+                      .eq('id', booking.shop_id)
+                      .single();
+
+                    // Collect all unique provider user IDs
+                    const recipientIds = new Set();
+                    if (shop?.created_by) recipientIds.add(shop.created_by);
+                    if (members) {
+                      members.forEach(m => recipientIds.add(m.user_id));
+                    }
+
+                    // Send notification to each provider
+                    for (const recipientId of recipientIds) {
+                      sendBookingRescheduledNotification({
+                        recipientUserId: recipientId,
+                        customerName,
+                        shopName: booking.shop?.name || '',
+                        serviceName: serviceNames,
+                        date: newDate,
+                        time: selectedTime,
+                        bookingId: booking.id,
+                        oldDate: booking.appointment_date,
+                        oldTime: booking.appointment_time,
+                      }).catch(err => console.log('Push notification error (non-blocking):', err));
+                    }
+                  } catch (err) {
+                    console.error('Failed to send reschedule push notifications:', err);
+                  }
+                })();
+
                 // Send reschedule email notifications to customer, owner, and provider (fire and forget)
+                // Include old date/time so the email can show what changed
                 fetch('https://happyinline.com/api/booking/reschedule-notify', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ bookingId: booking.id }),
+                  body: JSON.stringify({
+                    bookingId: booking.id,
+                    oldDate: booking.appointment_date,
+                    oldTime: booking.appointment_time,
+                    rescheduledBy: 'customer',
+                  }),
                 }).catch(err => console.error('Failed to send reschedule notifications:', err));
 
                 Alert.alert(

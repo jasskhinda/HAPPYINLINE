@@ -115,77 +115,230 @@ async function sendEmail(
 }
 
 /**
+ * Helper to determine effective format for a service
+ */
+function getEffectiveFormat(service: any): 'in_person' | 'online' {
+  if (service.chosen_format) return service.chosen_format;
+  if (service.service_type === 'online') return 'online';
+  return 'in_person';
+}
+
+/**
+ * Format date for display (e.g., "Friday, January 27, 2026")
+ */
+function formatDateForEmail(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+}
+
+/**
+ * Format time for display (e.g., "2:30 PM")
+ */
+function formatTimeForEmail(timeStr: string): string {
+  const [hours, minutes] = timeStr.split(':');
+  const hour = parseInt(hours);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${minutes} ${ampm}`;
+}
+
+/**
  * Generate email HTML based on type
+ * NOTE: Uses inline styles for maximum email client compatibility
  */
 function generateEmailContent(type: string, data: any): { subject: string; html: string } {
   switch (type) {
-    case 'booking_confirmation':
+    case 'booking_confirmation': {
+      // Handle services array for online meeting detection
+      const services = data.services || [];
+      const onlineServices = services.filter((s: any) => getEffectiveFormat(s) === 'online');
+      const inPersonServices = services.filter((s: any) => getEffectiveFormat(s) === 'in_person');
+      const hasOnlineServices = onlineServices.length > 0;
+      const hasInPersonServices = inPersonServices.length > 0;
+      const hasOnlineMeetingLinks = onlineServices.some((s: any) => s.online_meeting_link);
+
+      // Generate services list with format badges
+      const servicesHTML = services.map((s: any) => {
+        const format = getEffectiveFormat(s);
+        const formatBadge = format === 'online'
+          ? '<span style="display: inline-block; background: #8b5cf6; color: #ffffff; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: 8px;">📹 Online</span>'
+          : '<span style="display: inline-block; background: #10b981; color: #ffffff; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: 8px;">📍 In-Person</span>';
+        return `
+          <tr>
+            <td style="padding: 12px 0; border-bottom: 1px solid #eee;">
+              <span style="color: #09264b; font-weight: 500;">${s.name}</span>
+              ${formatBadge}
+              <div style="color: #888; font-size: 12px; margin-top: 4px;">${s.duration} min</div>
+            </td>
+            <td style="padding: 12px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #eee;">$${(s.price || 0).toFixed ? (s.price || 0).toFixed(2) : s.price || 0}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // Generate online meeting section
+      const onlineSectionHTML = hasOnlineServices ? `
+        <div style="background: linear-gradient(135deg, #8b5cf6, #6366f1); border-radius: 12px; padding: 25px; margin: 20px 0;">
+          <h3 style="color: #ffffff; margin: 0 0 20px 0; font-size: 20px; text-align: center;">📹 Your Online Session</h3>
+          ${onlineServices.map((s: any) => `
+            <div style="background: rgba(255,255,255,0.15); border-radius: 12px; padding: 20px; margin-bottom: 15px;">
+              <p style="color: #ffffff; font-size: 16px; font-weight: 600; margin: 0 0 15px 0;">${s.name}</p>
+              ${s.online_meeting_link ? `
+                <div style="text-align: center; margin-bottom: 20px;">
+                  <a href="${s.online_meeting_link}" style="display: inline-block; background: #ffffff; color: #8b5cf6; font-size: 18px; font-weight: 700; text-decoration: none; padding: 15px 40px; border-radius: 30px;">🚀 JOIN NOW</a>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 15px;">
+                  <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 1px;">Meeting Link</p>
+                  <p style="color: #ffffff; font-size: 13px; margin: 0; word-break: break-all;">${s.online_meeting_link}</p>
+                </div>
+              ` : `
+                <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 15px;">
+                  <p style="color: rgba(255,255,255,0.9); font-size: 14px; margin: 0; text-align: center;">Meeting details will be provided by ${data.shopName}</p>
+                </div>
+              `}
+              ${s.online_meeting_password ? `
+                <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 15px; margin-top: 10px;">
+                  <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 1px;">🔐 Password</p>
+                  <p style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0; font-family: monospace; letter-spacing: 2px;">${s.online_meeting_password}</p>
+                </div>
+              ` : ''}
+              ${s.online_instructions ? `
+                <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 15px; margin-top: 10px;">
+                  <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 1px;">📋 Instructions</p>
+                  <p style="color: #ffffff; font-size: 14px; margin: 0; line-height: 1.6;">${s.online_instructions}</p>
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
+          <p style="color: rgba(255,255,255,0.8); font-size: 13px; margin: 10px 0 0 0; text-align: center;">
+            ${hasOnlineMeetingLinks ? '⏰ Please join the meeting a few minutes before your scheduled time.' : '⏰ The business will contact you with meeting details before your appointment.'}
+          </p>
+        </div>
+      ` : '';
+
+      // Generate in-person section
+      const inPersonSectionHTML = hasInPersonServices && data.shopAddress ? `
+        <div style="background: linear-gradient(135deg, #10b981, #059669); border-radius: 12px; padding: 25px; margin: 20px 0;">
+          <h3 style="color: #ffffff; margin: 0 0 15px 0; font-size: 20px; text-align: center;">📍 In-Person Appointment</h3>
+          <div style="background: rgba(255,255,255,0.15); border-radius: 12px; padding: 20px; text-align: center;">
+            <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">Location</p>
+            <p style="color: #ffffff; font-size: 16px; font-weight: 500; margin: 0;">${data.shopAddress}</p>
+            ${data.shopPhone ? `<p style="color: rgba(255,255,255,0.8); font-size: 14px; margin: 10px 0 0 0;">📞 ${data.shopPhone}</p>` : ''}
+          </div>
+          <p style="color: rgba(255,255,255,0.8); font-size: 13px; margin: 20px 0 0 0; text-align: center;">Please arrive 5-10 minutes before your scheduled time.</p>
+        </div>
+      ` : '';
+
+      // Use formatted date/time if raw values provided
+      const displayDate = data.date || (data.appointmentDate ? formatDateForEmail(data.appointmentDate) : '');
+      const displayTime = data.time || (data.appointmentTime ? formatTimeForEmail(data.appointmentTime) : '');
+
       return {
         subject: `Booking Confirmed - ${data.shopName}`,
         html: `
           <!DOCTYPE html>
           <html>
           <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #0393d5, #00c6ff); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .booking-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-              .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
-              .detail-label { color: #666; }
-              .detail-value { font-weight: bold; }
-              .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-            </style>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Booking Confirmation</title>
           </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>Booking Confirmed!</h1>
+          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #09264b, #0a3a6b); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="margin: 0; font-size: 28px;">🎉 Booking Confirmed!</h1>
               </div>
-              <div class="content">
-                <p>Hi ${data.customerName},</p>
-                <p>Your appointment has been confirmed. Here are your booking details:</p>
+              <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px;">
+                <p style="margin: 0 0 15px 0; font-size: 16px;">Hi ${data.customerName},</p>
+                <p style="margin: 0 0 20px 0; font-size: 16px;">Your appointment has been confirmed. Here are your booking details:</p>
 
-                <div class="booking-details">
-                  <div class="detail-row">
-                    <span class="detail-label">Business:</span>
-                    <span class="detail-value">${data.shopName}</span>
-                  </div>
-                  <div class="detail-row">
-                    <span class="detail-label">Service:</span>
-                    <span class="detail-value">${data.serviceName}</span>
-                  </div>
-                  <div class="detail-row">
-                    <span class="detail-label">Date:</span>
-                    <span class="detail-value">${data.date}</span>
-                  </div>
-                  <div class="detail-row">
-                    <span class="detail-label">Time:</span>
-                    <span class="detail-value">${data.time}</span>
-                  </div>
-                  <div class="detail-row">
-                    <span class="detail-label">Reference:</span>
-                    <span class="detail-value">${data.bookingReference}</span>
-                  </div>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="color: #09264b; margin: 0 0 15px 0; font-size: 18px; border-bottom: 2px solid #0393d5; padding-bottom: 10px;">📋 Appointment Details</h3>
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 12px 0; color: #666; border-bottom: 1px solid #eee;">Business:</td>
+                      <td style="padding: 12px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #eee;">${data.shopName}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 12px 0; color: #666; border-bottom: 1px solid #eee;">Date:</td>
+                      <td style="padding: 12px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #eee;">${displayDate}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 12px 0; color: #666; border-bottom: 1px solid #eee;">Time:</td>
+                      <td style="padding: 12px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #eee;">${displayTime}</td>
+                    </tr>
+                    ${data.providerName ? `
+                    <tr>
+                      <td style="padding: 12px 0; color: #666; border-bottom: 1px solid #eee;">Provider:</td>
+                      <td style="padding: 12px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #eee;">${data.providerName}</td>
+                    </tr>
+                    ` : ''}
+                    <tr>
+                      <td style="padding: 12px 0; color: #666; border-bottom: 1px solid #eee;">Reference:</td>
+                      <td style="padding: 12px 0; font-weight: bold; text-align: right; color: #0393d5; border-bottom: 1px solid #eee;">${data.bookingReference || data.bookingId || 'N/A'}</td>
+                    </tr>
+                  </table>
+                </div>
+
+                ${services.length > 0 ? `
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="color: #09264b; margin: 0 0 15px 0; font-size: 18px; border-bottom: 2px solid #0393d5; padding-bottom: 10px;">✨ Services Booked</h3>
+                  <table style="width: 100%; border-collapse: collapse;">
+                    ${servicesHTML}
+                  </table>
                   ${data.totalAmount ? `
-                  <div class="detail-row">
-                    <span class="detail-label">Amount:</span>
-                    <span class="detail-value">$${data.totalAmount}</span>
+                  <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #eee;">
+                    <table style="width: 100%;"><tr>
+                      <td style="color: #09264b; font-size: 18px; font-weight: bold;">Total</td>
+                      <td style="text-align: right; color: #0393d5; font-size: 20px; font-weight: bold;">$${data.totalAmount}</td>
+                    </tr></table>
                   </div>
                   ` : ''}
                 </div>
+                ` : `
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 12px 0; color: #666; border-bottom: 1px solid #eee;">Service:</td>
+                      <td style="padding: 12px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #eee;">${data.serviceName || 'N/A'}</td>
+                    </tr>
+                    ${data.totalAmount ? `
+                    <tr>
+                      <td style="padding: 12px 0; color: #666;">Amount:</td>
+                      <td style="padding: 12px 0; font-weight: bold; text-align: right; color: #0393d5; font-size: 18px;">$${data.totalAmount}</td>
+                    </tr>
+                    ` : ''}
+                  </table>
+                </div>
+                `}
 
-                <p>We look forward to seeing you!</p>
+                ${data.customerNotes ? `
+                <div style="background: #fff3cd; border-radius: 12px; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                  <strong style="color: #856404;">📝 Notes:</strong>
+                  <p style="color: #856404; margin: 5px 0 0 0;">${data.customerNotes}</p>
+                </div>
+                ` : ''}
+
+                ${onlineSectionHTML}
+                ${inPersonSectionHTML}
+
+                <p style="margin: 20px 0 0 0; font-size: 16px; text-align: center; color: #666;">We look forward to seeing you!</p>
               </div>
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+              <div style="text-align: center; padding: 20px; color: #888; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+                <p style="margin: 5px 0 0 0; color: #0393d5;">Skip the wait. Join the line.</p>
               </div>
             </div>
           </body>
           </html>
         `,
-      }
+      };
+    }
 
     case 'booking_reminder':
       return {
@@ -194,33 +347,29 @@ function generateEmailContent(type: string, data: any): { subject: string; html:
           <!DOCTYPE html>
           <html>
           <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #FF9500, #FFB800); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .reminder-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #FF9500; }
-              .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-            </style>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Appointment Reminder</title>
           </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>Appointment Reminder</h1>
+          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #FF9500, #FFB800); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="margin: 0; font-size: 28px;">⏰ Appointment Reminder</h1>
               </div>
-              <div class="content">
-                <p>Hi ${data.customerName},</p>
-                <p>This is a friendly reminder that your appointment is coming up soon!</p>
+              <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px;">
+                <p style="margin: 0 0 15px 0; font-size: 16px;">Hi ${data.customerName},</p>
+                <p style="margin: 0 0 20px 0; font-size: 16px;">This is a friendly reminder that your appointment is coming up soon!</p>
 
-                <div class="reminder-box">
-                  <p><strong>${data.serviceName}</strong> at <strong>${data.shopName}</strong></p>
-                  <p>📅 ${data.date} at ${data.time}</p>
+                <div style="background: #fff8f0; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #FF9500;">
+                  <p style="margin: 0 0 10px 0; font-size: 18px;"><strong>${data.serviceName}</strong> at <strong>${data.shopName}</strong></p>
+                  <p style="margin: 0; font-size: 16px; color: #FF9500;">📅 ${data.date} at ${data.time}</p>
                 </div>
 
-                <p>See you soon!</p>
+                <p style="margin: 20px 0 0 0; font-size: 16px;">See you soon!</p>
               </div>
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+              <div style="text-align: center; padding: 20px; color: #888; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+                <p style="margin: 5px 0 0 0; color: #0393d5;">Skip the wait. Join the line.</p>
               </div>
             </div>
           </body>
@@ -235,27 +384,24 @@ function generateEmailContent(type: string, data: any): { subject: string; html:
           <!DOCTYPE html>
           <html>
           <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #FF3B30, #FF6B6B); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-            </style>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Booking Cancelled</title>
           </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>Booking Cancelled</h1>
+          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #FF3B30, #FF6B6B); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="margin: 0; font-size: 28px;">❌ Booking Cancelled</h1>
               </div>
-              <div class="content">
-                <p>Hi ${data.customerName},</p>
-                <p>Your booking at <strong>${data.shopName}</strong> for <strong>${data.serviceName}</strong> on <strong>${data.date}</strong> has been cancelled.</p>
-                ${data.reason ? `<p>Reason: ${data.reason}</p>` : ''}
-                <p>We hope to see you again soon!</p>
+              <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px;">
+                <p style="margin: 0 0 15px 0; font-size: 16px;">Hi ${data.customerName},</p>
+                <p style="margin: 0 0 20px 0; font-size: 16px;">Your booking at <strong>${data.shopName}</strong> for <strong>${data.serviceName}</strong> on <strong>${data.date}</strong> has been cancelled.</p>
+                ${data.reason ? `<p style="margin: 0 0 20px 0; font-size: 16px; color: #666;">Reason: ${data.reason}</p>` : ''}
+                <p style="margin: 20px 0 0 0; font-size: 16px;">We hope to see you again soon!</p>
               </div>
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+              <div style="text-align: center; padding: 20px; color: #888; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+                <p style="margin: 5px 0 0 0; color: #0393d5;">Skip the wait. Join the line.</p>
               </div>
             </div>
           </body>
@@ -270,33 +416,29 @@ function generateEmailContent(type: string, data: any): { subject: string; html:
           <!DOCTYPE html>
           <html>
           <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #0393d5, #00c6ff); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .feature { background: white; padding: 15px; border-radius: 8px; margin: 10px 0; }
-              .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-            </style>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Welcome to Happy Inline</title>
           </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>Welcome to Happy Inline!</h1>
+          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #0393d5, #00c6ff); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="margin: 0; font-size: 28px;">👋 Welcome to Happy Inline!</h1>
               </div>
-              <div class="content">
-                <p>Hi ${data.name},</p>
-                <p>Welcome to Happy Inline! We're excited to have you on board.</p>
+              <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px;">
+                <p style="margin: 0 0 15px 0; font-size: 16px;">Hi ${data.name},</p>
+                <p style="margin: 0 0 20px 0; font-size: 16px;">Welcome to Happy Inline! We're excited to have you on board.</p>
 
-                <p>With Happy Inline, you can:</p>
-                <div class="feature">📅 Book appointments with local businesses</div>
-                <div class="feature">💬 Message service providers directly</div>
-                <div class="feature">⭐ Rate and review your experiences</div>
+                <p style="margin: 0 0 15px 0; font-size: 16px;">With Happy Inline, you can:</p>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">📅 Book appointments with local businesses</div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">💬 Message service providers directly</div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">⭐ Rate and review your experiences</div>
 
-                <p>Start exploring and book your first appointment today!</p>
+                <p style="margin: 20px 0 0 0; font-size: 16px;">Start exploring and book your first appointment today!</p>
               </div>
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+              <div style="text-align: center; padding: 20px; color: #888; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+                <p style="margin: 5px 0 0 0; color: #0393d5;">Skip the wait. Join the line.</p>
               </div>
             </div>
           </body>
@@ -311,47 +453,42 @@ function generateEmailContent(type: string, data: any): { subject: string; html:
           <!DOCTYPE html>
           <html>
           <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #34C759, #30D158); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .step { background: white; padding: 15px; border-radius: 8px; margin: 10px 0; display: flex; align-items: center; }
-              .step-number { background: #34C759; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; }
-              .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-            </style>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Welcome to Happy Inline for Business</title>
           </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>Welcome, Business Owner!</h1>
+          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #34C759, #30D158); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="margin: 0; font-size: 28px;">🎊 Welcome, Business Owner!</h1>
               </div>
-              <div class="content">
-                <p>Hi ${data.name},</p>
-                <p>Congratulations on joining Happy Inline! Your business is now set up and ready to receive bookings.</p>
+              <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px;">
+                <p style="margin: 0 0 15px 0; font-size: 16px;">Hi ${data.name},</p>
+                <p style="margin: 0 0 20px 0; font-size: 16px;">Congratulations on joining Happy Inline! Your business is now set up and ready to receive bookings.</p>
 
-                <p>Next steps to get started:</p>
-                <div class="step">
-                  <div class="step-number">1</div>
-                  <span>Add your services and pricing</span>
+                <p style="margin: 0 0 15px 0; font-size: 16px;">Next steps to get started:</p>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                  <span style="display: inline-block; background: #34C759; color: white; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; margin-right: 12px; font-weight: bold;">1</span>
+                  Add your services and pricing
                 </div>
-                <div class="step">
-                  <div class="step-number">2</div>
-                  <span>Set your operating hours</span>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                  <span style="display: inline-block; background: #34C759; color: white; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; margin-right: 12px; font-weight: bold;">2</span>
+                  Set your operating hours
                 </div>
-                <div class="step">
-                  <div class="step-number">3</div>
-                  <span>Add team members (if applicable)</span>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                  <span style="display: inline-block; background: #34C759; color: white; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; margin-right: 12px; font-weight: bold;">3</span>
+                  Add team members (if applicable)
                 </div>
-                <div class="step">
-                  <div class="step-number">4</div>
-                  <span>Share your booking link with customers</span>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                  <span style="display: inline-block; background: #34C759; color: white; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; margin-right: 12px; font-weight: bold;">4</span>
+                  Share your booking link with customers
                 </div>
 
-                <p>Welcome aboard!</p>
+                <p style="margin: 20px 0 0 0; font-size: 16px;">Welcome aboard!</p>
               </div>
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+              <div style="text-align: center; padding: 20px; color: #888; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+                <p style="margin: 5px 0 0 0; color: #0393d5;">Skip the wait. Join the line.</p>
               </div>
             </div>
           </body>
@@ -366,34 +503,30 @@ function generateEmailContent(type: string, data: any): { subject: string; html:
           <!DOCTYPE html>
           <html>
           <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #34C759, #30D158); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .booking-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-              .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-            </style>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>New Booking</title>
           </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>New Booking!</h1>
+          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #34C759, #30D158); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="margin: 0; font-size: 28px;">📅 New Booking!</h1>
               </div>
-              <div class="content">
-                <p>You have a new booking!</p>
+              <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px;">
+                <p style="margin: 0 0 20px 0; font-size: 16px;">You have a new booking!</p>
 
-                <div class="booking-details">
-                  <p><strong>Customer:</strong> ${data.customerName}</p>
-                  <p><strong>Service:</strong> ${data.serviceName}</p>
-                  <p><strong>Date:</strong> ${data.date}</p>
-                  <p><strong>Time:</strong> ${data.time}</p>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0 0 10px 0;"><strong>Customer:</strong> ${data.customerName}</p>
+                  <p style="margin: 0 0 10px 0;"><strong>Service:</strong> ${data.serviceName}</p>
+                  <p style="margin: 0 0 10px 0;"><strong>Date:</strong> ${data.date}</p>
+                  <p style="margin: 0;"><strong>Time:</strong> ${data.time}</p>
                 </div>
 
-                <p>Open the app to view and manage this booking.</p>
+                <p style="margin: 20px 0 0 0; font-size: 16px;">Open the app to view and manage this booking.</p>
               </div>
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+              <div style="text-align: center; padding: 20px; color: #888; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+                <p style="margin: 5px 0 0 0; color: #0393d5;">Skip the wait. Join the line.</p>
               </div>
             </div>
           </body>
@@ -408,68 +541,59 @@ function generateEmailContent(type: string, data: any): { subject: string; html:
           <!DOCTYPE html>
           <html>
           <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #0393d5, #00c6ff); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .invite-box { background: white; padding: 25px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0393d5; }
-              .cta-button { display: inline-block; background: linear-gradient(135deg, #0393d5, #00c6ff); color: white !important; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0; }
-              .steps { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-              .step { display: flex; align-items: center; padding: 10px 0; }
-              .step-number { background: #0393d5; color: white; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-right: 12px; font-weight: bold; }
-              .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-            </style>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Provider Invitation</title>
           </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>You're Invited!</h1>
+          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #0393d5, #00c6ff); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="margin: 0; font-size: 28px;">🎉 You're Invited!</h1>
               </div>
-              <div class="content">
-                <p>Hi${data.providerName ? ' ' + data.providerName : ''},</p>
+              <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px;">
+                <p style="margin: 0 0 15px 0; font-size: 16px;">Hi${data.providerName ? ' ' + data.providerName : ''},</p>
 
-                <div class="invite-box">
+                <div style="background: #f0f8ff; padding: 25px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0393d5;">
                   <p style="font-size: 18px; margin: 0;"><strong>${data.inviterName || 'A business owner'}</strong> has invited you to join <strong>${data.shopName}</strong> as a service provider on Happy Inline!</p>
                 </div>
 
-                <p>Happy Inline is a professional booking platform that helps service providers manage appointments and connect with customers.</p>
+                <p style="margin: 0 0 20px 0; font-size: 16px;">Happy Inline is a professional booking platform that helps service providers manage appointments and connect with customers.</p>
 
-                <div class="steps">
-                  <p style="font-weight: bold; margin-bottom: 15px;">Getting started is easy:</p>
-                  <div class="step">
-                    <span class="step-number">1</span>
-                    <span>Download the Happy Inline app</span>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <p style="font-weight: bold; margin: 0 0 15px 0;">Getting started is easy:</p>
+                  <div style="padding: 10px 0;">
+                    <span style="display: inline-block; background: #0393d5; color: white; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; margin-right: 12px; font-weight: bold;">1</span>
+                    Download the Happy Inline app
                   </div>
-                  <div class="step">
-                    <span class="step-number">2</span>
-                    <span>Create your account using this email: <strong>${data.providerEmail}</strong></span>
+                  <div style="padding: 10px 0;">
+                    <span style="display: inline-block; background: #0393d5; color: white; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; margin-right: 12px; font-weight: bold;">2</span>
+                    Create your account using this email: <strong>${data.providerEmail}</strong>
                   </div>
-                  <div class="step">
-                    <span class="step-number">3</span>
-                    <span>Accept the invitation to join ${data.shopName}</span>
+                  <div style="padding: 10px 0;">
+                    <span style="display: inline-block; background: #0393d5; color: white; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; margin-right: 12px; font-weight: bold;">3</span>
+                    Accept the invitation to join ${data.shopName}
                   </div>
                 </div>
 
-                <p style="text-align: center;">
-                  <a href="${data.signupLink || 'https://happyinline.app'}" class="cta-button">Get Started Now</a>
+                <p style="text-align: center; margin: 25px 0;">
+                  <a href="${data.signupLink || 'https://happyinline.app'}" style="display: inline-block; background: linear-gradient(135deg, #0393d5, #00c6ff); color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;">Get Started Now</a>
                 </p>
 
-                <p style="color: #666; font-size: 14px;">Once you join, you'll be able to:</p>
-                <ul style="color: #666;">
+                <p style="color: #666; font-size: 14px; margin: 0 0 10px 0;">Once you join, you'll be able to:</p>
+                <ul style="color: #666; margin: 0 0 20px 0;">
                   <li>Receive booking notifications</li>
                   <li>Manage your schedule</li>
                   <li>Communicate with customers</li>
                   <li>Track your appointments</li>
                 </ul>
 
-                <p>If you have any questions, feel free to reach out to ${data.inviterName || 'your inviter'} or contact our support team.</p>
+                <p style="margin: 0 0 15px 0; font-size: 16px;">If you have any questions, feel free to reach out to ${data.inviterName || 'your inviter'} or contact our support team.</p>
 
-                <p>We're excited to have you join the Happy Inline community!</p>
+                <p style="margin: 0; font-size: 16px;">We're excited to have you join the Happy Inline community!</p>
               </div>
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
-                <p style="font-size: 11px; color: #999;">If you didn't expect this invitation, you can safely ignore this email.</p>
+              <div style="text-align: center; padding: 20px; color: #888; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+                <p style="margin: 5px 0 0 0; font-size: 11px; color: #999;">If you didn't expect this invitation, you can safely ignore this email.</p>
               </div>
             </div>
           </body>
@@ -484,40 +608,35 @@ function generateEmailContent(type: string, data: any): { subject: string; html:
           <!DOCTYPE html>
           <html>
           <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #34C759, #30D158); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .welcome-box { background: white; padding: 25px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #34C759; }
-              .feature { background: white; padding: 12px 15px; border-radius: 8px; margin: 8px 0; }
-              .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-            </style>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Welcome to the Team</title>
           </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>Welcome to the Team!</h1>
+          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #34C759, #30D158); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="margin: 0; font-size: 28px;">🎊 Welcome to the Team!</h1>
               </div>
-              <div class="content">
-                <p>Hi ${data.providerName || 'there'},</p>
+              <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px;">
+                <p style="margin: 0 0 15px 0; font-size: 16px;">Hi ${data.providerName || 'there'},</p>
 
-                <div class="welcome-box">
+                <div style="background: #f0fff4; padding: 25px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #34C759;">
                   <p style="font-size: 18px; margin: 0;">You have been added as a service provider at <strong>${data.shopName}</strong>!</p>
                 </div>
 
-                <p>You now have access to:</p>
-                <div class="feature">📅 View and manage bookings assigned to you</div>
-                <div class="feature">💬 Communicate with customers</div>
-                <div class="feature">🔔 Receive notifications for new appointments</div>
-                <div class="feature">📊 Track your schedule</div>
+                <p style="margin: 0 0 15px 0; font-size: 16px;">You now have access to:</p>
+                <div style="background: #f8f9fa; padding: 12px 15px; border-radius: 8px; margin: 8px 0;">📅 View and manage bookings assigned to you</div>
+                <div style="background: #f8f9fa; padding: 12px 15px; border-radius: 8px; margin: 8px 0;">💬 Communicate with customers</div>
+                <div style="background: #f8f9fa; padding: 12px 15px; border-radius: 8px; margin: 8px 0;">🔔 Receive notifications for new appointments</div>
+                <div style="background: #f8f9fa; padding: 12px 15px; border-radius: 8px; margin: 8px 0;">📊 Track your schedule</div>
 
-                <p>Open the Happy Inline app to get started and see your upcoming appointments!</p>
+                <p style="margin: 20px 0 15px 0; font-size: 16px;">Open the Happy Inline app to get started and see your upcoming appointments!</p>
 
-                <p>Welcome aboard!</p>
+                <p style="margin: 0; font-size: 16px;">Welcome aboard!</p>
               </div>
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+              <div style="text-align: center; padding: 20px; color: #888; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Happy Inline. All rights reserved.</p>
+                <p style="margin: 5px 0 0 0; color: #0393d5;">Skip the wait. Join the line.</p>
               </div>
             </div>
           </body>

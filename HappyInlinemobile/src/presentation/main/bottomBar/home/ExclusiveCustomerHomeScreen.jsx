@@ -271,9 +271,9 @@ const ExclusiveCustomerHomeScreen = ({ navigation }) => {
     });
   };
 
-  const handleViewBooking = (booking) => {
+  const handleViewBooking = (bookingData) => {
     navigation.navigate('BookingDetailScreen', {
-      bookingId: booking.id,
+      booking: bookingData,
     });
   };
 

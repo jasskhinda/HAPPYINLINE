@@ -259,7 +259,17 @@ export const sendEmailOTP = async (email) => {
 export const signOut = async () => {
   try {
     console.log('👋 Signing out...');
-    
+
+    // Clear push token before signing out (while we still have the user session)
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('profiles').update({ push_token: null }).eq('id', user.id);
+      }
+    } catch (e) {
+      console.log('Could not clear push token:', e.message);
+    }
+
     // Sign out from Supabase
     const { error } = await supabase.auth.signOut();
     
@@ -2212,19 +2222,7 @@ export const deleteAccount = async () => {
       };
     }
 
-    // Step 1: Cancel any active Stripe subscriptions
-    if (profile?.role === 'owner') {
-      console.log('📦 Checking for active subscriptions...');
-      try {
-        const { cancelSubscription } = await import('./stripe');
-        await cancelSubscription(userId, 'Account deletion');
-      } catch (subError) {
-        console.warn('⚠️ Error cancelling subscription:', subError.message);
-        // Continue with deletion even if subscription cancellation fails
-      }
-    }
-
-    // Step 2: Remove user from all shop_staff records
+    // Step 1: Remove user from all shop_staff records
     console.log('🏪 Removing from shop staff...');
     const { error: staffError } = await supabase
       .from('shop_staff')

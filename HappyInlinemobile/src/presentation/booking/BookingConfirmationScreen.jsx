@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../../lib/supabase';
 import { getShopDetails, getShopStaff } from '../../lib/shopAuth';
-import { sendNewBookingNotification, scheduleBookingReminder, sendBookingConfirmationEmail } from '../../lib/notifications';
+import { sendNewBookingNotification, scheduleBookingReminder } from '../../lib/notifications';
 
 const BookingConfirmationScreen = ({ route, navigation }) => {
   const { shopId, shopName, selectedServices = [], selectedBarber = null, bookingFormat: initialBookingFormat } = route.params;
@@ -194,6 +194,21 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
     return time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Format operating hours from HH:mm:ss or HH:mm to readable 12-hour format
+  const formatOperatingHours = (timeStr) => {
+    if (!timeStr) return '';
+    // Remove seconds if present (e.g., "09:00:00" -> "09:00")
+    const timeParts = timeStr.split(':');
+    const hours = parseInt(timeParts[0], 10);
+    const minutes = timeParts[1] || '00';
+
+    // Convert to 12-hour format
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+
+    return `${displayHours}:${minutes} ${period}`;
+  };
+
   const handleDateChange = (event, date) => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
@@ -290,15 +305,22 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
       const appointmentDate = selectedDate.toISOString().split('T')[0];
       const appointmentTime = `${selectedTime.getHours().toString().padStart(2, '0')}:${selectedTime.getMinutes().toString().padStart(2, '0')}:00`;
 
+      // Add chosen_format to each service so the email can show the correct format
+      const servicesWithFormat = selectedServices.map(service => ({
+        ...service,
+        chosen_format: getEffectiveServiceType(service), // 'online' or 'in_person'
+      }));
+
       const bookingData = {
         shop_id: shopId,
         customer_id: user.id,
         provider_id: selectedBarberId || null, // Using provider_id instead of barber_id
-        services: selectedServices, // Pass as array, not stringified
+        services: servicesWithFormat, // Pass as array with chosen_format
         appointment_date: appointmentDate,
         appointment_time: appointmentTime,
         total_amount: calculateTotal(),
         status: 'confirmed', // Auto-approve bookings
+        booking_format: hasOnlineService() ? 'online' : 'in_person', // Save the booking format
       };
 
       console.log('📝 Creating booking:', bookingData);
@@ -351,33 +373,33 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
         bookingId: data.id,
       }).catch(err => console.log('Reminder scheduling error (non-blocking):', err));
 
-      // Send booking confirmation email to customer (fire and forget)
-      sendBookingConfirmationEmail({
-        customerEmail: user.email,
-        customerName: customerName,
-        shopName: shopName,
-        serviceName: serviceNames,
-        date: appointmentDate,
-        time: appointmentTime,
-        bookingReference: bookingReference,
-        totalAmount: calculateTotal().toFixed(2),
-      }).catch(err => console.log('Email error (non-blocking):', err));
-
-      // Send email notifications to customer, owner, and provider via web API (fire and forget)
+      // Send email notifications to customer, owner, and provider via web API
+      // This single API call handles all emails with proper templates
       fetch('https://happyinline.com/api/booking/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bookingId: data.id }),
       }).catch(err => console.log('Web API email notification error (non-blocking):', err));
 
-      // Show success message
+      // Show success message and navigate to bookings
       Alert.alert(
         '🎉 Booking Confirmed!',
-        `Your booking has been confirmed successfully!\n\nBooking Reference: ${bookingReference}\n\nAmount Due: $${calculateTotal().toFixed(2)} (Pay in person at the shop)\n\nYour appointment is confirmed and ready!\n\nYou can view your booking in the "My Bookings" tab at the bottom of the screen.`,
+        `Your booking has been confirmed successfully!\n\nBooking Reference: ${bookingReference}\n\nAmount Due: $${calculateTotal().toFixed(2)} (Pay in person at the shop)`,
         [
           {
-            text: 'OK',
-            onPress: () => navigation.goBack()
+            text: 'View My Bookings',
+            onPress: () => {
+              // Navigate to CustomerMainScreen with initialTab parameter to open Bookings tab
+              navigation.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'CustomerMainScreen',
+                    params: { initialTab: 'BookingsTabScreen' }
+                  },
+                ],
+              });
+            }
           }
         ]
       );
@@ -596,45 +618,85 @@ const BookingConfirmationScreen = ({ route, navigation }) => {
           </View>
         )}
 
-        {/* Date & Time Selection Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="calendar-outline" size={24} color="#0393d5" />
-            <Text style={styles.cardTitle}>Select Date & Time</Text>
+        {/* Date & Time Selection Card - HIGHLIGHTED */}
+        <View style={styles.dateTimeCard}>
+          <LinearGradient
+            colors={['#0393d5', '#0077b3']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.dateTimeCardHeader}
+          >
+            <Ionicons name="calendar" size={28} color="#FFF" />
+            <View style={styles.dateTimeCardHeaderText}>
+              <Text style={styles.dateTimeCardTitle}>📅 Select Your Date & Time</Text>
+              <Text style={styles.dateTimeCardSubtitle}>Tap below to choose when you'd like to visit</Text>
+            </View>
+          </LinearGradient>
+
+          <View style={styles.dateTimeCardContent}>
+            {/* Date Selection */}
+            <TouchableOpacity
+              style={styles.dateTimeButtonHighlighted}
+              onPress={handleDatePickerOpen}
+            >
+              <View style={styles.dateTimeButtonLeft}>
+                <View style={styles.dateTimeIconCircle}>
+                  <Ionicons name="calendar" size={24} color="#0393d5" />
+                </View>
+                <View>
+                  <Text style={styles.dateTimeLabelSmall}>DATE</Text>
+                  <Text style={styles.dateTimeValueLarge}>{formatDate(selectedDate)}</Text>
+                </View>
+              </View>
+              <View style={styles.dateTimeEditBadge}>
+                <Ionicons name="chevron-forward" size={20} color="#0393d5" />
+              </View>
+            </TouchableOpacity>
+
+            {/* Time Selection */}
+            <TouchableOpacity
+              style={styles.dateTimeButtonHighlighted}
+              onPress={handleTimePickerOpen}
+            >
+              <View style={styles.dateTimeButtonLeft}>
+                <View style={styles.dateTimeIconCircle}>
+                  <Ionicons name="time" size={24} color="#0393d5" />
+                </View>
+                <View>
+                  <Text style={styles.dateTimeLabelSmall}>TIME</Text>
+                  <Text style={styles.dateTimeValueLarge}>{formatTime(selectedTime)}</Text>
+                </View>
+              </View>
+              <View style={styles.dateTimeEditBadge}>
+                <Ionicons name="chevron-forward" size={20} color="#0393d5" />
+              </View>
+            </TouchableOpacity>
+
+            {shop && (() => {
+              const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
+              const dayHours = shop.operating_hours?.[dayName];
+              if (dayHours?.closed) {
+                return (
+                  <View style={styles.operatingHoursInfoEnhanced}>
+                    <Ionicons name="alert-circle-outline" size={18} color="#FF3B30" />
+                    <Text style={[styles.operatingHoursTextEnhanced, { color: '#FF3B30' }]}>
+                      Shop is closed on {dayName}s
+                    </Text>
+                  </View>
+                );
+              }
+              const open = dayHours?.open || shop.opening_time;
+              const close = dayHours?.close || shop.closing_time;
+              return open && close ? (
+                <View style={styles.operatingHoursInfoEnhanced}>
+                  <Ionicons name="time-outline" size={18} color="#666" />
+                  <Text style={styles.operatingHoursTextEnhanced}>
+                    {dayName} Hours: {formatOperatingHours(open)} - {formatOperatingHours(close)}
+                  </Text>
+                </View>
+              ) : null;
+            })()}
           </View>
-
-          {/* Date Selection */}
-          <TouchableOpacity
-            style={styles.dateTimeButton}
-            onPress={handleDatePickerOpen}
-          >
-            <View style={styles.dateTimeInfo}>
-              <Ionicons name="calendar" size={20} color="#0393d5" />
-              <Text style={styles.dateTimeLabel}>Date</Text>
-            </View>
-            <Text style={styles.dateTimeValue}>{formatDate(selectedDate)}</Text>
-          </TouchableOpacity>
-
-          {/* Time Selection */}
-          <TouchableOpacity
-            style={styles.dateTimeButton}
-            onPress={handleTimePickerOpen}
-          >
-            <View style={styles.dateTimeInfo}>
-              <Ionicons name="time" size={20} color="#0393d5" />
-              <Text style={styles.dateTimeLabel}>Time</Text>
-            </View>
-            <Text style={styles.dateTimeValue}>{formatTime(selectedTime)}</Text>
-          </TouchableOpacity>
-
-          {shop && (
-            <View style={styles.operatingHoursInfo}>
-              <Ionicons name="information-circle-outline" size={16} color="#007AFF" />
-              <Text style={styles.operatingHoursText}>
-                Operating Hours: {shop.opening_time} - {shop.closing_time}
-              </Text>
-            </View>
-          )}
         </View>
 
         {/* Important Information Card */}
@@ -1229,6 +1291,103 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#007AFF',
     marginLeft: 8,
+  },
+  // Enhanced Date & Time Card Styles
+  dateTimeCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    marginBottom: 16,
+    shadowColor: '#0393d5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#0393d5',
+  },
+  dateTimeCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  dateTimeCardHeaderText: {
+    flex: 1,
+  },
+  dateTimeCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFF',
+    marginBottom: 4,
+  },
+  dateTimeCardSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  dateTimeCardContent: {
+    padding: 16,
+    gap: 12,
+  },
+  dateTimeButtonHighlighted: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#F0F8FF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#0393d5',
+    borderStyle: 'dashed',
+  },
+  dateTimeButtonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dateTimeIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E8F4FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dateTimeLabelSmall: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  dateTimeValueLarge: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0393d5',
+  },
+  dateTimeEditBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E8F4FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  operatingHoursInfoEnhanced: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    gap: 8,
+    marginTop: 4,
+  },
+  operatingHoursTextEnhanced: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
   infoCard: {
     flexDirection: 'row',

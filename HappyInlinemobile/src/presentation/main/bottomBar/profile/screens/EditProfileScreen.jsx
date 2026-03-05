@@ -101,51 +101,85 @@ const EditProfileScreen = () => {
     }));
   };
 
-  const handleChangeProfilePicture = async () => {
-    try {
-      // Request permissions
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  const handleChangeProfilePicture = () => {
+    // Show options first, then request permissions with rationale
+    Alert.alert(
+      'Change Profile Picture',
+      'Choose an option',
+      [
+        {
+          text: 'Take Photo',
+          onPress: () => requestCameraWithRationale(),
+        },
+        {
+          text: 'Choose from Gallery',
+          onPress: () => requestGalleryWithRationale(),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
 
-      if (status !== 'granted') {
-        Alert.alert(
-          'Photo Library Access',
-          'Happy Inline needs access to your photo library so you can choose a profile picture. This helps other users and businesses recognize you when you book appointments.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      // Show options
-      Alert.alert(
-        'Change Profile Picture',
-        'Choose an option',
-        [
-          {
-            text: 'Take Photo',
-            onPress: async () => {
-              const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-              if (cameraPermission.status === 'granted') {
-                pickImage('camera');
+  const requestGalleryWithRationale = () => {
+    // Always show rationale dialog first
+    Alert.alert(
+      'Photo Library Access',
+      'Happy InLine Customer needs access to your photos to set your profile picture. Your profile photo helps businesses recognize you when you arrive for appointments.',
+      [
+        { text: 'Not Now', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: async () => {
+            try {
+              const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (status === 'granted') {
+                pickImage('gallery');
               } else {
-                Alert.alert('Camera Access', 'Happy Inline needs camera access so you can take a profile picture. This helps businesses recognize you when you arrive for appointments.');
+                // On Android 13+ the system picker doesn't need permission, try anyway
+                pickImage('gallery');
               }
+            } catch (error) {
+              console.error('Error requesting gallery permissions:', error);
+              Alert.alert('Error', 'Failed to access photo library');
             }
           },
-          {
-            text: 'Choose from Gallery',
-            onPress: () => pickImage('gallery')
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel'
-          },
-        ]
-      );
+        },
+      ]
+    );
+  };
 
-    } catch (error) {
-      console.error('Error requesting permissions:', error);
-      Alert.alert('Error', 'Failed to access photo library');
-    }
+  const requestCameraWithRationale = () => {
+    // Always show rationale dialog first
+    Alert.alert(
+      'Camera Access',
+      'Happy InLine Customer needs access to your camera to take a profile picture. Your profile photo helps businesses recognize you when you arrive for appointments.',
+      [
+        { text: 'Not Now', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: async () => {
+            try {
+              const { status } = await ImagePicker.requestCameraPermissionsAsync();
+              if (status === 'granted') {
+                pickImage('camera');
+              } else {
+                Alert.alert(
+                  'Permission Required',
+                  'To take a profile picture, please enable camera access in your device Settings > Happy InLine Customer > Camera.',
+                  [{ text: 'OK' }]
+                );
+              }
+            } catch (error) {
+              console.error('Error requesting camera permissions:', error);
+              Alert.alert('Error', 'Failed to access camera');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const pickImage = async (source) => {

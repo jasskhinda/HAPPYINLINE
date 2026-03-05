@@ -33,6 +33,19 @@ export const initializeOneSignal = () => {
   // Initialize OneSignal
   OneSignal.initialize(ONESIGNAL_APP_ID);
 
+  // Listen for push subscription changes - this fires when OneSignal
+  // registers with APNs/FCM and gets a subscription ID (may take a few seconds)
+  OneSignal.User.pushSubscription.addEventListener('change', (subscription) => {
+    const id = subscription.current.id;
+    const token = subscription.current.token;
+    console.log('📱 Push subscription changed - ID:', id, 'Token:', token ? 'present' : 'none');
+    if (id) {
+      AsyncStorage.setItem('onesignal_player_id', id);
+      // Try to save to profile (will succeed if user is authenticated)
+      savePlayerIdToProfile(id);
+    }
+  });
+
   console.log('✅ OneSignal initialized with App ID:', ONESIGNAL_APP_ID);
 };
 
@@ -67,21 +80,36 @@ export const registerForPushNotifications = async () => {
       return null;
     }
 
-    // Get the OneSignal Player ID (also called Subscription ID)
-    const playerId = await getOneSignalPlayerId();
+    // Try to get the player ID - may not be available immediately
+    // OneSignal needs time to register with APNs/FCM after permission is granted
+    let playerId = await getOneSignalPlayerId();
+
+    // Retry a few times if not available yet
+    if (!playerId) {
+      for (let i = 0; i < 5; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        playerId = await getOneSignalPlayerId();
+        if (playerId) break;
+        console.log(`⏳ Waiting for OneSignal subscription ID... attempt ${i + 2}/6`);
+      }
+    }
 
     if (playerId) {
       console.log('✅ OneSignal Player ID:', playerId);
-
-      // Store locally
       await AsyncStorage.setItem('onesignal_player_id', playerId);
-
-      // Save to user profile in Supabase
       await savePlayerIdToProfile(playerId);
-
       return playerId;
     }
 
+    // If still no player ID, check AsyncStorage (might have been saved by observer)
+    const storedId = await AsyncStorage.getItem('onesignal_player_id');
+    if (storedId) {
+      console.log('✅ Using stored OneSignal Player ID:', storedId);
+      await savePlayerIdToProfile(storedId);
+      return storedId;
+    }
+
+    console.log('⚠️ OneSignal Player ID not available yet - observer will save it when ready');
     return null;
   } catch (error) {
     console.error('❌ Error registering for push notifications:', error);
@@ -126,6 +154,29 @@ const savePlayerIdToProfile = async (playerId) => {
     }
   } catch (error) {
     console.error('❌ Error saving OneSignal Player ID:', error);
+  }
+};
+
+/**
+ * Ensure push token is saved to profile - call after user signs in
+ * This handles the case where OneSignal subscription was ready before auth
+ */
+export const ensurePushTokenSaved = async () => {
+  try {
+    // Try getting current subscription ID
+    let playerId = await getOneSignalPlayerId();
+    // Fall back to stored ID
+    if (!playerId) {
+      playerId = await AsyncStorage.getItem('onesignal_player_id');
+    }
+    if (playerId) {
+      console.log('📱 Ensuring push token saved to profile:', playerId);
+      await savePlayerIdToProfile(playerId);
+    } else {
+      console.log('⚠️ No push token available yet to save');
+    }
+  } catch (error) {
+    console.error('❌ Error ensuring push token saved:', error);
   }
 };
 
@@ -300,6 +351,7 @@ export const sendMessageNotification = async ({ recipientUserId, senderName, mes
   return sendServerPushNotification({
     type: 'new_message',
     recipientUserId,
+    recipientApp: 'provider',
     senderName,
     messagePreview,
     conversationId,
@@ -313,6 +365,7 @@ export const sendNewBookingNotification = async ({ recipientUserId, customerName
   return sendServerPushNotification({
     type: 'new_booking',
     recipientUserId,
+    recipientApp: 'provider',
     customerName,
     serviceName,
     date,
@@ -328,6 +381,7 @@ export const sendBookingConfirmedNotification = async ({ recipientUserId, shopNa
   return sendServerPushNotification({
     type: 'booking_confirmed',
     recipientUserId,
+    recipientApp: 'customer',
     shopName,
     serviceName,
     date,
@@ -343,11 +397,31 @@ export const sendBookingCancelledNotification = async ({ recipientUserId, shopNa
   return sendServerPushNotification({
     type: 'booking_cancelled',
     recipientUserId,
+    recipientApp: 'customer',
     shopName,
     serviceName,
     date,
     bookingId,
     reason,
+  });
+};
+
+/**
+ * Send push notification for booking reschedule to provider
+ */
+export const sendBookingRescheduledNotification = async ({ recipientUserId, customerName, shopName, serviceName, date, time, bookingId, oldDate, oldTime }) => {
+  return sendServerPushNotification({
+    type: 'booking_rescheduled',
+    recipientUserId,
+    recipientApp: 'provider',
+    customerName,
+    shopName,
+    serviceName,
+    date,
+    time,
+    bookingId,
+    oldDate,
+    oldTime,
   });
 };
 
@@ -358,6 +432,7 @@ export const sendProviderAddedNotification = async ({ recipientUserId, shopName 
   return sendServerPushNotification({
     type: 'provider_added',
     recipientUserId,
+    recipientApp: 'provider',
     shopName,
   });
 };
@@ -380,6 +455,7 @@ export const scheduleBookingReminder = async ({ shopName, serviceName, appointme
       return sendServerPushNotification({
         type: 'booking_reminder',
         recipientUserId,
+        recipientApp: 'customer',
         shopName,
         serviceName,
         date: appointmentDate,
@@ -623,6 +699,7 @@ export default {
   initializeOneSignal,
   requestNotificationPermission,
   registerForPushNotifications,
+  ensurePushTokenSaved,
   getOneSignalPlayerId,
   setExternalUserId,
   removeExternalUserId,

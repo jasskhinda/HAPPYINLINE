@@ -2,10 +2,10 @@ import { Text, View, StyleSheet, StatusBar, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import CustomerHomeScreen from './bottomBar/home/CustomerHomeScreen';
-import ProfessionalChatScreen from './bottomBar/chat/ProfessionalChatScreen';
+import ChatStaffListScreen from './bottomBar/chat/ChatStaffListScreen';
 import ProfileScreen from './bottomBar/profile/ProfileScreen';
 import BookingsTabScreen from './bottomBar/bookings/BookingsTabScreen';
 import { getCurrentUser } from '../../lib/auth';
@@ -21,6 +21,8 @@ const TAB_ICONS = {
 };
 
 const CustomerMainScreen = () => {
+  const route = useRoute();
+  const initialTab = route.params?.initialTab || 'CustomerHomeScreen';
   const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchUnreadCount = async () => {
@@ -105,11 +107,11 @@ const CustomerMainScreen = () => {
         backgroundColor="#FFFFFF"
         translucent={false}
       />
-      <Tab.Navigator screenOptions={getScreenOptions}>
+      <Tab.Navigator screenOptions={getScreenOptions} initialRouteName={initialTab}>
         <Tab.Screen name="CustomerHomeScreen" component={CustomerHomeScreen} />
         <Tab.Screen
           name="ChatScreen"
-          component={ProfessionalChatScreen}
+          component={ChatStaffListScreen}
           listeners={{
             focus: () => fetchUnreadCount(),
           }}

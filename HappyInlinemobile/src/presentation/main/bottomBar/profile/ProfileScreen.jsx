@@ -3,9 +3,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ProfileComponent from './ui/ProfileComponent';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { signOut, getCurrentUser, sendEmailChangeOTP, verifyEmailChangeOTP, checkLicenseAvailability } from '../../../../lib/auth';
+import { signOut, getCurrentUser, sendEmailChangeOTP, verifyEmailChangeOTP } from '../../../../lib/auth';
 import { getMyShops, getCurrentShopId } from '../../../../lib/shopAuth';
-import { getSubscriptionStatus } from '../../../../lib/stripe';
+import { removePushToken } from '../../../../lib/notifications';
 import { useState, useCallback } from 'react';
 
 const { width, height } = Dimensions.get('window');
@@ -29,11 +29,6 @@ const ProfileScreen = () => {
   const [otpCode, setOtpCode] = useState('');
   const [verifyingOTP, setVerifyingOTP] = useState(false);
 
-  // Subscription data (read-only display)
-  const [subscription, setSubscription] = useState(null);
-  const [loadingSubscription, setLoadingSubscription] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [licenseInfo, setLicenseInfo] = useState({ currentCount: 0, maxLicenses: 0 });
 
   // Fetch user data when screen comes into focus
   useFocusEffect(
@@ -44,9 +39,6 @@ const ProfileScreen = () => {
           const { user, profile } = await getCurrentUser();
 
           if (profile) {
-            // Store user ID for subscription operations
-            setCurrentUserId(user?.id);
-
             setUserData({
               name: profile.name || 'User',
               email: profile.email || user?.email || '',
@@ -54,27 +46,6 @@ const ProfileScreen = () => {
             });
             setIsSuperAdmin(profile.is_platform_admin || false);
             setProfileRole(profile.role || 'customer'); // Store platform-level role
-
-            // Fetch subscription data for owners from PROFILE (not shop)
-            // This runs before shop fetch since subscription belongs to owner
-            if (profile.role === 'owner' && user?.id) {
-              try {
-                setLoadingSubscription(true);
-                const [subscriptionData, licenseData] = await Promise.all([
-                  getSubscriptionStatus(user.id),
-                  checkLicenseAvailability()
-                ]);
-                setSubscription(subscriptionData);
-                setLicenseInfo({
-                  currentCount: licenseData.currentCount || 0,
-                  maxLicenses: licenseData.maxLicenses || 0
-                });
-              } catch (subError) {
-                console.error('Error fetching subscription:', subError);
-              } finally {
-                setLoadingSubscription(false);
-              }
-            }
 
             // Get user's shops and roles
             const { shops, error } = await getMyShops();
@@ -235,6 +206,7 @@ const ProfileScreen = () => {
               setIsLoggingOut(true);
               
               console.log('🚪 Logging out...');
+              await removePushToken();
               const result = await signOut();
 
               if (result.success) {

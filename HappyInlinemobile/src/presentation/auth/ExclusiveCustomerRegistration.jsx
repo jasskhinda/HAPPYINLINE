@@ -218,8 +218,7 @@ const ExclusiveCustomerRegistration = ({ route, navigation }) => {
             {
               text: 'Sign In',
               onPress: () => {
-                // Navigate to login screen with the same shop ID
-                navigation.navigate('ExclusiveCustomerLogin', { shopId });
+                navigation.navigate('CustomerLogin');
               },
             },
           ]
@@ -240,8 +239,7 @@ const ExclusiveCustomerRegistration = ({ route, navigation }) => {
   };
 
   const handleSignIn = () => {
-    // Navigate to exclusive customer login with shop ID
-    navigation.navigate('ExclusiveCustomerLogin', { shopId });
+    navigation.navigate('CustomerLogin');
   };
 
   if (fetchingShop) {

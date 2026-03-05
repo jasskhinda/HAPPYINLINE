@@ -349,7 +349,7 @@ const BookingCard = ({ booking, isBarberMode = false, userRole = 'customer', onB
           </Text>
         </View>
 
-        {!isBarberMode && getProviderName() && (
+        {!isBarberMode && getProviderName() != null && (
           <View style={styles.infoRow}>
             <Ionicons name="person-outline" size={18} color="#0393d5" />
             <Text style={styles.providerNameText}>{getProviderName()}</Text>
@@ -357,7 +357,7 @@ const BookingCard = ({ booking, isBarberMode = false, userRole = 'customer', onB
         )}
 
         {/* Price */}
-        {booking.total_amount && (
+        {booking.total_amount != null && (
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>Total</Text>
             <Text style={styles.priceText}>${booking.total_amount}</Text>

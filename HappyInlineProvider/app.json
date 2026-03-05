@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "Happy InLine Business",
+    "slug": "happy-inline-business",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "happyinlinebusiness",
+    "plugins": [
+      "expo-image-picker",
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "development"
+        }
+      ],
+      "expo-font",
+      "expo-secure-store",
+      "expo-web-browser"
+    ],
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.happyinline.provider",
+      "buildNumber": "1",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
+        "NSCameraUsageDescription": "Happy InLine Business needs camera access to upload photos for your business profile and services.",
+        "NSPhotoLibraryUsageDescription": "Happy InLine Business needs photo library access to let you upload a business logo, staff photos, and service images."
+      }
+    },
+    "android": {
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.happyinline.provider",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "supabaseUrl": "https://efxcjndkalqfjxhxmrjq.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmeGNqbmRrYWxxZmp4aHhtcmpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5OTExNzYsImV4cCI6MjA3NDU2NzE3Nn0.NOQGiaLiTHBDguukT25R_osUn-PReEJTaHpnHN8mgkU",
+      "oneSignalAppId": "b94e18a1-c63c-4b7b-90a2-04d80239aea9",
+      "eas": {
+        "projectId": ""
+      }
+    },
+    "owner": "jass_khinda"
+  }
+}

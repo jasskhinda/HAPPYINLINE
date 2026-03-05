@@ -1,14 +1,13 @@
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useState, useEffect, useRef } from 'react';
-import { StripeProvider } from '@stripe/stripe-react-native';
-import Constants from 'expo-constants';
 import Toast from 'react-native-toast-message';
 import SplashScreen from './presentation/splash/SplashScreen';
 import WelcomeScreen from './presentation/auth/WelcomeScreen';
 import {
   initializeOneSignal,
   registerForPushNotifications,
+  ensurePushTokenSaved,
   addNotificationReceivedListener,
   addNotificationResponseListener,
   setExternalUserId,
@@ -126,6 +125,9 @@ const Main = () => {
 
         if (session?.user?.id) {
           setExternalUserId(session.user.id);
+          // Re-register push and ensure token is saved now that user is authenticated
+          registerForPushNotifications();
+          ensurePushTokenSaved();
         }
 
         const hasOnboarded = await hasCompletedOnboarding();
@@ -150,22 +152,23 @@ const Main = () => {
   }, []);
 
   const linking = {
-    prefixes: ['happyinline://', 'https://happyinline.app'],
+    prefixes: ['happyinline://', 'https://happyinline.com', 'https://happyinline.app'],
     config: {
       screens: {
+        // Handle deep link format: happyinline://signup/shop/:shopId
         QRShopSignup: 'signup/shop/:shopId',
+        // Handle web URL format: https://happyinline.com/join/:shopId
+        // This maps to the same QRShopSignup component
+        JoinShop: 'join/:shopId',
       },
     },
   };
 
-  const stripePublishableKey = Constants.expoConfig?.extra?.stripePublishableKey || '';
-
   return (
     <>
-      <StripeProvider publishableKey={stripePublishableKey}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <NavigationContainer ref={navigationRef} linking={linking}>
-            <RootStack.Navigator
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <NavigationContainer ref={navigationRef} linking={linking}>
+          <RootStack.Navigator
               screenOptions={{ headerShown: false }}
               initialRouteName="SplashScreen"
             >
@@ -179,6 +182,7 @@ const Main = () => {
               <RootStack.Screen name="ExclusiveCustomerLogin" component={ExclusiveCustomerLogin} />
               <RootStack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />
               <RootStack.Screen name="QRShopSignup" component={QRShopSignup} />
+              <RootStack.Screen name="JoinShop" component={QRShopSignup} />
 
               {/* Main Customer App */}
               <RootStack.Screen name="CustomerMainScreen" component={CustomerMainScreen} />
@@ -210,10 +214,9 @@ const Main = () => {
               {/* Chat */}
               <RootStack.Screen name="ChatStaffListScreen" component={ChatStaffListScreen} />
               <RootStack.Screen name="ChatConversationScreen" component={ChatConversationScreen} />
-            </RootStack.Navigator>
-          </NavigationContainer>
-        </GestureHandlerRootView>
-      </StripeProvider>
+          </RootStack.Navigator>
+        </NavigationContainer>
+      </GestureHandlerRootView>
 
       <Toast topOffset={40} />
     </>

@@ -1,20 +1,16 @@
 /**
  * Supabase Edge Function: Send Push Notification via OneSignal
  *
- * Sends push notifications via OneSignal REST API.
- * Can be triggered by database webhooks or called directly.
+ * Supports two OneSignal apps:
+ * - Customer app (ONESIGNAL_APP_ID / ONESIGNAL_REST_API_KEY)
+ * - Provider app (ONESIGNAL_PROVIDER_APP_ID / ONESIGNAL_PROVIDER_REST_API_KEY)
  *
- * Required environment variables:
- * - ONESIGNAL_APP_ID: Your OneSignal App ID
- * - ONESIGNAL_REST_API_KEY: Your OneSignal REST API Key
+ * The caller specifies recipientApp: 'customer' | 'provider' to target the correct app.
+ * Defaults to 'customer' for backward compatibility.
  *
- * Supported notification types:
- * - new_message: When someone sends a message
- * - new_booking: When a customer books an appointment
- * - booking_confirmed: When shop confirms a booking
- * - booking_cancelled: When booking is cancelled
- * - booking_reminder: Reminder before appointment
- * - provider_added: When added as provider to shop
+ * Targeting strategy:
+ * 1. If push_token (OneSignal Subscription ID) is stored in profiles -> use include_player_ids
+ * 2. Otherwise -> use include_external_user_ids (Supabase user ID set via OneSignal.login())
  */
 
 import { serve } from 'https://deno.land/std@0.192.0/http/server.ts'
@@ -25,7 +21,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// OneSignal REST API endpoint
 const ONESIGNAL_API_URL = 'https://onesignal.com/api/v1/notifications'
 
 interface OneSignalNotification {
@@ -37,18 +32,51 @@ interface OneSignalNotification {
   data?: Record<string, any>
   ios_badgeType?: string
   ios_badgeCount?: number
-  android_channel_id?: string
   priority?: number
-  send_after?: string // For scheduled notifications
-  small_icon?: string
-  large_icon?: string
+  send_after?: string
 }
 
 /**
- * Send push notification via OneSignal REST API
+ * Infer recipient app from notification type when not explicitly provided.
+ * This ensures backward compatibility with older app versions that don't pass recipientApp.
  */
+function inferRecipientApp(type: string): string {
+  switch (type) {
+    // These go to the provider/business app
+    case 'new_booking':
+    case 'new_message':
+    case 'provider_added':
+      return 'provider'
+    // These go to the customer app
+    case 'booking_confirmed':
+    case 'booking_cancelled':
+    case 'booking_reminder':
+    case 'booking_rescheduled':
+      return 'customer'
+    default:
+      return 'customer'
+  }
+}
+
+/**
+ * Get OneSignal credentials based on target app
+ */
+function getOneSignalCredentials(recipientApp: string) {
+  if (recipientApp === 'provider') {
+    return {
+      appId: Deno.env.get('ONESIGNAL_PROVIDER_APP_ID'),
+      restApiKey: Deno.env.get('ONESIGNAL_PROVIDER_REST_API_KEY'),
+    }
+  }
+  // Default to customer app
+  return {
+    appId: Deno.env.get('ONESIGNAL_APP_ID'),
+    restApiKey: Deno.env.get('ONESIGNAL_REST_API_KEY'),
+  }
+}
+
 async function sendOneSignalNotification(notification: OneSignalNotification, restApiKey: string) {
-  console.log('📤 Sending OneSignal notification:', JSON.stringify(notification, null, 2))
+  console.log('Sending OneSignal notification:', JSON.stringify(notification, null, 2))
 
   const response = await fetch(ONESIGNAL_API_URL, {
     method: 'POST',
@@ -60,31 +88,26 @@ async function sendOneSignalNotification(notification: OneSignalNotification, re
   })
 
   const result = await response.json()
-  console.log('📬 OneSignal response:', JSON.stringify(result, null, 2))
-
+  console.log('OneSignal response:', JSON.stringify(result, null, 2))
   return result
 }
 
-/**
- * Get user's OneSignal Player ID from profiles table
- */
 async function getUserPlayerId(supabase: any, userId: string): Promise<string | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('push_token')
-    .eq('id', userId)
-    .single()
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('push_token')
+      .eq('id', userId)
+      .single()
 
-  if (error || !data?.push_token) {
-    console.log(`⚠️ No OneSignal Player ID found for user ${userId}`)
+    if (error || !data?.push_token) return null
+    return data.push_token
+  } catch {
     return null
   }
-
-  return data.push_token
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -93,6 +116,7 @@ serve(async (req) => {
     const {
       type,
       recipientUserId,
+      recipientApp = 'customer',
       senderName,
       messagePreview,
       conversationId,
@@ -104,9 +128,14 @@ serve(async (req) => {
       bookingId,
       reason,
       scheduleAt,
+      oldDate,
+      oldTime,
     } = await req.json()
 
-    console.log('📱 Push notification request:', { type, recipientUserId })
+    // If recipientApp not provided, infer from notification type
+    const targetApp = recipientApp || inferRecipientApp(type)
+
+    console.log('Push notification request:', { type, recipientUserId, recipientApp: targetApp, providedApp: recipientApp || 'inferred' })
 
     if (!recipientUserId) {
       return new Response(
@@ -115,16 +144,15 @@ serve(async (req) => {
       )
     }
 
-    // Get OneSignal credentials from environment
-    const oneSignalAppId = Deno.env.get('ONESIGNAL_APP_ID')
-    const oneSignalRestApiKey = Deno.env.get('ONESIGNAL_REST_API_KEY')
+    // Get credentials for the target app
+    const { appId, restApiKey } = getOneSignalCredentials(targetApp)
 
-    if (!oneSignalAppId || !oneSignalRestApiKey) {
-      console.error('❌ OneSignal credentials not configured')
+    if (!appId || !restApiKey) {
+      console.error('OneSignal credentials not configured for app:', targetApp)
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'OneSignal credentials not configured',
+          error: `OneSignal credentials not configured for ${targetApp} app`,
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -135,29 +163,25 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Get recipient's OneSignal Player ID
+    // Get player ID from profiles (may be null)
     const playerId = await getUserPlayerId(supabase, recipientUserId)
 
-    if (!playerId) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: 'User has no OneSignal Player ID registered',
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    const targeting = playerId
+      ? { include_player_ids: [playerId] }
+      : { include_external_user_ids: [recipientUserId] }
 
-    // Build notification based on type
+    console.log('Targeting:', playerId ? `player_id: ${playerId}` : `external_user_id: ${recipientUserId}`, '| App:', targetApp)
+
+    // Build notification
     let notification: OneSignalNotification = {
-      app_id: oneSignalAppId,
-      include_player_ids: [playerId],
+      app_id: appId,
+      ...targeting,
       headings: { en: '' },
       contents: { en: '' },
       data: {},
       ios_badgeType: 'Increase',
       ios_badgeCount: 1,
-      priority: 10, // High priority
+      priority: 10,
     }
 
     switch (type) {
@@ -167,42 +191,43 @@ serve(async (req) => {
           ? messagePreview.substring(0, 50) + '...'
           : messagePreview || 'You have a new message'
         notification.data = { type: 'message', conversationId }
-        notification.android_channel_id = 'messages'
         break
 
       case 'new_booking':
         notification.headings.en = 'New Booking Request'
         notification.contents.en = `${customerName || 'A customer'} booked ${serviceName || 'a service'} for ${date || 'soon'} at ${time || 'scheduled time'}`
-        notification.data = { type: 'booking', bookingId }
-        notification.android_channel_id = 'bookings'
+        notification.data = { type: 'new_booking', bookingId }
         break
 
       case 'booking_confirmed':
         notification.headings.en = 'Booking Confirmed!'
         notification.contents.en = `Your ${serviceName || 'appointment'} at ${shopName || 'the shop'} on ${date || 'scheduled date'} at ${time || 'scheduled time'} is confirmed`
         notification.data = { type: 'booking_confirmed', bookingId }
-        notification.android_channel_id = 'bookings'
         break
 
       case 'booking_cancelled':
         notification.headings.en = 'Booking Cancelled'
         notification.contents.en = reason || `Your ${serviceName || 'appointment'} at ${shopName || 'the shop'} on ${date || 'the scheduled date'} has been cancelled`
         notification.data = { type: 'booking_cancelled', bookingId }
-        notification.android_channel_id = 'bookings'
-        notification.priority = 5 // Normal priority for cancellations
+        notification.priority = 5
         break
 
       case 'booking_reminder':
         notification.headings.en = 'Upcoming Appointment'
         notification.contents.en = `Reminder: ${serviceName || 'Your appointment'} at ${shopName || 'the shop'} on ${date || 'scheduled date'} at ${time || 'scheduled time'}`
         notification.data = { type: 'booking_reminder', bookingId }
-        notification.android_channel_id = 'reminders'
-        notification.priority = 5 // Normal priority for reminders
-
-        // If scheduleAt is provided, schedule the notification
+        notification.priority = 5
         if (scheduleAt) {
           notification.send_after = scheduleAt
         }
+        break
+
+      case 'booking_rescheduled':
+        notification.headings.en = 'Booking Rescheduled'
+        notification.contents.en = customerName
+          ? `${customerName} rescheduled ${serviceName || 'their appointment'} to ${date || 'a new date'} at ${time || 'a new time'}`
+          : `Your ${serviceName || 'appointment'} at ${shopName || 'the shop'} has been rescheduled to ${date || 'a new date'} at ${time || 'a new time'}`
+        notification.data = { type: 'booking_rescheduled', bookingId }
         break
 
       case 'provider_added':
@@ -219,21 +244,25 @@ serve(async (req) => {
     }
 
     // Send the notification
-    const result = await sendOneSignalNotification(notification, oneSignalRestApiKey)
+    let result = await sendOneSignalNotification(notification, restApiKey)
 
-    // Check if there were any errors
+    // If player_id targeting failed, retry with external_user_id
+    if (result.errors && playerId) {
+      console.log('Player ID targeting failed, retrying with external_user_id...')
+      delete notification.include_player_ids
+      notification.include_external_user_ids = [recipientUserId]
+      result = await sendOneSignalNotification(notification, restApiKey)
+    }
+
     if (result.errors && result.errors.length > 0) {
-      console.error('❌ OneSignal notification errors:', result.errors)
+      console.error('OneSignal notification errors:', result.errors)
       return new Response(
-        JSON.stringify({
-          success: false,
-          errors: result.errors,
-        }),
+        JSON.stringify({ success: false, errors: result.errors }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('✅ Push notification sent successfully, notification ID:', result.id)
+    console.log('Push notification sent successfully, ID:', result.id)
 
     return new Response(
       JSON.stringify({
@@ -246,7 +275,7 @@ serve(async (req) => {
     )
 
   } catch (error: any) {
-    console.error('❌ Error sending push notification:', error)
+    console.error('Error sending push notification:', error)
     return new Response(
       JSON.stringify({
         success: false,

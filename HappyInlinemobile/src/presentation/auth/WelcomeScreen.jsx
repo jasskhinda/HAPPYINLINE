@@ -9,6 +9,8 @@ import {
   Image,
   Modal,
   Alert,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,9 +24,53 @@ const WelcomeScreen = ({ navigation }) => {
   const [showScanner, setShowScanner] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [showStoreIdModal, setShowStoreIdModal] = useState(false);
+  const [storeId, setStoreId] = useState('');
+  const [verifyingStore, setVerifyingStore] = useState(false);
 
   const handleCustomerLogin = () => {
     navigation.navigate('CustomerLogin');
+  };
+
+  const handleStoreIdContinue = async () => {
+    const trimmedId = storeId.trim();
+    if (!trimmedId) {
+      Alert.alert('Missing Store ID', 'Please enter a Store ID to continue.');
+      return;
+    }
+
+    try {
+      setVerifyingStore(true);
+
+      // Check if the store ID exists
+      const { data: shop, error } = await supabase
+        .from('shops')
+        .select('id')
+        .eq('id', trimmedId)
+        .single();
+
+      if (error || !shop) {
+        Alert.alert('Store Not Found', 'No store found with this ID. Please check and try again.');
+        return;
+      }
+
+      // Navigate to the same flow as QR scan
+      setShowStoreIdModal(false);
+      setStoreId('');
+
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        navigation.navigate('ShopDetailsScreen', { shopId: trimmedId });
+      } else {
+        navigation.navigate('QRShopSignup', { shopId: trimmedId });
+      }
+    } catch (err) {
+      console.error('Store ID lookup error:', err);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+      setVerifyingStore(false);
+    }
   };
 
   const handleScanQR = async () => {
@@ -45,15 +91,23 @@ const WelcomeScreen = ({ navigation }) => {
     setShowScanner(false);
 
     // Parse the QR code data
-    // Support both formats:
+    // Support multiple formats:
     // 1. Deep link URL: happyinline://signup/shop/[shopId]
     // 2. Legacy format: HAPPYINLINE:SHOP:[shopId]
+    // 3. Web URL: https://happyinline.com/join/[shopId]
     let shopId = null;
 
     if (data.startsWith('happyinline://signup/shop/')) {
       shopId = data.replace('happyinline://signup/shop/', '');
     } else if (data.startsWith('HAPPYINLINE:SHOP:')) {
       shopId = data.replace('HAPPYINLINE:SHOP:', '');
+    } else if (data.includes('happyinline.com/join/')) {
+      // Handle web URL format: https://happyinline.com/join/[shopId]
+      // Also handles http:// and any subdomains
+      const match = data.match(/happyinline\.com\/join\/([a-zA-Z0-9-]+)/);
+      if (match) {
+        shopId = match[1];
+      }
     }
 
     if (shopId) {
@@ -132,6 +186,24 @@ const WelcomeScreen = ({ navigation }) => {
             </View>
           </TouchableOpacity>
 
+          {/* Have a Store ID Button */}
+          <TouchableOpacity
+            style={styles.storeIdButton}
+            onPress={() => setShowStoreIdModal(true)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.buttonContent}>
+              <View style={styles.iconCircleStoreId}>
+                <Ionicons name="key-outline" size={28} color="#FFFFFF" />
+              </View>
+              <View style={styles.buttonTextContainer}>
+                <Text style={styles.storeIdButtonText}>Have a Store ID?</Text>
+                <Text style={styles.buttonSubtextStoreId}>Enter it to join a business</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#4A90E2" />
+            </View>
+          </TouchableOpacity>
+
           {/* Features Preview */}
           <View style={styles.features}>
             <View style={styles.featureItem}>
@@ -140,7 +212,7 @@ const WelcomeScreen = ({ navigation }) => {
             </View>
             <View style={styles.featureItem}>
               <Ionicons name="checkmark-circle" size={20} color="#4A90E2" />
-              <Text style={styles.featureText}>Secure payments</Text>
+              <Text style={styles.featureText}>Instant notifications</Text>
             </View>
             <View style={styles.featureItem}>
               <Ionicons name="checkmark-circle" size={20} color="#4A90E2" />
@@ -149,6 +221,52 @@ const WelcomeScreen = ({ navigation }) => {
           </View>
         </View>
       </View>
+
+      {/* Store ID Modal */}
+      <Modal
+        visible={showStoreIdModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => { setShowStoreIdModal(false); setStoreId(''); }}
+      >
+        <View style={styles.storeIdModalOverlay}>
+          <View style={styles.storeIdModalContent}>
+            <View style={styles.storeIdModalHeader}>
+              <Text style={styles.storeIdModalTitle}>Enter Store ID</Text>
+              <TouchableOpacity onPress={() => { setShowStoreIdModal(false); setStoreId(''); }}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.storeIdModalSubtitle}>
+              Ask your favorite business for their Store ID and paste it below to sign up.
+            </Text>
+
+            <TextInput
+              style={styles.storeIdInput}
+              placeholder="Paste Store ID here"
+              placeholderTextColor="#999"
+              value={storeId}
+              onChangeText={setStoreId}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <TouchableOpacity
+              style={[styles.storeIdContinueButton, (!storeId.trim() || verifyingStore) && styles.storeIdContinueDisabled]}
+              onPress={handleStoreIdContinue}
+              disabled={!storeId.trim() || verifyingStore}
+              activeOpacity={0.8}
+            >
+              {verifyingStore ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <Text style={styles.storeIdContinueText}>Continue</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* QR Scanner Modal */}
       <Modal
@@ -299,7 +417,7 @@ const styles = StyleSheet.create({
   secondaryButton: {
     backgroundColor: '#4A90E2',
     borderRadius: 16,
-    marginBottom: 32,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -397,6 +515,88 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '400',
     opacity: 0.9,
+  },
+  storeIdButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    marginBottom: 32,
+    borderWidth: 2,
+    borderColor: '#4A90E2',
+  },
+  iconCircleStoreId: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#4A90E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  storeIdButtonText: {
+    fontSize: 19,
+    fontWeight: '600',
+    color: '#4A90E2',
+    marginBottom: 4,
+    letterSpacing: -0.3,
+  },
+  buttonSubtextStoreId: {
+    fontSize: 15,
+    color: '#666',
+    fontWeight: '400',
+  },
+  storeIdModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  storeIdModalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 24,
+  },
+  storeIdModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  storeIdModalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  storeIdModalSubtitle: {
+    fontSize: 15,
+    color: '#666',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  storeIdInput: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    fontSize: 16,
+    color: '#000',
+    marginBottom: 20,
+  },
+  storeIdContinueButton: {
+    backgroundColor: '#4A90E2',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  storeIdContinueDisabled: {
+    backgroundColor: '#CCC',
+    opacity: 0.6,
+  },
+  storeIdContinueText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
   },
   scannerContainer: {
     flex: 1,

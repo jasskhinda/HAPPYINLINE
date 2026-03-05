@@ -66,9 +66,7 @@ const QRShopSignup = ({ route, navigation }) => {
   };
 
   const handleSignIn = () => {
-    // Navigate to exclusive customer login
-    // The login screen will check AsyncStorage for business_reference
-    navigation.navigate('ExclusiveCustomerLogin', { shopId });
+    navigation.navigate('CustomerLogin');
   };
 
   const handleBack = async () => {
